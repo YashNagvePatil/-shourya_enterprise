@@ -22,8 +22,8 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ["Distributer", "Sponser"], 
-      default: "Sponser"
+      enum: ["Admin", "Agent"], 
+      default: "Agent"
     },
 
     fullName: {
@@ -32,22 +32,30 @@ const userSchema = new mongoose.Schema(
       trim: true
     },
 
-    sponserName: {
+    position:{
+        type:String,
+        enum:["left","right",null],
+        default:null        
+    },
+
+    agentName:{
       type: String,
       required: true
     },
 
-    sponserId: {
+    agentId:{
       type: String,
       required: true,
-      index: true       
+      
     },
 
-    distributerId: {
-      type: String,
-      unique: true,    
-            
-    }
+  
+
+    //   parentAgentId: {
+    //    type: mongoose.Schema.Types.ObjectId,     for payments 
+    //  ref: "user", 
+    //  default: null
+    //  },
   },
   { timestamps: true }
 );
