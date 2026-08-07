@@ -49,8 +49,22 @@ const userSchema = new mongoose.Schema(
       
     },
 
-  
-
+    panCardNumber:{
+      type: String,         
+      uppercase: true,      
+      trim: true,
+      unique: true,         
+      sparse: true,        
+      default: null      
+    }
+,
+    adharCardNumber:{
+      type: String,         
+      trim: true,
+      unique: true,
+      sparse: true,         
+      default: null 
+    }
     //   parentAgentId: {
     //    type: mongoose.Schema.Types.ObjectId,     for payments 
     //  ref: "user", 
