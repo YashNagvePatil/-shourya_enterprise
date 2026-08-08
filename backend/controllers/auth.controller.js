@@ -221,7 +221,7 @@ export const login = async(req,res) =>{
             if(!inputId || !password ){
               return res.status(400).json({
                 success:false,
-                message:"Please provide Email / Agent ID / Contact Number and Password Please provided distributerId and password"})
+                message:"Please provide Email / Agent ID / Contact Number and Password"})
            }
 
            // 2. Flexible Search: Search by Email OR Distributer ID OR Mobile Number           
