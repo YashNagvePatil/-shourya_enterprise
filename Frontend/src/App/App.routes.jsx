@@ -1,5 +1,6 @@
 import { createBrowserRouter } from "react-router";
 import RegisterPage from "../features/auth/pages/Register";
+import LoginPage from "../features/auth/pages/Login";
 
 
 export const routes = createBrowserRouter([
@@ -12,6 +13,10 @@ export const routes = createBrowserRouter([
         path:"/register",
         element :<RegisterPage/>
       },
+      {
+        path:"/login",
+        element:<LoginPage/>
+      }
 
 
 ])

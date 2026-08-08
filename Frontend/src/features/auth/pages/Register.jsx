@@ -2,7 +2,7 @@ import React, { useState } from "react";
 
 export const RegisterPage = () => {
   const [position, setPosition] = useState("left");
-  // 👁️ Password Visibility State
+  //  Password Visibility State
   const [showPassword, setShowPassword] = useState(false);
 
   return (
