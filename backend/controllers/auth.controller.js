@@ -162,20 +162,28 @@ export const register = async (req,res) =>{
         // Create user Document 
 
         const user = await userModel.create({
+        // personal info  
             email:cleanEmail,
             contact,
             password,
             fullName: fullName.trim(),
+         
+            // kyc verification 
             adharCardNumber:adharCardNumber ,
             panCardNumber:panCardNumber ,
+        
+            // new identity register  
             distributerId:newDistributedId,
             role:role === "Admin" ? "Admin" : "Agent",
             position:role === "Admin" ? null : finalPosition,
+          
+          // parent node 
             parentAgentId:parentuser?parentuser._id :null,
             sponserId:parentuser ? parentuser.distributerId : "DIRECT",
             sponserName:parentuser ? parentuser.fullName : "systme",
             parrentAgentName:parentuser ? parentuser.fullName : (parrentAgentName || "systme") ,
-            
+         
+         // wallet & profit   
             leftBV: 0,
             rightBV: 0,
             walletBalance: 0,
@@ -195,4 +203,81 @@ export const register = async (req,res) =>{
           error:error.message
         })
       }
+}
+
+// --- Login Controller ---
+
+export const login = async(req,res) =>{
+     try {
+            console.log("[DEBUG] Login Payload Received:", req.body)
+  
+            // User Form  'identifier' (Email/Phone/AgentID) or 'distributerId' 
+
+            const {identifier,distributerId,password} = req.body
+
+            const inputId = (identifier || distributerId || "").trim();
+
+           // 1. Input Validation
+            if(!inputId || !password ){
+              return res.status(400).json({
+                success:false,
+                message:"Please provide Email / Agent ID / Contact Number and Password Please provided distributerId and password"})
+           }
+
+           // 2. Flexible Search: Search by Email OR Distributer ID OR Mobile Number           
+  
+           const cleanInput = inputId.toLowerCase();
+
+           const user = await userModel.findOne({
+            $or:[
+              {email:cleanInput},
+              {distributerId:inputId.toUpperCase()},
+              !isNaN(inputId) ? {contact:Number(inputId)}:null  // isNan for prevnets db crash
+            ].filter(Boolean)
+          
+          })
+
+          if(!user) {
+            return res.status(400).json({
+              success:false,
+              message:"Invalid credentials"
+            })
+          }
+          
+           // 3. Blocked User Check (Safety Net)
+
+           if (user.status === "Blocked"){
+                console.warn(`[SECURITY] Blocked user attempt: ${user.email}`)
+               return  res.status(403).json({
+                  success:false,
+                  message:"Your account has been blocked. Please contact support. "
+                })
+           }
+
+          // 4. Password Verification
+
+           const isMatch = await user.comparePassword(password)
+         
+
+           if(!isMatch){
+            console.warn("credintials not matched")
+            return res.status(400).json({
+              success:false,
+              message:"Invalid credintials"
+            })
+           }
+
+            console.log(`[LOGIN SUCCESS] User: ${user.fullName} | Role: ${user.role}`);
+
+           await sendTokenResponse(user,res,"Login successful!")
+        } 
+       catch (error) {
+           console.log("Login Error:",error)
+           res.status(500).json({
+            success:false,
+            message:"server error during login",
+            error:error.message
+          });
+     }    
+
 }
