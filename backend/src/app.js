@@ -14,6 +14,6 @@ const app = express()
     res.send("Hello World!");
  })
 
- app.use("/api/auth")
+ app.use("/api/auth",authRouter)
 
   export default app

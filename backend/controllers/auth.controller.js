@@ -13,13 +13,14 @@ async function sendTokenResponse(user, res, message) {
   // Set HTTP-Only Cookie
   res.cookie("token", token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production"
+    secure: process.env.NODE_ENV === "production",
+    sameSite:"lax",
+    maxAge: 7 * 24 * 60 * 60 * 1000
   });
 
   return res.status(201).json({
     message,
     success: true,
-    token,
     user: {
       id: user._id,
       email: user.email,
@@ -43,7 +44,7 @@ async function sendTokenResponse(user, res, message) {
      // loop for finding uniq id 
 
      while (exists){
-      uniqueId = `AGT${Math.floor(100000 + Math.rondom() * 900000)}`;
+      uniqueId = `AGT${Math.floor(100000 + Math.random() * 900000)}`;
       const user = await userModel.findOne({distributerId:uniqueId});
       if(!user) exists = false;
       
@@ -99,6 +100,7 @@ export const register = async (req,res) =>{
       }
 
       let parentuser = null;
+      let finalPosition = null;
       const isTargetAgent = (role !== "Admin")
 
       if(isTargetAgent){
@@ -106,9 +108,12 @@ export const register = async (req,res) =>{
         if (totalAgentCount === 0){
           // CASE A FOR FIRST AGENT
           console.log("[DEBUG] No agents in DB. Creating First Root Agent...")
-          parentuser = null
+          parentuser = null,
+          finalPosition = null;
         }
-          else{            
+          else{      
+            
+            finalPosition = position === "left" ? "left" : "right"
             // CASE B: NORMAL AGENT REGISTRATION
             if(!parentAgentId){
               return res.status(400).json({
@@ -165,11 +170,17 @@ export const register = async (req,res) =>{
             panCardNumber:panCardNumber ,
             distributerId:newDistributedId,
             role:role === "Admin" ? "Admin" : "Agent",
-            position:role === "Admin" ? null : (position === "left" ? "left":"right"),
+            position:role === "Admin" ? null : finalPosition,
             parentAgentId:parentuser?parentuser._id :null,
             sponserId:parentuser ? parentuser.distributerId : "DIRECT",
             sponserName:parentuser ? parentuser.fullName : "systme",
-            parrentAgentName:parentuser ? parentuser.fullName : (parrentAgentName || "systme")   
+            parrentAgentName:parentuser ? parentuser.fullName : (parrentAgentName || "systme") ,
+            
+            leftBV: 0,
+            rightBV: 0,
+            walletBalance: 0,
+            totalMatchingBonus: 0,
+            totalDirectBonus: 0
         })
   
         console.log(` [DEBUG] Registration Successful! Created User ID: ${user._id}`);
