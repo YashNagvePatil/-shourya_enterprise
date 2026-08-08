@@ -6,13 +6,15 @@ const userSchema = new mongoose.Schema(
     email: {
       type: String,
       required: true,
-      unique: true,     
+      unique: true,
+      lowercase: true,
+      trim: true
     },
 
     contact: {
       type: Number,
       required: true,
-      unique: true      
+      unique: true
     },
 
     password: {
@@ -22,7 +24,7 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ["Admin", "Agent"], 
+      enum: ["Admin", "Agent"],
       default: "Agent"
     },
 
@@ -32,49 +34,63 @@ const userSchema = new mongoose.Schema(
       trim: true
     },
 
-    position:{
-        type:String,
-        enum:["left","right",null],
-        default:null        
-    },
-
-    agentName:{
-      type: String,
-      required: true
-    },
-
-    agentId:{
+    // Controller  distributerId (e.g., AGT452136)
+    distributerId: {
       type: String,
       required: true,
-      
+      unique: true
     },
 
-    panCardNumber:{
-      type: String,         
-      uppercase: true,      
-      trim: true,
-      unique: true,         
-      sparse: true,        
-      default: null      
-    }
-,
-    adharCardNumber:{
-      type: String,         
+    position: {
+      type: String,
+      enum: ["left", "right", null],
+      default: null
+    },
+
+    // Tree & Sponsor Tracking Fields
+    parentAgentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "user",
+      default: null
+    },
+
+    parrentAgentName: {
+      type: String,
+      default: "System"
+    },
+
+    sponserId: {
+      type: String,
+      default: "DIRECT"
+    },
+
+    sponserName: {
+      type: String,
+      default: "System"
+    },
+
+    // KYC Information (Sparse unique to prevent null duplicate errors)
+    panCardNumber: {
+      type: String,
+      uppercase: true,
       trim: true,
       unique: true,
-      sparse: true,         
-      default: null 
+      sparse: true,
+      default: null
+    },
+
+    adharCardNumber: {
+      type: String,
+      trim: true,
+      unique: true,
+      sparse: true,
+      default: null
     }
-    //   parentAgentId: {
-    //    type: mongoose.Schema.Types.ObjectId,     for payments 
-    //  ref: "user", 
-    //  default: null
-    //  },
   },
   { timestamps: true }
 );
 
-
+// --- Password Hashing Middleware ---
 userSchema.pre("save", async function () {
   if (!this.isModified("password")) return;
 
@@ -82,6 +98,7 @@ userSchema.pre("save", async function () {
   this.password = hash;
 });
 
+// --- Password Compare Method ---
 userSchema.methods.comparePassword = async function (password) {
   return await bcrypt.compare(password, this.password);
 };
