@@ -1,9 +1,19 @@
 import React, { useState } from "react";
+import { useAuth } from "../hook/useAuth.js";
 
 export const RegisterPage = () => {
+  
+  
+  const {handleRegister} = useAuth()
+  
   const [position, setPosition] = useState("left");
-  //  Password Visibility State
+ 
   const [showPassword, setShowPassword] = useState(false);
+
+     
+     
+
+
 
   return (
     <div className="h-screen bg-slate-50 text-slate-800 font-sans flex items-center justify-center p-0 sm:p-4 overflow-hidden">
