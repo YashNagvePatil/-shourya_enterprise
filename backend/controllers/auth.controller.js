@@ -138,7 +138,7 @@ export const register = async (req,res) =>{
              // SAFETY NET 3: Slot Collision Check (Binary Tree Protection)
 
              const targetPostion = position === "left" ? "left" : "right";
-             const isslotOccupied = await userModel.findone({
+             const isslotOccupied = await userModel.findOne({
               parentAgentId:parentuser._id,
               position:targetPostion
              })

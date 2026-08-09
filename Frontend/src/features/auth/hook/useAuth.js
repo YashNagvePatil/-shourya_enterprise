@@ -1,40 +1,41 @@
-import { setError,setLoading,setLoading, setUser } from "../state/auth.slice.js";
+import { useDispatch, useSelector } from "react-redux";
+import { setError, setLoading, setUser } from "../state/auth.slice.js";
 import { register } from "../service/auth.api.js";
-import { useDispatch } from "react-redux";
 
+export const useAuth = () => {
+  const dispatch = useDispatch();
 
-   export const useAuth = () =>{
-     const dispatch = useDispatch()
-   
-      async function handleRegister( 
-            email,
-            contact,
-            password,
-            fullName,
-            role,
-            panCardNumber,
-            adharCardNumber,
-            parentAgentId,   
-            parrentAgentName,
-            position ) {
+  // Redux state access
+  const { user, loading, error } = useSelector((state) => state.auth);
 
-                const data = await register ({ 
-                        email,
-                        contact,
-                        password,
-                        fullName,
-                        role,
-                        panCardNumber,
-                        adharCardNumber,
-                        parentAgentId,   // parrent agent id form form 
-                        parrentAgentName,
-                        position })
+  async function handleRegister(formData) {
+    try {
+      // 1. Loading Start
+      dispatch(setLoading(true));
+      dispatch(setError(null));
 
-               dispatch(setUser(data.user))  
-               
-               return data.user
-        
+      // 2. API Call
+      const data = await register(formData);
+
+      // 3. Save User to Redux State
+      dispatch(setUser(data.user));
+
+      return { success: true, user: data.user };
+    } catch (err) {
+      // 4. Handle Error
+      const errorMessage =
+        err.response?.data?.message || err.message || "Registration failed!";
+      dispatch(setError(errorMessage));
+      return { success: false, error: errorMessage };
+    } finally {
+      dispatch(setLoading(false));
     }
+  }
 
-    return {handleRegister}
-   }
+  return {
+    user,
+    loading,
+    error,
+    handleRegister,
+  };
+};

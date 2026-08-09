@@ -1,37 +1,15 @@
-import axios from "axios"
+import axios from "axios";
 
-const authApiInstance = axios.create({
-       baseURL:"/api/auth" ,
-       withCredentials:true
-})
+// Axios instance with Vite Proxy setup
+const api = axios.create({
+  baseURL: "/api", // Vite Proxy '/api' 
+  headers: {
+    "Content-Type": "application/json",
+  },
+  withCredentials: true, // Cookies/Session
+});
 
-
-export async function register ({
-    email,
-    contact,
-    password,
-    fullName,
-    role,
-    panCardNumber,
-    adharCardNumber,
-    parentAgentId,   // parrent agent id form form 
-    parrentAgentName,
-    position 
-}) 
-    {
-
-      const response = await authApiInstance.post("/register",{
-                  email,
-                  contact,
-                  password,
-                  fullName,
-                  role,
-                  panCardNumber,
-                  adharCardNumber,
-                  parentAgentId,   
-                  parrentAgentName,
-                  position 
-      })
-
-      return response.data
-}
+export const register = async (userData) => {
+  const response = await api.post("/auth/register", userData);
+  return response.data; 
+};
