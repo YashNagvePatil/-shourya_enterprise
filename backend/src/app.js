@@ -16,6 +16,6 @@ const app = express()
 
 
  app.use("/api/auth",authRouter)
- app.use("api/agent",agentRouter)
+ app.use("/api/agent",agentRouter)
 
   export default app

@@ -10,7 +10,7 @@ const router = Router()
  */
 
 
-router.get("/dashBoard/:agentDbId",authenticateAgent,dashBoard)
+router.get("/dashBoard",authenticateAgent,dashBoard)
 
 
 export default router
