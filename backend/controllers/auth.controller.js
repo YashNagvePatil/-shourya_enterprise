@@ -186,9 +186,29 @@ export const register = async (req,res) =>{
          // wallet & profit   
             leftBV: 0,
             rightBV: 0,
+            totalLeftBV:0,
+            totalRightBV:0,
             walletBalance: 0,
             totalMatchingBonus: 0,
-            totalDirectBonus: 0
+            totalDirectBonus: 0,
+            totalEarning:0,
+            totalWithdrawn:0,
+            pendingPayout:0,
+
+            // Direct Child Nodes
+
+            leftChild:0,
+            rightChild:0,
+
+          // Team & Downline Counters
+ 
+           totalDirects:0,
+           totalLeftAgents:0,
+           totalRightAgents:0,
+           activeLeftAgents:0,
+           activeRightAgents:0,
+           
+
         })
   
         console.log(` [DEBUG] Registration Successful! Created User ID: ${user._id}`);

@@ -27,12 +27,12 @@ const userSchema = new mongoose.Schema(
     sponserId: { type: String, default: "DIRECT" },
     sponserName: { type: String, default: "System" },
 
-    // 🔴 NEW: Direct Child Nodes (Binary Tree Nodes)
+    //  NEW: Direct Child Nodes (Binary Tree Nodes)
     leftChild: { type: mongoose.Schema.Types.ObjectId, ref: "user", default: null },
     rightChild: { type: mongoose.Schema.Types.ObjectId, ref: "user", default: null },
 
-    // 🔴 NEW: Team & Downline Counters (For Quick Dashboard Display)
-    totalDirects: { type: Number, default: 0 },         // Direct Referral Count
+    //  NEW: Team & Downline Counters (For Quick Dashboard Display)
+    totalDirects:{ type: Number, default: 0 },         // Direct Referral Count
     totalLeftAgents: { type: Number, default: 0 },      // Total Downline Agents in Left Leg
     totalRightAgents: { type: Number, default: 0 },     // Total Downline Agents in Right Leg
     activeLeftAgents: { type: Number, default: 0 },     // Active Agents in Left Leg
@@ -51,7 +51,7 @@ const userSchema = new mongoose.Schema(
     totalEarning: { type: Number, default: 0 },         // Lifetime Total Earning
     totalWithdrawn: { type: Number, default: 0 },       // Total Amount Payout Released
     pendingPayout: { type: Number, default: 0 },        // Requested for Withdrawal
-
+    
     // --- KYC Details ---
     panCardNumber: { type: String, uppercase: true, trim: true, unique: true, sparse: true, default: null },
     adharCardNumber: { type: String, trim: true, unique: true, sparse: true, default: null },
