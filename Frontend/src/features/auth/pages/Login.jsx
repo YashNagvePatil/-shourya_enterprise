@@ -1,10 +1,38 @@
 import React, { useState } from "react";
+import { useNavigate, Link } from "react-router";
+import { useAuth } from "../hook/useAuth"; 
 
 export const LoginPage = () => {
-  // 👁️ Password Visibility State
+  // Password Visibility State
   const [showPassword, setShowPassword] = useState(false);
   // Remember Me checkbox state
   const [rememberMe, setRememberMe] = useState(false);
+
+  // Form Input State
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
+
+  // Hook & Navigation
+  const { handleLogin, loading, error } = useAuth();
+  const navigate = useNavigate();
+
+  // Submit Handler
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!identifier || !password) return;
+
+    // Backend payload structure matching controller
+    const result = await handleLogin({
+      identifier,
+      password,
+    });
+
+    if (result.success) {
+      // Redirect on successful login
+      navigate("/agent_Dashboard"); 
+    }
+  };
 
   return (
     <div className="h-screen bg-slate-50 text-slate-800 font-sans flex items-center justify-center p-0 sm:p-4 overflow-hidden">
@@ -75,16 +103,29 @@ export const LoginPage = () => {
               </p>
             </div>
 
-            <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
+            {/* Error Alert Box */}
+            {error && (
+              <div className="mb-4 p-3 text-xs bg-red-50 text-red-600 rounded-xl border border-red-200/80 flex items-center gap-2">
+                <svg className="w-4 h-4 shrink-0 fill-current" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                <span>{error}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
               
               {/* Agent ID or Email */}
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Agent ID / Email Address *
+                  Agent ID / Email Address / Phone *
                 </label>
                 <input
                   type="text"
-                  placeholder="AGT1001 or name@example.com"
+                  required
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="AGT1001, name@example.com, or phone"
                   className="w-full px-3.5 py-2.5 bg-slate-50/50 rounded-xl border border-slate-200 text-xs sm:text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
                 />
               </div>
@@ -97,6 +138,9 @@ export const LoginPage = () => {
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     className="w-full px-3.5 py-2.5 bg-slate-50/50 rounded-xl border border-slate-200 text-xs sm:text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all pr-10"
                   />
@@ -107,12 +151,10 @@ export const LoginPage = () => {
                     title={showPassword ? "Hide password" : "Show password"}
                   >
                     {showPassword ? (
-                      // Eye Off Icon
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
                       </svg>
                     ) : (
-                      // Eye Icon
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12c1.274 4.057 5.065 7 9.542 7 4.477 0 8.268-2.943 9.542-7-1.274-4.057-5.064-7-9.542-7-4.477 0-8.268 2.943-9.542 7Z" />
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
@@ -142,17 +184,28 @@ export const LoginPage = () => {
               {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full mt-2 py-3 px-4 bg-sky-600 hover:bg-sky-700 text-white font-medium text-xs sm:text-sm rounded-xl shadow-md shadow-sky-600/20 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                disabled={loading}
+                className="w-full mt-2 py-3 px-4 bg-sky-600 hover:bg-sky-700 disabled:bg-sky-400 text-white font-medium text-xs sm:text-sm rounded-xl shadow-md shadow-sky-600/20 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
-                Sign In to Dashboard →
+                {loading ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Signing In...</span>
+                  </>
+                ) : (
+                  <span>Sign In to Dashboard →</span>
+                )}
               </button>
 
               {/* Navigation Link to Register */}
               <p className="text-center text-xs text-slate-500 mt-4">
                 Don't have an account yet?{" "}
-                <a href="/register" className="text-sky-600 hover:text-sky-700 font-semibold hover:underline">
+                <Link to="/register" className="text-sky-600 hover:text-sky-700 font-semibold hover:underline">
                   Register as Distributor
-                </a>
+                </Link>
               </p>
 
             </form>
