@@ -14,29 +14,35 @@ const agentSlice = createSlice({
   name: "agent",
   initialState,
   reducers: {
-    // Loading start hone par
+   
     setLoading: (state, action) => {
       state.loading = action.payload;
     },
 
-    // API se data milne par Redux state update karein
-    setDashboardData: (state, action) => {
-      state.loading = false;
-      state.error = null;
-      state.profile = action.payload.profile;
-      state.wallet = action.payload.wallet;
-      state.binaryStats = action.payload.binaryStats;
-      state.treeNodes = action.payload.treeNodes;
-      state.recentDownlines = action.payload.recentDownlines;
-    },
+   
+       setDashboardData: (state, action) => {
+            state.loading = false;
+            state.error = null;
+  
+ 
+             const data = action.payload?.dashboard || action.payload;
 
-    // Error aane par
+                  if (data) {
+                   state.profile = data.profile || null;
+                    state.wallet = data.wallet || null;
+                   state.binaryStats = data.binaryStats || null;
+                    state.treeNodes = data.treeNodes || null;
+                    state.recentDownlines = data.recentDownlines || [];
+  }
+},
+
+  
     setError: (state, action) => {
       state.loading = false;
       state.error = action.payload;
     },
 
-    // State reset/clear karne ke liye
+    
     clearAgentState: (state) => {
       state.profile = null;
       state.wallet = null;

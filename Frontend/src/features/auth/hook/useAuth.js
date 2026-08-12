@@ -1,6 +1,6 @@
 import { useDispatch, useSelector } from "react-redux";
 import { setError, setLoading, setUser,clearError } from "../state/auth.slice.js";
-import { register } from "../service/auth.api.js";
+import { register,login } from "../service/auth.api.js";
 
 export const useAuth = () => {
   const dispatch = useDispatch();
@@ -39,7 +39,7 @@ export const useAuth = () => {
       dispatch(clearError());
 
       // 2. API Call (credentials = { identifier: "...", password: "..." })
-      const data = await handleLogin(credentials);
+      const data = await login(credentials);
 
       // 3. Save User to Redux State
       dispatch(setUser(data.user));

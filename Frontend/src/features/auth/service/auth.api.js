@@ -2,11 +2,11 @@ import axios from "axios";
 
 // Axios instance with Vite Proxy setup
 const api = axios.create({
-  baseURL: "http://localhost:3000/api", // Vite Proxy '/api' 
+  baseURL: "http://localhost:3000/api", 
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: true, // Cookies/Session
+  withCredentials: true, 
 });
 
 export const register = async (userData) => {

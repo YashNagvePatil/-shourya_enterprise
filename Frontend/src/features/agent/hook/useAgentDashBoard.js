@@ -7,7 +7,7 @@ export const useFetchDashboard = () => {
   const dispatch = useDispatch();
 
   // 1. data reading from Redux State Layer 
-  const { profile, wallet, binaryStats, treeNodes, recentDownlines, loading, error } =
+  const { profile, wallet, binaryStats, treeNodes,recentDownlines,loading, error } =
     useSelector((state) => state.agent);
 
   // 2. Fetch Logic (API + State Management)
