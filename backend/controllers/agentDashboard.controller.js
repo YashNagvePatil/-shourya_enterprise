@@ -38,6 +38,12 @@ export const dashBoard = async (req, res) => {
           isActivated: agent.isActivated,
           activationDate: agent.activationDate,
           kycStatus: agent.kycStatus,
+          email: agent.email,
+          phone: agent.phone,
+          address: agent.address,
+          sponsorName: agent.sponserName || agent.referrer?.fullName || "N/A",
+          createdAt: agent.createdAt,
+          
         },
 
         // --- B. Financials & Wallet Balance ---

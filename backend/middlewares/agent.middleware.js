@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import { config } from "../config/config.js";
-import userModel from "../models/user.model.js";
+import userModel from "../models/user.models.js";
 
 export const authenticateAgent = async (req, res, next) => {
   try {

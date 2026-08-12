@@ -1,4 +1,4 @@
-import userModel from "../models/user.model.js";
+import userModel from "../models/user.models.js";
 import { config } from "../config/config.js";
 import jwt from "jsonwebtoken"; 
 
@@ -11,12 +11,13 @@ async function sendTokenResponse(user, res, message) {
   );
 
   // Set HTTP-Only Cookie
-  res.cookie("token", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite:"lax",
-    maxAge: 7 * 24 * 60 * 60 * 1000
-  });
+  res.cookie("token",token, {
+  httpOnly: true,
+  secure: false,
+  sameSite: "lax",
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+  path: "/"
+});
 
   return res.status(201).json({
     message,
@@ -197,8 +198,8 @@ export const register = async (req,res) =>{
 
             // Direct Child Nodes
 
-            leftChild:0,
-            rightChild:0,
+            leftChild:null,
+            rightChild:null,
 
           // Team & Downline Counters
  

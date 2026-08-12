@@ -1,4 +1,4 @@
-import userModel from "../models/user.model.js";
+import userModel from "../models/user.models.js";
 
 // data fetching from agent db
 export const getAgentDashboardDataFromDB = async (agentDbId) => {

@@ -57,7 +57,7 @@ export const validateRegister = [
 
   body("position")
     .optional()
-    .isIn(["left", "right", null])
+    .isIn(["left", "right",null])
     .withMessage("Position must be either 'left' or 'right'"),
 
   // Validation execution handler

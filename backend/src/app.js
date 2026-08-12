@@ -11,15 +11,18 @@ const app = express()
  app.use(express.urlencoded({extended:true}))
  app.use(cookieParser());
 
-  app.get('/',(req,res) => {
-    res.send("Hello World!");
- })
 
  app.use(cors({
   origin:"http://localhost:5173",
   methods:["GET","POST","PUT","DELETE"],
   credentials:true
  }))
+
+  app.get('/',(req,res) => {
+    res.send("Hello World!");
+ })
+
+ 
 
  app.use("/api/auth",authRouter)
  app.use("/api/agent",agentRouter)
