@@ -26,3 +26,14 @@ export const getRecentDownlinesFromDB = async (distributerId) => {
     .limit(5)
     .select("fullName distributerId position status isActivated createdAt");
 };
+
+export const getAgentWalletDetails = async (agentDbId) => {
+  // Use findById to filter specifically by the agent's ID before selecting attributes
+  const agent = await userModel
+    .findById(agentDbId)
+    .select(
+      "walletBalance totalEarning totalWithdrawn pendingPayout totalMatchingBonus totalDirectBonus bankDetails kycStatus"
+    );
+
+  return agent;
+};

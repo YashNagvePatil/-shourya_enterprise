@@ -56,7 +56,7 @@ async function sendTokenResponse(user, res, message) {
 // --- Register Controller ---
 
 
-export const register = async (req,res) =>{
+export const register = async (req, res) => {
   const {
     email,
     contact,
@@ -65,240 +65,199 @@ export const register = async (req,res) =>{
     role,
     panCardNumber,
     adharCardNumber,
-    parentAgentId,   // parrent agent id form form 
+    parentAgentId,   
     parrentAgentName,
     position
   } = req.body;
 
-  console.log(`[DEBUG] Registration Attempt for: ${email} | Role: ${role}`)
+  console.log(`[DEBUG] Registration Attempt for: ${email} | Role: ${role}`);
 
-  try{
-     // SAFETY NET 1:Required Fields Check
-     if(!email || !contact || !password || !fullName){
+  try {
+    // SAFETY NET 1: Required Fields Validation Block
+    if (!email || !contact || !password || !fullName) {
       return res.status(400).json({
-         success:false,
-         message:"Please fill all mandatory fields (Name ,Email,Contact,Password)"
-      })
-     }
-  
- 
-      const cleanEmail = email.toLowerCase().trim();
+        success: false,
+        message: "Please fill all mandatory fields (Name, Email, Contact, Password)"
+      });
+    }
 
-      // SAFTY NET  2: Duplicate Email or Phone Check 
+    const cleanEmail = email.toLowerCase().trim();
 
-      const existstingUser = await userModel.findOne({
-        $or:[
-          {email:cleanEmail} ,{contact}
-        ]
-      })
+    // SAFETY NET 2: Structural Duplicate Matrix Exception Check via DAO
+    const existingUser = await agentDao.findExistingUserByEmailOrContact(cleanEmail, contact);
 
-      if(existstingUser){
-        console.warn(`[DEBUG] Duplicate User Blocked: ${cleanEmail} / ${contact}`)
-        return res.status(400).json({
-          success:false,
-          message: "Email or Contact number already registered!"
-        })
-      }
+    if (existingUser) {
+      console.warn(`[DEBUG] Duplicate User Blocked: ${cleanEmail} / ${contact}`);
+      return res.status(400).json({
+        success: false,
+        message: "Email or Contact number already registered!"
+      });
+    }
 
-      let parentuser = null;
-      let finalPosition = null;
-      const isTargetAgent = (role !== "Admin")
+    let parentUser = null;
+    let finalPosition = null;
+    const isTargetAgent = (role !== "Admin");
 
-      if(isTargetAgent){
-        const totalAgentCount = await userModel.countDocuments({role:"Agent"});
-        if (totalAgentCount === 0){
-          // CASE A FOR FIRST AGENT
-          console.log("[DEBUG] No agents in DB. Creating First Root Agent...")
-          parentuser = null,
-          finalPosition = null;
+    if (isTargetAgent) {
+      const totalAgentCount = await agentDao.getAgentCount();
+      
+      if (totalAgentCount === 0) {
+        // CASE A: Processing setup parameters for Root Element Node
+        console.log("[DEBUG] No agents in DB. Creating First Root Agent...");
+        parentUser = null;
+        finalPosition = null;
+      } else {      
+        // CASE B: Processing validations for Normal Tree Nodes
+        finalPosition = position === "left" ? "left" : "right";
+        
+        if (!parentAgentId) {
+          return res.status(400).json({
+            success: false,
+            message: "Parent Agent ID is required for registration!"
+          });
+        } 
+
+        // Verify parent node validity via DAO
+        parentUser = await agentDao.findParentByDistributorId(parentAgentId);
+
+        if (!parentUser) {
+          console.warn(`[DEBUG] Invalid Parent Agent ID: ${parentAgentId}`);
+          return res.status(404).json({
+            success: false,
+            message: "Invalid Agent ID! Parent Agent does not exist."
+          });
         }
-          else{      
-            
-            finalPosition = position === "left" ? "left" : "right"
-            // CASE B: NORMAL AGENT REGISTRATION
-            if(!parentAgentId){
-              return res.status(400).json({
-                success:false,
-                message:"Parent Agent ID is required for registration!"
-              })
-            } 
-         
-            // verify if Prent Agent exists 
 
-           parentuser = await userModel.findOne({distributerId:parentAgentId.trim()})
+        // SAFETY NET 3: Slot Collision Verification Engine via DAO
+        const targetPosition = position === "left" ? "left" : "right";
+        const isSlotOccupied = await agentDao.checkSlotOccupation(parentUser._id, targetPosition);
 
-           if(!parentuser){
-            console.warn(`[DEBUG] Invalid Parent Agent ID: ${parentAgentId}`)
-            return res.status(404).json({
-              success:false,
-              Message:"Invalid Agent ID! Parent Agent does not exist. "
-            })
-           }
-        
-
-             // SAFETY NET 3: Slot Collision Check (Binary Tree Protection)
-
-             const targetPostion = position === "left" ? "left" : "right";
-             const isslotOccupied = await userModel.findOne({
-              parentAgentId:parentuser._id,
-              position:targetPostion
-             })
-
-             if(isslotOccupied){
-              console.warn(`[DEBUG] Slot Conflict: ${parentAgentId} -> ${targetPostion} is already taken!`)
-              return res.status(400).json({
-                success:false,
-                message:`The ${targetPostion.toUpperCase()} slot under ${parentAgentId} is already occupied !`
-              })
-             }
-          }
+        if (isSlotOccupied) {
+          console.warn(`[DEBUG] Slot Conflict: ${parentAgentId} -> ${targetPosition} is already taken!`);
+          return res.status(400).json({
+            success: false,
+            message: `The ${targetPosition.toUpperCase()} slot under ${parentAgentId} is already occupied!`
+          });
+        }
       }
+    }
 
+    // SAFETY NET 4: Generate Guaranteed Unique Agent ID Layout Index
+    const newDistributedId = await genrateUniqueDistributerId();
+    console.log(`[DEBUG] New Agent ID Generated: ${newDistributedId}`);
 
-        // SAFETY NET 4: Generate Guaranteed Unique Agent ID
+    // Build the structural entity payload schema cleanly
+    const agentPayload = {
+      email: cleanEmail,
+      contact,
+      password,
+      fullName: fullName.trim(),
+      adharCardNumber,
+      panCardNumber,
+      distributerId: newDistributedId,
+      role: role === "Admin" ? "Admin" : "Agent",
+      position: role === "Admin" ? null : finalPosition,
+      parentAgentId: parentUser ? parentUser._id : null,
+      sponserId: parentUser ? parentUser.distributerId : "DIRECT",
+      sponserName: parentUser ? parentUser.fullName : "system",
+      parrentAgentName: parentUser ? parentUser.fullName : (parrentAgentName || "system"),
+      leftBV: 0,
+      rightBV: 0,
+      totalLeftBV: 0,
+      totalRightBV: 0,
+      walletBalance: 0,
+      totalMatchingBonus: 0,
+      totalDirectBonus: 0,
+      totalEarning: 0,
+      totalWithdrawn: 0,
+      pendingPayout: 0,
+      leftChild: null,
+      rightChild: null,
+      totalDirects: 0,
+      totalLeftAgents: 0,
+      totalRightAgents: 0,
+      activeLeftAgents: 0,
+      activeRightAgents: 0
+    };
 
-        const newDistributedId = await genrateUniqueDistributerId();
-        console.log(`[DEBUG] New Agent ID Generated: ${newDistributedId}`);
+    // Save entity state using the data access layer
+    const user = await agentDao.createAgentRecord(agentPayload);
+    console.log(`[DEBUG] Registration Successful! Created User ID: ${user._id}`);
 
-        // Create user Document 
+    // Generate session payload response
+    return await sendTokenResponse(user, res, "Registration Successful!");
 
-        const user = await userModel.create({
-        // personal info  
-            email:cleanEmail,
-            contact,
-            password,
-            fullName: fullName.trim(),
-         
-            // kyc verification 
-            adharCardNumber:adharCardNumber ,
-            panCardNumber:panCardNumber ,
-        
-            // new identity register  
-            distributerId:newDistributedId,
-            role:role === "Admin" ? "Admin" : "Agent",
-            position:role === "Admin" ? null : finalPosition,
-          
-          // parent node 
-            parentAgentId:parentuser?parentuser._id :null,
-            sponserId:parentuser ? parentuser.distributerId : "DIRECT",
-            sponserName:parentuser ? parentuser.fullName : "systme",
-            parrentAgentName:parentuser ? parentuser.fullName : (parrentAgentName || "systme") ,
-         
-         // wallet & profit   
-            leftBV: 0,
-            rightBV: 0,
-            totalLeftBV:0,
-            totalRightBV:0,
-            walletBalance: 0,
-            totalMatchingBonus: 0,
-            totalDirectBonus: 0,
-            totalEarning:0,
-            totalWithdrawn:0,
-            pendingPayout:0,
-
-            // Direct Child Nodes
-
-            leftChild:null,
-            rightChild:null,
-
-          // Team & Downline Counters
- 
-           totalDirects:0,
-           totalLeftAgents:0,
-           totalRightAgents:0,
-           activeLeftAgents:0,
-           activeRightAgents:0,
-           
-
-        })
-  
-        console.log(` [DEBUG] Registration Successful! Created User ID: ${user._id}`);
-
-        return await sendTokenResponse(user,res," Registration Successful!")
+  } catch (error) {
+    console.error(`[CRITICAL ERROR] Registration Loop Failed: ${error.message}`);
+    return res.status(500).json({
+      success: false,
+      message: "Server Error during registration",
+      error: error.message
+    });
   }
-
-      catch (error) {
-        return res.status(500).json({
-          success:false,
-          message:"Server Error during registration",
-          error:error.message
-        })
-      }
-}
+};
 
 // --- Login Controller ---
 
-export const login = async(req,res) =>{
-     try {
-            console.log("[DEBUG] Login Payload Received:", req.body)
-  
-            // User Form  'identifier' (Email/Phone/AgentID) or 'distributerId' 
+export const login = async (req, res) => {
+  try {
+    console.log("[DEBUG] Login Payload Received:", req.body);
 
-            const {identifier,distributerId,password} = req.body
+    // Supporting both single-field identifiers or legacy distributor parameters safely
+    const { identifier, distributerId, password } = req.body;
+    const inputId = (identifier || distributerId || "").trim();
 
-            const inputId = (identifier || distributerId || "").trim();
+    // 1. Input Validation Guard
+    if (!inputId || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide Email / Agent ID / Contact Number and Password"
+      });
+    }
 
-           // 1. Input Validation
-            if(!inputId || !password ){
-              return res.status(400).json({
-                success:false,
-                message:"Please provide Email / Agent ID / Contact Number and Password"})
-           }
+    const cleanInput = inputId.toLowerCase();
 
-           // 2. Flexible Search: Search by Email OR Distributer ID OR Mobile Number           
-  
-           const cleanInput = inputId.toLowerCase();
+    // 2. Fetch User Instance utilizing the new centralized DAO Lookup function
+    const user = await agentDao.findUserByIdentifier(cleanInput, inputId);
 
-           const user = await userModel.findOne({
-            $or:[
-              {email:cleanInput},
-              {distributerId:inputId.toUpperCase()},
-              !isNaN(inputId) ? {contact:Number(inputId)}:null  // isNan for prevnets db crash
-            ].filter(Boolean)
-          
-          })
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid credentials"
+      });
+    }
 
-          if(!user) {
-            return res.status(400).json({
-              success:false,
-              message:"Invalid credentials"
-            })
-          }
-          
-           // 3. Blocked User Check (Safety Net)
+    // 3. Blocked Account Enforcement (Safety Net Check)
+    if (user.status === "Blocked") {
+      console.warn(`[SECURITY] Blocked user access intercept: ${user.email}`);
+      return res.status(403).json({
+        success: false,
+        message: "Your account has been blocked. Please contact support."
+      });
+    }
 
-           if (user.status === "Blocked"){
-                console.warn(`[SECURITY] Blocked user attempt: ${user.email}`)
-               return  res.status(403).json({
-                  success:false,
-                  message:"Your account has been blocked. Please contact support. "
-                })
-           }
+    // 4. Password Evaluation Layer using Mongoose document instance method
+    const isMatch = await user.comparePassword(password);
 
-          // 4. Password Verification
+    if (!isMatch) {
+      console.warn(`[DEBUG] Credentials mismatch for target node: ${inputId}`);
+      return res.status(400).json({
+        success: false,
+        message: "Invalid credentials"
+      });
+    }
 
-           const isMatch = await user.comparePassword(password)
-         
+    console.log(`[LOGIN SUCCESS] User: ${user.fullName} | Role: ${user.role}`);
 
-           if(!isMatch){
-            console.warn("credintials not matched")
-            return res.status(400).json({
-              success:false,
-              message:"Invalid credintials"
-            })
-           }
+    // Generate JWT session tokens and commit response stream
+    return await sendTokenResponse(user, res, "Login successful!");
 
-            console.log(`[LOGIN SUCCESS] User: ${user.fullName} | Role: ${user.role}`);
-
-           await sendTokenResponse(user,res,"Login successful!")
-        } 
-       catch (error) {
-           console.log("Login Error:",error)
-           res.status(500).json({
-            success:false,
-            message:"server error during login",
-            error:error.message
-          });
-     }    
-
-}
+  } catch (error) {
+    console.error("[CRITICAL ERROR] Exception caught inside Login loop:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error during login",
+      error: error.message
+    });
+  }
+};

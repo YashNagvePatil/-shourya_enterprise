@@ -1,5 +1,5 @@
 import * as agentDao from "../dao/agent.dao.js";
-
+import userModel from "../models/user.models.js";
 export const dashBoard = async (req, res) => {
   try {
     // req.user.id from JWT Authentication 
@@ -188,9 +188,7 @@ export const getWalletDetails = async (req, res) => {
 
     // 1. Database   fetch  wallet and bank details
     // for Security reson   password and  complete KYC card details hide 
-    const agent = await agentDao.getAgentDataFromDB(agentDbId).select(
-      "walletBalance totalEarning totalWithdrawn pendingPayout totalMatchingBonus totalDirectBonus bankDetails kycStatus"
-    );
+    const agent = await agentDao.getAgentWalletDetails(agentDbId);
 
     // 2. Verification check
     if (!agent) {
