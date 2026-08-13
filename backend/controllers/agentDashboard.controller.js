@@ -99,19 +99,25 @@ export const netWorkTree = async (req, res) => {
   try {
     const agentDbId = req.user.id; 
 
-    // 1. fetching current logged in user data and making  populate their left and right child
-    // Hum select() ka use karke sensitive data (like password, pan, adhar) ko filter out kar rahe hain
+    // Level 2 aur Level 3 dono ko deeply populate karein taaki poora tree load ho sake
     const agent = await userModel.findById(agentDbId)
       .populate({
         path: "leftChild",
-        select: "fullName distributerId rank isActivated status createdAt role"
+        select: "fullName distributerId rank isActivated status position leftChild rightChild",
+        populate: {
+          path: "leftChild rightChild",
+          select: "fullName distributerId rank isActivated status position"
+        }
       })
       .populate({
         path: "rightChild",
-        select: "fullName distributerId rank isActivated status createdAt role"
+        select: "fullName distributerId rank isActivated status position leftChild rightChild",
+        populate: {
+          path: "leftChild rightChild",
+          select: "fullName distributerId rank isActivated status position"
+        }
       });
 
-   
     if (!agent) {
       return res.status(404).json({
         success: false,
@@ -119,25 +125,25 @@ export const netWorkTree = async (req, res) => {
       });
     }
 
-    // 3. Response 
+    // Ek clean uniform tree schema object banate hain jo dynamic front-end se match karega
+    const treeStructure = {
+      _id: agent._id,
+      fullName: agent.fullName,
+      distributerId: agent.distributerId,
+      rank: agent.rank,
+      isActivated: agent.isActivated,
+      status: agent.status,
+      position: agent.position,
+      leftChild: agent.leftChild || null,
+      rightChild: agent.rightChild || null
+    };
+
     return res.status(200).json({
       success: true,
       message: "Genealogy network tree fetched successfully",
-      
-      // Root Node
-      rootNode: {
-        id: agent._id,
-        fullName: agent.fullName,
-        distributerId: agent.distributerId,
-        rank: agent.rank,
-        isActivated: agent.isActivated,
-        status: agent.status,
-        sponserName: agent.sponserName,
-        totalDirects: agent.totalDirects
-      },
-
-      // Left & Right Channels Stats 
-      binaryCounters: {
+      // Frontend components is payload structure ko smoothly handle karenge
+      binaryStats: {
+        activeTeamCount: (agent.activeLeftAgents || 0) + (agent.activeRightAgents || 0),
         totalLeftAgents: agent.totalLeftAgents,
         totalRightAgents: agent.totalRightAgents,
         activeLeftAgents: agent.activeLeftAgents,
@@ -145,29 +151,7 @@ export const netWorkTree = async (req, res) => {
         leftBV: agent.leftBV,
         rightBV: agent.rightBV
       },
-
-      // Direct Child Nodes Data 
-      directChilds: {
-        leftChild: agent.leftChild ? {
-          id: agent.leftChild._id,
-          fullName: agent.leftChild.fullName,
-          distributerId: agent.leftChild.distributerId,
-          rank: agent.leftChild.rank,
-          isActivated: agent.leftChild.isActivated,
-          status: agent.leftChild.status,
-          side: "Left Leg"
-        } : null, // if blank slot shwoing null
-
-        rightChild: agent.rightChild ? {
-          id: agent.rightChild._id,
-          fullName: agent.rightChild.fullName,
-          distributerId: agent.rightChild.distributerId,
-          rank: agent.rightChild.rank,
-          isActivated: agent.rightChild.isActivated,
-          status: agent.rightChild.status,
-          side: "Right Leg"
-        } : null
-      }
+      treeNodes: treeStructure
     });
 
   } catch (error) {

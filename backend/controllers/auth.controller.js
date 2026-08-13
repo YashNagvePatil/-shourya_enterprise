@@ -1,23 +1,20 @@
 import userModel from "../models/user.models.js";
 import { config } from "../config/config.js";
-import jwt from "jsonwebtoken"; 
-
-
+import jwt from "jsonwebtoken";
+import * as authDao from "../dao/auth.dao.js"
 async function sendTokenResponse(user, res, message) {
-  const token = jwt.sign(
-    { id: user._id, role: user.role },
-    config.JWT_SECRET,
-    { expiresIn: "7d" }
-  );
+  const token = jwt.sign({ id: user._id, role: user.role }, config.JWT_SECRET, {
+    expiresIn: "7d",
+  });
 
   // Set HTTP-Only Cookie
-  res.cookie("token",token, {
-  httpOnly: true,
-  secure: false,
-  sameSite: "lax",
-  maxAge: 7 * 24 * 60 * 60 * 1000,
-  path: "/"
-});
+  res.cookie("token", token, {
+    httpOnly: true,
+    secure: false,
+    sameSite: "lax",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: "/",
+  });
 
   return res.status(201).json({
     message,
@@ -30,31 +27,27 @@ async function sendTokenResponse(user, res, message) {
       role: user.role,
       distributerId: user.distributerId, // New agent id
       parentAgentName: user.parrentAgentName,
-      parentAgentId: user.parentAgentId
-    }
+      parentAgentId: user.parentAgentId,
+    },
   });
-
-  
 }
-    // Uniqe Agent Id Genrator Safety Net  
+// Uniqe Agent Id Genrator Safety Net
 
-  async function genrateUniqueDistributerId(){
-    let uniqueId = "";
-    let exists = true;
+async function genrateUniqueDistributerId() {
+  let uniqueId = "";
+  let exists = true;
 
-     // loop for finding uniq id 
+  // loop for finding uniq id
 
-     while (exists){
-      uniqueId = `AGT${Math.floor(100000 + Math.random() * 900000)}`;
-      const user = await userModel.findOne({distributerId:uniqueId});
-      if(!user) exists = false;
-      
-       }
-        return uniqueId ;
-     }
+  while (exists) {
+    uniqueId = `AGT${Math.floor(100000 + Math.random() * 900000)}`;
+    const user = await userModel.findOne({ distributerId: uniqueId });
+    if (!user) exists = false;
+  }
+  return uniqueId;
+}
 
 // --- Register Controller ---
-
 
 export const register = async (req, res) => {
   const {
@@ -65,9 +58,9 @@ export const register = async (req, res) => {
     role,
     panCardNumber,
     adharCardNumber,
-    parentAgentId,   
+    parentAgentId,
     parrentAgentName,
-    position
+    position,
   } = req.body;
 
   console.log(`[DEBUG] Registration Attempt for: ${email} | Role: ${role}`);
@@ -77,66 +70,77 @@ export const register = async (req, res) => {
     if (!email || !contact || !password || !fullName) {
       return res.status(400).json({
         success: false,
-        message: "Please fill all mandatory fields (Name, Email, Contact, Password)"
+        message:
+          "Please fill all mandatory fields (Name, Email, Contact, Password)",
       });
     }
 
     const cleanEmail = email.toLowerCase().trim();
 
     // SAFETY NET 2: Structural Duplicate Matrix Exception Check via DAO
-    const existingUser = await agentDao.findExistingUserByEmailOrContact(cleanEmail, contact);
+    const existingUser = await authDao.findExistingUserByEmailOrContact(
+      cleanEmail,
+      contact,
+    );
 
     if (existingUser) {
-      console.warn(`[DEBUG] Duplicate User Blocked: ${cleanEmail} / ${contact}`);
+      console.warn(
+        `[DEBUG] Duplicate User Blocked: ${cleanEmail} / ${contact}`,
+      );
       return res.status(400).json({
         success: false,
-        message: "Email or Contact number already registered!"
+        message: "Email or Contact number already registered!",
       });
     }
 
     let parentUser = null;
     let finalPosition = null;
-    const isTargetAgent = (role !== "Admin");
+    const isTargetAgent = role !== "Admin";
 
     if (isTargetAgent) {
-      const totalAgentCount = await agentDao.getAgentCount();
-      
+      const totalAgentCount = await authDao.getAgentCount();
+
       if (totalAgentCount === 0) {
         // CASE A: Processing setup parameters for Root Element Node
         console.log("[DEBUG] No agents in DB. Creating First Root Agent...");
         parentUser = null;
         finalPosition = null;
-      } else {      
+      } else {
         // CASE B: Processing validations for Normal Tree Nodes
         finalPosition = position === "left" ? "left" : "right";
-        
+
         if (!parentAgentId) {
           return res.status(400).json({
             success: false,
-            message: "Parent Agent ID is required for registration!"
+            message: "Parent Agent ID is required for registration!",
           });
-        } 
+        }
 
         // Verify parent node validity via DAO
-        parentUser = await agentDao.findParentByDistributorId(parentAgentId);
+        parentUser = await authDao.findParentByDistributorId(parentAgentId);
 
         if (!parentUser) {
           console.warn(`[DEBUG] Invalid Parent Agent ID: ${parentAgentId}`);
           return res.status(404).json({
             success: false,
-            message: "Invalid Agent ID! Parent Agent does not exist."
+            message: "Invalid Agent ID! Parent Agent does not exist.",
           });
         }
 
         // SAFETY NET 3: Slot Collision Verification Engine via DAO
         const targetPosition = position === "left" ? "left" : "right";
-        const isSlotOccupied = await agentDao.checkSlotOccupation(parentUser._id, targetPosition);
+        const isSlotOccupied = await authDao.checkSlotOccupation(
+          parentUser._id,
+          targetPosition,
+        );
 
         if (isSlotOccupied) {
-          console.warn(`[DEBUG] Slot Conflict: ${parentAgentId} -> ${targetPosition} is already taken!`);
+          console.warn(
+            `[DEBUG] Slot Conflict: ${parentAgentId} -> ${targetPosition} is already taken!`,
+          );
           return res.status(400).json({
             success: false,
-            message: `The ${targetPosition.toUpperCase()} slot under ${parentAgentId} is already occupied!`
+            message: `The ${targetPosition.toUpperCase()} slot under ${parentAgentId} is already occupied!`,
           });
         }
       }
@@ -160,7 +164,9 @@ export const register = async (req, res) => {
       parentAgentId: parentUser ? parentUser._id : null,
       sponserId: parentUser ? parentUser.distributerId : "DIRECT",
       sponserName: parentUser ? parentUser.fullName : "system",
-      parrentAgentName: parentUser ? parentUser.fullName : (parrentAgentName || "system"),
+      parrentAgentName: parentUser
+        ? parentUser.fullName
+        : parrentAgentName || "system",
       leftBV: 0,
       rightBV: 0,
       totalLeftBV: 0,
@@ -177,22 +183,52 @@ export const register = async (req, res) => {
       totalLeftAgents: 0,
       totalRightAgents: 0,
       activeLeftAgents: 0,
-      activeRightAgents: 0
+      activeRightAgents: 0,
     };
 
     // Save entity state using the data access layer
-    const user = await agentDao.createAgentRecord(agentPayload);
-    console.log(`[DEBUG] Registration Successful! Created User ID: ${user._id}`);
+    const user = await authDao.createAgentRecord(agentPayload);
+    console.log(
+      `[DEBUG] Registration Successful! Created User ID: ${user._id}`,
+    );
+    if (role !== "Admin" && parentUser) {
+      console.log(
+        `[TREE UPDATE] Processing network updates under parent ID: ${parentUser.distributerId}`,
+      );
+
+      // 1. Parent ka child node pointer link karein
+      await authDao.updateParentChildSlot(
+        parentUser._id,
+        finalPosition,
+        user._id,
+      );
+
+      // 2. Sponsor ka counter increment karein (SponserId check ke sath)
+      if (user.sponserId && user.sponserId !== "DIRECT") {
+        await authDao.incrementSponsorDirectCount(user.sponserId);
+      }
+
+      // 3. Poore upline chain ke loops ko update karein
+      const initialJoiningBV = 0; // Agar package activation par BV milna hai toh yahan pass karein
+      await authDao.updateAllUplinesCounters(
+        parentUser._id,
+        finalPosition,
+        initialJoiningBV,
+      );
+
+      console.log(`[TREE UPDATE] All uplines sync completely.`);
+    }
 
     // Generate session payload response
     return await sendTokenResponse(user, res, "Registration Successful!");
-
   } catch (error) {
-    console.error(`[CRITICAL ERROR] Registration Loop Failed: ${error.message}`);
+    console.error(
+      `[CRITICAL ERROR] Registration Loop Failed: ${error.message}`,
+    );
     return res.status(500).json({
       success: false,
       message: "Server Error during registration",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -211,19 +247,20 @@ export const login = async (req, res) => {
     if (!inputId || !password) {
       return res.status(400).json({
         success: false,
-        message: "Please provide Email / Agent ID / Contact Number and Password"
+        message:
+          "Please provide Email / Agent ID / Contact Number and Password",
       });
     }
 
     const cleanInput = inputId.toLowerCase();
 
     // 2. Fetch User Instance utilizing the new centralized DAO Lookup function
-    const user = await agentDao.findUserByIdentifier(cleanInput, inputId);
+    const user = await authDao.findUserByIdentifier(cleanInput, inputId);
 
     if (!user) {
       return res.status(400).json({
         success: false,
-        message: "Invalid credentials"
+        message: "Invalid credentials",
       });
     }
 
@@ -232,7 +269,7 @@ export const login = async (req, res) => {
       console.warn(`[SECURITY] Blocked user access intercept: ${user.email}`);
       return res.status(403).json({
         success: false,
-        message: "Your account has been blocked. Please contact support."
+        message: "Your account has been blocked. Please contact support.",
       });
     }
 
@@ -243,7 +280,7 @@ export const login = async (req, res) => {
       console.warn(`[DEBUG] Credentials mismatch for target node: ${inputId}`);
       return res.status(400).json({
         success: false,
-        message: "Invalid credentials"
+        message: "Invalid credentials",
       });
     }
 
@@ -251,13 +288,15 @@ export const login = async (req, res) => {
 
     // Generate JWT session tokens and commit response stream
     return await sendTokenResponse(user, res, "Login successful!");
-
   } catch (error) {
-    console.error("[CRITICAL ERROR] Exception caught inside Login loop:", error);
+    console.error(
+      "[CRITICAL ERROR] Exception caught inside Login loop:",
+      error,
+    );
     return res.status(500).json({
       success: false,
       message: "Server error during login",
-      error: error.message
+      error: error.message,
     });
   }
 };

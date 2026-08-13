@@ -1,4 +1,4 @@
-import userModel from "../models/userModel.js"; // Adjust paths accordingly
+import userModel from "../models/user.models.js"; 
 
 /**
  * Checks if a user already exists with the given email or contact number.
