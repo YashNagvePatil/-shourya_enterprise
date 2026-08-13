@@ -16,3 +16,16 @@ export const getAgentData = async () => {
 
     return response.data
 }
+
+
+export const getAgentNetworkData = async (cacheBuster = "") => {
+
+  const response = await Agentapi.get(`/agent/networkTree${cacheBuster}`);
+  return response.data;
+};
+
+export const getAgentWalletData = async () =>{
+  const response = await Agentapi.get("/agent/wallet")
+
+  return response.data
+}
