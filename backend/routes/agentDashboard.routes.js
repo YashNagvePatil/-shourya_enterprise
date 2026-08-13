@@ -1,5 +1,5 @@
 import{ Router} from "express"
-import { dashBoard } from "../controllers/agentDashboard.controller.js"
+import { dashBoard, netWorkTree } from "../controllers/agentDashboard.controller.js"
 import {authenticateAgent} from "../middlewares/agent.middleware.js"
 const router = Router()
 
@@ -11,6 +11,8 @@ const router = Router()
 
 
 router.get("/dashBoard",authenticateAgent,dashBoard)
+router.get("/networkTree",authenticateAgent,netWorkTree)
+router.get("/wallet",authenticateAgent,)
 
 
 export default router

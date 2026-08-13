@@ -1,7 +1,7 @@
 import userModel from "../models/user.models.js";
 
 // data fetching from agent db
-export const getAgentDashboardDataFromDB = async (agentDbId) => {
+export const getAgentDataFromDB = async (agentDbId) => {
   
   const agent = await userModel
     .findById(agentDbId)
