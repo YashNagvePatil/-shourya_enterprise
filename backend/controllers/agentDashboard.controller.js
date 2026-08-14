@@ -1,5 +1,8 @@
 import * as agentDao from "../dao/agent.dao.js";
 import userModel from "../models/user.models.js";
+
+
+
 export const dashBoard = async (req, res) => {
   try {
     // req.user.id from JWT Authentication 
@@ -95,63 +98,28 @@ export const dashBoard = async (req, res) => {
   }
 };
 
+/**
+ * Controller to handle binary genealogy network tree retrieval.
+ */
 export const netWorkTree = async (req, res) => {
   try {
-    const agentDbId = req.user.id; 
+    const agentDbId = req.user.id;
 
-    // Level 2 aur Level 3 dono ko deeply populate karein taaki poora tree load ho sake
-    const agent = await userModel.findById(agentDbId)
-      .populate({
-        path: "leftChild",
-        select: "fullName distributerId rank isActivated status position leftChild rightChild",
-        populate: {
-          path: "leftChild rightChild",
-          select: "fullName distributerId rank isActivated status position"
-        }
-      })
-      .populate({
-        path: "rightChild",
-        select: "fullName distributerId rank isActivated status position leftChild rightChild",
-        populate: {
-          path: "leftChild rightChild",
-          select: "fullName distributerId rank isActivated status position"
-        }
-      });
+    // Fetch formatted tree data from DAO layer
+    const treeData = await getNetworkTreeDao(agentDbId);
 
-    if (!agent) {
+    if (!treeData) {
       return res.status(404).json({
         success: false,
-        message: "Agent record not found!"
+        message: "Agent record not found!",
       });
     }
 
-    // Ek clean uniform tree schema object banate hain jo dynamic front-end se match karega
-    const treeStructure = {
-      _id: agent._id,
-      fullName: agent.fullName,
-      distributerId: agent.distributerId,
-      rank: agent.rank,
-      isActivated: agent.isActivated,
-      status: agent.status,
-      position: agent.position,
-      leftChild: agent.leftChild || null,
-      rightChild: agent.rightChild || null
-    };
-
+    // Return successful response
     return res.status(200).json({
       success: true,
       message: "Genealogy network tree fetched successfully",
-      // Frontend components is payload structure ko smoothly handle karenge
-      binaryStats: {
-        activeTeamCount: (agent.activeLeftAgents || 0) + (agent.activeRightAgents || 0),
-        totalLeftAgents: agent.totalLeftAgents,
-        totalRightAgents: agent.totalRightAgents,
-        activeLeftAgents: agent.activeLeftAgents,
-        activeRightAgents: agent.activeRightAgents,
-        leftBV: agent.leftBV,
-        rightBV: agent.rightBV
-      },
-      treeNodes: treeStructure
+      ...treeData,
     });
 
   } catch (error) {
@@ -159,12 +127,10 @@ export const netWorkTree = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Internal server error while fetching network tree",
-      error: error.message
+      error: error.message,
     });
   }
 };
-
-
 
 export const getWalletDetails = async (req, res) => {
   try {

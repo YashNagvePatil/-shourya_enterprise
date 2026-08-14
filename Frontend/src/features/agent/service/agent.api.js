@@ -10,9 +10,9 @@ const Agentapi = axios.create({
 
 
 
-export const getAgentData = async () => {
+export const getAgentData = async (cacheBuster = "") => {
      
-    const response = await Agentapi.get("/agent/dashBoard")
+    const response = await Agentapi.get(`/agent/dashBoard${cacheBuster}`)
 
     return response.data
 }
@@ -24,8 +24,8 @@ export const getAgentNetworkData = async (cacheBuster = "") => {
   return response.data;
 };
 
-export const getAgentWalletData = async () =>{
-  const response = await Agentapi.get("/agent/wallet")
+export const getAgentWalletData = async (cacheBuster = "") =>{
+  const response = await Agentapi.get(`/agent/wallet${cacheBuster}`)
 
   return response.data
 }

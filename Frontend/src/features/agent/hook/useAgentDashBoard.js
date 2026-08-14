@@ -18,7 +18,8 @@ import {getAgentWalletData,getAgentNetworkData} from "../service/agent.api.js"
   const fetchDashboard = useCallback(async () => {
     dispatch(setLoading(true)); // State: Set loading true
     try {
-      const data = await getAgentData(); // API: Fetch from backend
+      const cacheBuster = `?t=${new Date().getTime()}`;
+      const data = await getAgentData(cacheBuster); // API: Fetch from backend
       if (data.success) {
         dispatch(setDashboardData(data.dashboard)); // State: Store payload in Redux
       } else {
@@ -60,7 +61,8 @@ export const useAgentWallet = () => {
     dispatch(setLoading(true));
     try {
       // Direct calling your service function
-      const data = await getAgentWalletData(); 
+      const cacheBuster = `?t=${new Date().getTime()}`; 
+      const data = await getAgentWalletData(cacheBuster); 
       if (data.success) {
         dispatch(setWalletDetails(data));
       }

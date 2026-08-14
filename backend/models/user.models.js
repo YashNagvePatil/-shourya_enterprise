@@ -28,8 +28,8 @@ const userSchema = new mongoose.Schema(
     sponserName: { type: String, default: "System" },
 
     //  NEW: Direct Child Nodes (Binary Tree Nodes)
-    leftChild: { type: mongoose.Schema.Types.ObjectId, ref: "user", default: null },
-    rightChild: { type: mongoose.Schema.Types.ObjectId, ref: "user", default: null },
+    leftChild: { type: mongoose.Schema.Types.ObjectId, ref: "user", default: null,index: true },
+    rightChild: { type: mongoose.Schema.Types.ObjectId, ref: "user", default: null,index: true },
 
     //  NEW: Team & Downline Counters (For Quick Dashboard Display)
     totalDirects:{ type: Number, default: 0 },         // Direct Referral Count
