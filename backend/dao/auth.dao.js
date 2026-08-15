@@ -1,4 +1,5 @@
 import userModel from "../models/user.models.js"; 
+import adminModel from "../models/admin.model.js";
 
 /**
  * Checks if a user already exists with the given email or contact number.
@@ -42,7 +43,7 @@ export const createAgentRecord = async (agentPayload) => {
 
 export const updateParentChildSlot = async (parentId, position, childId) => {
   const updateField = position === "left" ? { leftChild: childId } : { rightChild: childId };
-  return await userModel.findByIdAndUpdate(parentId, updateField, { new: true });
+  return await userModel.findByIdAndUpdate(parentId, updateField, { returnDocument: 'after' });
 };
 
 export const incrementSponsorDirectCount = async (sponsorId) => {
@@ -89,19 +90,30 @@ export const updateAllUplinesCounters = async (currentParentId, incomingPosition
 };
 
 export const findUserByIdentifier = async (cleanInput, rawInput) => {
-  // Build query pipeline condition dynamically
+  // Common query conditions
   const queryConditions = [
     { email: cleanInput },
     { distributerId: rawInput.toUpperCase() }
   ];
 
-  // Prevent unexpected indexing type crashes if input is purely numeric
+  // Prevent numeric string indexing issues
   if (!isNaN(rawInput) && rawInput.trim() !== "") {
     queryConditions.push({ contact: Number(rawInput) });
   }
 
-  // Returns fully functional instance including virtuals and schema methods
-  return await userModel.findOne({
-    $or: queryConditions
-  });
+  const query = { $or: queryConditions };
+
+  // 1. Dono collections mein ek saath search karein (Parallel Query)
+  const [adminUser, agentUser] = await Promise.all([
+    adminModel.findOne(query),
+    userModel.findOne(query)
+  ]);
+
+  // 2. Agar Admin collection mein mil jaye toh use return karein
+  if (adminUser) {
+    return adminUser; // mongoose document retains its role and model metadata
+  }
+
+  // 3. Warna Agent collection ka result return karein (chahe agent mile ya null)
+  return agentUser;
 };

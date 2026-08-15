@@ -2,6 +2,7 @@ import userModel from "../models/user.models.js";
 import { config } from "../config/config.js";
 import jwt from "jsonwebtoken";
 import * as authDao from "../dao/auth.dao.js"
+
 async function sendTokenResponse(user, res, message) {
   const token = jwt.sign({ id: user._id, role: user.role }, config.JWT_SECRET, {
     expiresIn: "7d",
@@ -254,7 +255,7 @@ export const login = async (req, res) => {
 
     const cleanInput = inputId.toLowerCase();
 
-    // 2. Fetch User Instance utilizing the new centralized DAO Lookup function
+    // 2. Fetch User Instance (DAO automatically checks both 'admins' & 'users' collections)
     const user = await authDao.findUserByIdentifier(cleanInput, inputId);
 
     if (!user) {
@@ -264,16 +265,19 @@ export const login = async (req, res) => {
       });
     }
 
-    // 3. Blocked Account Enforcement (Safety Net Check)
-    if (user.status === "Blocked") {
+    // 3. Blocked / Inactive Account Enforcement
+    if (user.status === "Blocked" || user.status === "Inactive") {
       console.warn(`[SECURITY] Blocked user access intercept: ${user.email}`);
       return res.status(403).json({
         success: false,
-        message: "Your account has been blocked. Please contact support.",
+        message: "Your account is deactivated or blocked. Please contact support.",
       });
     }
 
-    // 4. Password Evaluation Layer using Mongoose document instance method
+    console.log("[DEBUG] Stored Hash DB:", user.password);
+    console.log("[DEBUG] Input Password:", password);
+
+    // 4. Password Evaluation Layer
     const isMatch = await user.comparePassword(password);
 
     if (!isMatch) {
@@ -286,7 +290,7 @@ export const login = async (req, res) => {
 
     console.log(`[LOGIN SUCCESS] User: ${user.fullName} | Role: ${user.role}`);
 
-    // Generate JWT session tokens and commit response stream
+    // 5. Generate JWT session tokens and commit response stream
     return await sendTokenResponse(user, res, "Login successful!");
   } catch (error) {
     console.error(
@@ -300,3 +304,5 @@ export const login = async (req, res) => {
     });
   }
 };
+
+

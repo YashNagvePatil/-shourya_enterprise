@@ -1,6 +1,6 @@
 import{ Router} from "express"
-import { dashBoard, getWalletDetails, netWorkTree } from "../controllers/agentDashboard.controller.js"
-import {authenticateAgent} from "../middlewares/agent.middleware.js"
+import { dashBoard, getWalletDetails, netWorkTree } from "../controllers/agent.controller.js"
+import {authenticateUser} from "../middlewares/agent.middleware.js"
 const router = Router()
 
 /**
@@ -10,7 +10,7 @@ const router = Router()
  */
 
 
-router.get("/dashBoard",authenticateAgent,dashBoard)
+router.get("/dashBoard",authenticateUser,dashBoard)
 
 /**
  * @route GET/api/agents/networkTree
@@ -20,7 +20,7 @@ router.get("/dashBoard",authenticateAgent,dashBoard)
  */
 
 
-router.get("/networkTree",authenticateAgent,netWorkTree)
+router.get("/networkTree",authenticateUser,netWorkTree)
 
 /**
  * @route GET/api/agents/wallet
@@ -29,7 +29,11 @@ router.get("/networkTree",authenticateAgent,netWorkTree)
  * 
  */
 
-router.get("/wallet",authenticateAgent,getWalletDetails)
+router.get("/wallet",authenticateUser,getWalletDetails)
+
+
+
+
 
 
 export default router

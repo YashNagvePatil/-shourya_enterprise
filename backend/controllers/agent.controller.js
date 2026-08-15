@@ -1,5 +1,5 @@
 import * as agentDao from "../dao/agent.dao.js";
-import userModel from "../models/user.models.js";
+
 
 
 
@@ -106,7 +106,7 @@ export const netWorkTree = async (req, res) => {
     const agentDbId = req.user.id;
 
     // Fetch formatted tree data from DAO layer
-    const treeData = await getNetworkTreeDao(agentDbId);
+    const treeData = await agentDao.getNetworkTreeDao(agentDbId);
 
     if (!treeData) {
       return res.status(404).json({
@@ -198,3 +198,6 @@ export const getWalletDetails = async (req, res) => {
     });
   }
 };
+
+
+// profilePage has not separate api frontend geting data through dashBoard api 
