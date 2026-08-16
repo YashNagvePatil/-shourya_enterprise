@@ -1,8 +1,26 @@
 import { Router } from "express";
-import { getAllagentsData } from "../controllers/admin.controller";
+import { getAdminDashboardData, getAgentsList,} from "../controllers/admin.controller.js";
+import { authenticateUser } from "../middlewares/agent.middleware.js";
+
 
 const router = Router()
 
-  router.get("/dashboard",getAllagentsData)
+
+/**
+ * @desc    Get complete Agent Analytics & Metrics for Admin Dashboard
+ * @route   GET /api/admin/dashboard
+ * @access  Private (Admin Only)
+ */
+
+
+  router.get("/dashboard",authenticateUser,getAdminDashboardData)
+
+/**
+ * @desc    Get all agents with search, filters & pagination
+ * @route   GET /api/v1/admin/agents
+ * @access  Private (Admin Only)
+ */
+
+  router.get("/agent/management",authenticateUser,getAgentsList)
 
 export default router

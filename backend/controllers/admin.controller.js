@@ -1,60 +1,78 @@
-import userModel from "../models/user.model.js";
+import * as adminDao from "../dao/admin.dao.js";
 
-export const fetchAdminDashboardMetrics = async () => {
-  const [agentCounts, recentAgents, agentStatusBreakdown] = await Promise.all([
-    // 1. Total count, Active, and Blocked agents count
-    userModel.aggregate([
-      {
-        $group: {
-          _id: null,
-          totalAgents: { $sum: 1 },
-          activeAgents: {
-            $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] },
-          },
-          blockedAgents: {
-            $sum: { $cond: [{ $eq: ["$status", "Blocked"] }, 1, 0] },
-          },
-          inactiveAgents: {
-            $sum: { $cond: [{ $eq: ["$status", "Inactive"] }, 1, 0] },
-          },
+/**
+ * @desc    Get complete Agent Analytics & Metrics for Admin Dashboard
+ * @route   GET /api/admin/dashboard/agents
+ * @access  Private (Admin Only)
+ */
+export const getAdminDashboardData = async (req, res) => {
+  try {
+    console.log(`[ADMIN DASHBOARD] Fetching agent analytics by Admin: ${req.user._id}`);
+
+    // Call DAO layer function
+    const dashboardData = await adminDao.fetchAdminDashboardMetrics();
+
+    return res.status(200).json({
+      success: true,
+      message: "Admin dashboard data retrieved successfully",
+      data: {
+        summary: {
+          totalAgents: dashboardData.overview.totalAgents,
+          activeAgents: dashboardData.overview.activeAgents,
+          blockedAgents: dashboardData.overview.blockedAgents,
+          inactiveAgents: dashboardData.overview.inactiveAgents,
         },
+        recentAgents: dashboardData.recentAgents,
+        monthlyTrend: dashboardData.onboardingTrend,
       },
-    ]),
-
-    // 2. Fetch last 5 recently registered agents (Excluding sensitive data like password)
-    userModel
-      .find({}, { password: 0, __v: 0 })
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .lean(),
-
-    // 3. Monthly Agent Onboarding Trend (Graph/Chart data for UI)
-    userModel.aggregate([
-      {
-        $group: {
-          _id: {
-            month: { $month: "$createdAt" },
-            year: { $year: "$createdAt" },
-          },
-          count: { $sum: 1 },
-        },
-      },
-      { $sort: { "_id.year": -1, "_id.month": -1 } },
-      { $limit: 6 },
-    ]),
-  ]);
-
-  // Handle empty collection fallback values
-  const metrics = agentCounts[0] || {
-    totalAgents: 0,
-    activeAgents: 0,
-    blockedAgents: 0,
-    inactiveAgents: 0,
-  };
-
-  return {
-    overview: metrics,
-    recentAgents,
-    onboardingTrend: agentStatusBreakdown,
-  };
+    });
+  } catch (error) {
+    console.error("[CRITICAL ERROR] Failed to fetch Admin Dashboard Data:", error);
+    return res.status(500).json({
+      success: true,
+      message: "Server error while fetching dashboard analytics",
+      error: error.message,
+    });
+  }
 };
+
+export const getAgentsList = async (req, res) => {
+  try {
+    const { 
+      search = "", 
+      status, 
+      role, 
+      page = 1, 
+      limit = 10, 
+      sortBy = "createdAt", 
+      sortOrder = "desc" 
+    } = req.query;
+
+    // Call DAO method
+    const result = await agentDao.getPaginatedAgents({
+      search: search.trim(),
+      status,
+      role,
+      page: parseInt(page, 10),
+      limit: parseInt(limit, 10),
+      sortBy,
+      sortOrder
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Agents list fetched successfully",
+      data: result.agents,
+      pagination: result.pagination
+    });
+
+  } catch (error) {
+    console.error("Error in getAgentsList Controller:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error while fetching agents list",
+      error: error.message
+    });
+  }
+};
+

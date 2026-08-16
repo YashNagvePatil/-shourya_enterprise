@@ -1,4 +1,4 @@
-import userModel from "../models/user.model.js";
+import userModel from "../models/user.models.js"
 
 export const fetchAdminDashboardMetrics = async () => {
   const [agentCounts, recentAgents, agentStatusBreakdown] = await Promise.all([
@@ -58,3 +58,57 @@ export const fetchAdminDashboardMetrics = async () => {
     onboardingTrend: agentStatusBreakdown,
   };
 };
+
+
+export const getPaginatedAgents = async ({ search, status, role, page = 1, limit = 10, sortBy = "createdAt", sortOrder = "desc" }) => {
+    // 1. Build dynamic query filter
+    const query = {};
+
+    // Search by Name or Email (Case-insensitive)
+    if (search) {
+      query.$or = [
+        { fullName: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } }
+      ];
+    }
+
+    // Filter by Status (Active, Inactive, Blocked)
+    if (status) {
+      query.status = status;
+    }
+
+    // Filter by Role
+    if (role) {
+      query.role = role;
+    }
+
+    // 2. Pagination calculation
+    const skip = (page - 1) * limit;
+    const sort = { [sortBy]: sortOrder === "asc" ? 1 : -1 };
+
+    // 3. Execute DB queries concurrently for performance
+    const [agents, totalCount] = await Promise.all([
+      User.find(query)
+        .select("-password -__v") // Exclude sensitive details
+        .sort(sort)
+        .skip(skip)
+        .limit(Number(limit))
+        .lean(), // Convert to plain JS objects for fast execution
+
+      User.countDocuments(query)
+    ]);
+
+    const totalPages = Math.ceil(totalCount / limit);
+
+    return {
+      agents,
+      pagination: {
+        totalCount,
+        totalPages,
+        currentPage: Number(page),
+        limit: Number(limit),
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }
+    };
+  }

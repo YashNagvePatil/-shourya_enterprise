@@ -3,7 +3,7 @@ import morgan from "morgan"
 import cookieParser from "cookie-parser"
 import authRouter from "../routes/auth.routes.js"
 import agentRouter from "../routes/agentDashboard.routes.js"
-// import adminRouter from "../routes/admin.Routes.js"
+import adminRouter from "../routes/admin.Routes.js"
 import cors from "cors"
 const app = express()
 
@@ -27,7 +27,7 @@ const app = express()
 
  app.use("/api/auth",authRouter)
  app.use("/api/agent",agentRouter)
-//  app.use("/api/admin",adminRouter)
+ app.use("/api/admin",adminRouter)
 
 
   export default app
