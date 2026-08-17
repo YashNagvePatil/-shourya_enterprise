@@ -25,7 +25,7 @@ export const getAgentList = async (queryParams = {}) => {
   return response.data;
 };
 
-export const getAgentDetails = async (agentId) => {
+export const getAgentDetails = async (agentId,queryParams = {}) => {
   console.log("Fetching details for agentId:", agentId); // Check is this undefined?
   
   if (!agentId) {
@@ -33,7 +33,12 @@ export const getAgentDetails = async (agentId) => {
     return;
   }
   
-  const response = await api.get(`/admin/agent/${agentId}`);
+  const response = await api.get(`/admin/agent/${agentId}`,{
+           params: {
+      ...queryParams,
+      _t: new Date().getTime(), 
+    } 
+  });
   return response.data;
 }
 

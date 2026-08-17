@@ -1,71 +1,31 @@
-import React, { useState } from "react";
-
-// ============================================================================
-// STATIC DUMMY DATA (Simulates response from backend: GET /api/admin/agents/:id)
-// ============================================================================
-const DUMMY_AGENT = {
-  _id: "agent_9876543210",
-  fullName: "Rahul Sharma",
-  email: "rahul.sharma@example.com",
-  phone: "+91 98765 43210",
-  status: "Active", // Possible values: "Active", "Blocked", "Pending"
-  network: {
-    leftCount: 14,
-    rightCount: 22,
-  },
-  revenue: {
-    totalEarnings: 145000,
-    pendingPayout: 12500,
-  },
-  bankDetails: {
-    accountHolder: "Rahul Sharma",
-    bankName: "HDFC Bank",
-    accountNumber: "50100458921102",
-    ifscCode: "HDFC0001234",
-  },
-  recentWork: [
-    { _id: "ord_100198234", amount: 2500, status: "Completed" },
-    { _id: "ord_100198235", amount: 4200, status: "Completed" },
-    { _id: "ord_100198236", amount: 1800, status: "Completed" },
-  ],
-};
+import React, { useEffect } from "react";
+import { useAgentDetail } from "../hook/useAdmin";
 
 const AgentDetailPage = ({ agentId, onBack }) => {
-  /*
-   * API INTEGRATION NOTE:
-   * Originally, hook state was pulled from custom hook `useAgentDetail()`:
-   *   const { selectedAgent, isDetailLoading, error, toggleStatus, ... } = useAgentDetail();
-   *
-   * Below, we replace backend state with local static state for testing UI layout.
-   */
 
-  // 1. Static Agent Profile State
-  const [selectedAgent, setSelectedAgent] = useState(DUMMY_AGENT);
+  const {
+    selectedAgent,
+    isDetailLoading,
+    isActionLoading,
+    error,
+    blockModalOpen,
+    blockReason,
+    setBlockReason,
+    setBlockModalOpen,
+    loadAgentProfile,
+    toggleStatus,
+    clearProfile,
+  } = useAgentDetail();
 
-  // 2. UI Loading & Error Simulation States
-  const [isDetailLoading] = useState(false); // Set to true to test loading UI
-  const [error] = useState(null); // Set string message to test error UI
-
-  // 3. Modal & Action Simulation States
-  const [blockModalOpen, setBlockModalOpen] = useState(false);
-  const [blockReason, setBlockReason] = useState("");
-  const [isActionLoading, setIsActionLoading] = useState(false);
-
-  // Helper function to simulate status toggling (Block/Unblock) locally without backend API call
-  const handleToggleStatus = () => {
-    setIsActionLoading(true);
-
-    // Simulate server latency
-    setTimeout(() => {
-      setSelectedAgent((prev) => ({
-        ...prev,
-        status: prev.status === "Blocked" ? "Active" : "Blocked",
-      }));
-      setIsActionLoading(false);
-      setBlockModalOpen(false);
-      setBlockReason("");
-    }, 600);
-  };
+  
+  useEffect(() => {
+    if (agentId) {
+      loadAgentProfile(agentId);
+    }
+    return () => {
+      clearProfile();
+    };
+  }, [agentId, loadAgentProfile, clearProfile]);
 
   // --- Loading State Renderer ---
   if (isDetailLoading) {
@@ -86,7 +46,7 @@ const AgentDetailPage = ({ agentId, onBack }) => {
     );
   }
 
-  // Destructure static agent properties
+  // Hook dwara mile selectedAgent se data destructure kar rahe hain
   const { fullName, email, phone, status, network, revenue, bankDetails, recentWork } = selectedAgent;
   const isBlocked = status === "Blocked";
 
@@ -134,7 +94,7 @@ const AgentDetailPage = ({ agentId, onBack }) => {
         </div>
       </div>
 
-      {/* Overview Metric Cards (Static Calculations) */}
+      {/* Overview Metric Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
           <p className="text-xs font-semibold text-slate-400 uppercase">Left Team</p>
@@ -215,7 +175,7 @@ const AgentDetailPage = ({ agentId, onBack }) => {
         </div>
       </div>
 
-      {/* Confirmation Modal (Simulated Action) */}
+      {/* Confirmation Modal */}
       {blockModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white max-w-md w-full p-6 rounded-2xl shadow-xl">
@@ -224,7 +184,7 @@ const AgentDetailPage = ({ agentId, onBack }) => {
             </h3>
             <p className="text-sm text-slate-500 mb-4">
               {isBlocked
-                ? "Agent system ko dobara access kar sagega."
+                ? "Agent system ko dobara access kar sakega."
                 : "Agent ka access restricted ho jayega."}
             </p>
 
@@ -246,7 +206,7 @@ const AgentDetailPage = ({ agentId, onBack }) => {
               </button>
               <button
                 disabled={isActionLoading}
-                onClick={handleToggleStatus}
+                onClick={toggleStatus}
                 className={`px-4 py-2 rounded-lg text-white font-medium ${
                   isBlocked ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700"
                 }`}

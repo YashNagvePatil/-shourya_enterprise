@@ -1,6 +1,7 @@
 import { useCallback,useRef,useEffect,useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { getAgentsdata,getAgentList,getAgentDetails,changeAgentStatus } from "../service/admin.api.js"; 
+import { getAgentsdata,getAgentList,getAgentDetails,changeAgentStatus } from "../service/admin.api.js";
+import { useSearchParams } from "react-router"; 
 // Redux Slice Actions
 import {
   fetchDashboardStart,
@@ -161,6 +162,8 @@ export const useAgentList = () => {
 
 export const useAgentDetail = () => {
   const dispatch = useDispatch();
+  const [searchParams] = useSearchParams();
+  
   const { selectedAgent, isDetailLoading, isActionLoading, error } = useSelector(
     (state) => state.admin
   );
@@ -168,23 +171,41 @@ export const useAgentDetail = () => {
   const [blockModalOpen, setBlockModalOpen] = useState(false);
   const [blockReason, setBlockReason] = useState("");
 
-  // 1. Fetch Agent Profile (Wrapped cleanly)
+  // URL Query parameter: ?id=6a7ee02f2ef7acdbbf7c9bbe
+  const agentId = searchParams.get("id");
+
+   useEffect(() => {
+  console.log(">>> AgentDetailPage Mounted! agentId in URL:", agentId);
+
+  if (agentId) {
+    console.log(">>> Calling API with ID:", agentId);
+    loadAgentProfile(agentId);
+  } else {
+    console.error(">>> ERROR: agentId is NULL or UNDEFINED in URL!");
+  }
+}, [agentId]);
+
+
+  // 1. Fetch Agent Profile
   const loadAgentProfile = useCallback(
-    async (agentId) => {
-      if (!agentId) return;
-      
+    async (targetId = agentId) => {
+      if (!targetId) {
+        dispatch(fetchAgentDetailsFailure("Agent ID is missing in URL"));
+        return;
+      }
+
       dispatch(fetchAgentDetailsStart());
       try {
-        const responseData = await getAgentDetails(agentId);
-        // Ensure standard payload structure
-        const agentData = responseData?.data || responseData;
+        const responseData = await getAgentDetails(targetId);
+        // Standard API response formats handle kar rahe hain (data wrapper safety)
+        const agentData = responseData?.data?.data || responseData?.data || responseData;
         dispatch(fetchAgentDetailsSuccess(agentData));
       } catch (err) {
         const msg = err.response?.data?.message || err.message || "Failed to fetch details";
         dispatch(fetchAgentDetailsFailure(msg));
       }
     },
-    [dispatch]
+    [dispatch, agentId]
   );
 
   // 2. Toggle Status (Block / Unblock)
@@ -195,7 +216,7 @@ export const useAgentDetail = () => {
     dispatch(toggleAgentStatusStart());
     try {
       const responseData = await changeAgentStatus(selectedAgent._id, nextStatus, blockReason);
-      const updatedData = responseData?.data || responseData;
+      const updatedData = responseData?.data?.data || responseData?.data || responseData;
       dispatch(toggleAgentStatusSuccess(updatedData));
       setBlockModalOpen(false);
       setBlockReason("");
@@ -205,7 +226,13 @@ export const useAgentDetail = () => {
     }
   };
 
+  // 3. Clear Profile Cleanup Wrapper
+  const clearProfile = useCallback(() => {
+    dispatch(clearSelectedAgent());
+  }, [dispatch]);
+
   return {
+    agentId,
     selectedAgent,
     isDetailLoading,
     isActionLoading,
@@ -216,7 +243,7 @@ export const useAgentDetail = () => {
     setBlockModalOpen,
     loadAgentProfile,
     toggleStatus,
-    clearProfile: () => dispatch(clearSelectedAgent()),
+    clearProfile,
   };
 };
 
