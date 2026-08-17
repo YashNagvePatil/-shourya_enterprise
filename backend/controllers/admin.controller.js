@@ -77,53 +77,74 @@ export const getAgentsList = async (req, res) => {
   }
 };
 
-
-
 //  Get Complete Agent Deep Details
 export const getAgentById = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // 1. Agent basic detail fetch karein
     const agent = await userModel.findById(id).lean();
     if (!agent) {
       return res.status(404).json({ success: false, message: "Agent not found" });
     }
 
-    // Sub-agents count (Binary/Tree Structure Example)
-    const leftTeamCount = await userModel.countDocuments({ parentId: id, position: "left" });
-    const rightTeamCount = await userModel.countDocuments({ parentId: id, position: "right" });
-
-    // Revenue & Work Statistics
-    const totalRevenue = await Order.aggregate([
-      { $match: { agentId: agent._id, status: "Completed" } },
-      { $group: { _id: null, total: { $sum: "$amount" } } }
-    ]);
-
-    const recentWork = await Order.find({ agentId: id })
+    // 2. Recent Activity / Work: Downline me jude naye members (Referrals)
+    // Parent Agent ID ke through direct joinings ko "Recent Work" maante hain
+    const recentMembers = await userModel
+      .find({ parentAgentId: id })
+      .select("fullName distributerId packageAmount isActivated createdAt status")
       .sort({ createdAt: -1 })
-      .limit(5);
+      .limit(5)
+      .lean();
 
+    // Work / Activity Data Format 
+    const recentWorkFormatted = recentMembers.map((member) => ({
+      _id: member._id,
+      amount: member.packageAmount || 0,
+      status: member.isActivated ? "Activated" : member.status,
+      title: `Joined: ${member.fullName} (${member.distributerId})`,
+      createdAt: member.createdAt,
+    }));
+
+    // 3. Response Construct
     res.status(200).json({
       success: true,
       data: {
         ...agent,
-        network: {
-          leftCount: leftTeamCount,
-          rightCount: rightTeamCount,
-          totalSubAgents: leftTeamCount + rightTeamCount,
+
+        // Frontend keys ke liye fallback mappings
+        phone: agent.contact || null,
+
+        // Bank details structure mapping
+        bankDetails: {
+          accountHolder: agent.bankDetails?.accountHolderName || "N/A",
+          accountNumber: agent.bankDetails?.accountNumber || "N/A",
+          bankName: agent.bankDetails?.bankName || "N/A",
+          ifscCode: agent.bankDetails?.ifscCode || "N/A",
+          upiId: agent.bankDetails?.upiId || "N/A",
         },
+
+        // Network Stats
+        network: {
+          leftCount: agent.totalLeftAgents || 0,
+          rightCount: agent.totalRightAgents || 0,
+          totalSubAgents: (agent.totalLeftAgents || 0) + (agent.totalRightAgents || 0),
+        },
+
+        // Revenue Stats
         revenue: {
-          totalEarnings: totalRevenue[0]?.total || 0,
+          totalEarnings: agent.totalEarning || 0,
           pendingPayout: agent.pendingPayout || 0,
         },
-        recentWork,
+
+        // Recent Work (Downline Activity)
+        recentWork: recentWorkFormatted,
       },
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
 //  Block / Unblock Agent
 export const toggleAgentStatus = async (req, res) => {
   try {
