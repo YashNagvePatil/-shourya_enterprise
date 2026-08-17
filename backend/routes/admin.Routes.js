@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getAdminDashboardData, getAgentsList,} from "../controllers/admin.controller.js";
+import { getAdminDashboardData, getAgentById, getAgentsList, toggleAgentStatus,} from "../controllers/admin.controller.js";
 import { authenticateUser } from "../middlewares/agent.middleware.js";
 
 
@@ -17,10 +17,23 @@ const router = Router()
 
 /**
  * @desc    Get all agents with search, filters & pagination
- * @route   GET /api/v1/admin/agents
+ * @route   GET /api/admin/agents
  * @access  Private (Admin Only)
  */
 
   router.get("/agent/management",authenticateUser,getAgentsList)
+
+
+  /**
+   * @desc GET specifice agent details 
+   * @route GET 
+   */
+
+
+  router.get("/agent/:id",authenticateUser,getAgentById)
+ 
+
+
+  router.patch("/agent/status/:id",authenticateUser,toggleAgentStatus)
 
 export default router

@@ -1,5 +1,5 @@
 import React from "react";
-import { useFetchDashboard } from "../hook/useAgentDashBoard";
+import { useFetchDashboard } from "../hook/useAgent";
 
 import { 
   Wallet, 

@@ -88,14 +88,14 @@ export const getPaginatedAgents = async ({ search, status, role, page = 1, limit
 
     // 3. Execute DB queries concurrently for performance
     const [agents, totalCount] = await Promise.all([
-      User.find(query)
+      userModel.find(query)
         .select("-password -__v") // Exclude sensitive details
         .sort(sort)
         .skip(skip)
         .limit(Number(limit))
         .lean(), // Convert to plain JS objects for fast execution
 
-      User.countDocuments(query)
+      userModel.countDocuments(query)
     ]);
 
     const totalPages = Math.ceil(totalCount / limit);

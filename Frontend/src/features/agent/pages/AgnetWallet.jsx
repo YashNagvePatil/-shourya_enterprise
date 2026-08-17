@@ -12,7 +12,7 @@ import {
   Loader2
 } from "lucide-react";
 // Import the custom hook from your hooks directory
-import { useAgentWallet } from "../hook/useAgentDashBoard"; 
+import { useAgentWallet } from "../hook/useAgent"; 
 
 const WalletPayout = () => {
   const [withdrawAmount, setWithdrawAmount] = useState("");

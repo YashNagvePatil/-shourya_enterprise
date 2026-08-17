@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { User, ShieldCheck, Award, Users, GitCommit, Network, Loader2 } from "lucide-react";
-import { useAgentNetwork } from "../hook/useAgentDashBoard"; 
+import { useAgentNetwork } from "../hook/useAgent"; 
 
 // Reusable Tree Node UI Card Component (Fixed Mapping to leftChild/rightChild)
 const TreeNodeCard = ({ node, fallBackSide }) => {

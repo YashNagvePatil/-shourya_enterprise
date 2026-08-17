@@ -1,271 +1,327 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo } from "react";
+import { useAdmin } from "../hook/useAdmin.js";
+import { 
+  Users, 
+  UserCheck, 
+  UserX, 
+  UserMinus, 
+  RefreshCw, 
+  AlertCircle, 
+  TrendingUp,
+  PieChart as PieIcon,
+  Activity,
+  ArrowUpRight,
+  ShieldAlert
+} from "lucide-react";
+import { 
+  AreaChart, 
+  Area, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend
+} from "recharts";
 
-export const AdminDashboard = () => {
-  // Navigation & View States
-  const [activeTab, setActiveTab] = useState("overview");
-  const [timeRange, setTimeRange] = useState("7d");
-  const [systemAlertThreshold, setSystemAlertThreshold] = useState(90);
-  const [searchQuery, setSearchQuery] = useState("");
+const AdminDashboard = () => {
+  const { 
+    summary = {}, 
+    recentAgents = [], 
+    monthlyTrend = [], 
+    isLoading, 
+    error, 
+    fetchDashboardData, 
+    clearError 
+  } = useAdmin();
 
-  // Static Analytical Data Sets
-  const systemMetrics = [
-    { label: "Total Platform Volume", value: "$1,482,900.00", change: "+12.4% MoM", status: "optimal" },
-    { label: "Active Nodes Operational", value: "14,284 / 15,000", change: "95.2% Capacity", status: "stable" },
-    { label: "Pending KYC Pipeline", value: "412 Accounts", change: "-8% Queue Depth", status: "warning" },
-    { label: "Network Synchronization", value: "99.98% Sync", change: "1.2s Avg Block Time", status: "optimal" }
-  ];
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
-  const distributionLogs = [
-    { id: "TXN-9081", agent: "Alpha Distributor", region: "North Core", volume: "$12,450.00", type: "Binary Match", status: "Settled", date: "2026-08-13" },
-    { id: "TXN-9080", agent: "Quantum Logistics", region: "West Perimeter", volume: "$8,900.00", type: "Direct Referal", status: "Settled", date: "2026-08-13" },
-    { id: "TXN-9079", agent: "Apex Alliance", region: "South Sector", volume: "$24,150.00", type: "Franchise Bonus", status: "Pending Verification", date: "2026-08-12" },
-    { id: "TXN-9078", agent: "Vanguard Hub", region: "East Terminal", volume: "$4,200.00", type: "Binary Match", status: "Settled", date: "2026-08-12" },
-    { id: "TXN-9077", agent: "Prime Horizon", region: "North Core", volume: "$16,800.00", type: "Override Commission", status: "Flagged Tier Audit", date: "2026-08-11" }
-  ];
+  // 📈 Format Trend Data for Area Chart
+  const formattedTrendData = useMemo(() => {
+    return monthlyTrend.map((item) => ({
+      month: `${item._id?.month}/${item._id?.year}`,
+      Agents: item.count || 0
+    }));
+  }, [monthlyTrend]);
 
-  const filteredLogs = distributionLogs.filter(log => 
-    log.agent.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    log.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    log.type.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // 🥧 Format Distribution Data for Pie Chart
+  const statusDistributionData = useMemo(() => {
+    return [
+      { name: "Active", value: summary.activeAgents || 0, color: "#10B981" },
+      { name: "Inactive", value: summary.inactiveAgents || 0, color: "#F59E0B" },
+      { name: "Blocked", value: summary.blockedAgents || 0, color: "#EF4444" },
+    ].filter(item => item.value > 0);
+  }, [summary]);
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900 font-sans flex overflow-hidden">
+    <div className="min-h-screen bg-slate-50 text-slate-800 p-4 md:p-8 font-sans">
       
-      {/* ================= SIDEBAR NAVIGATION ================= */}
-      <aside className="w-64 bg-slate-950 text-white hidden md:flex flex-col justify-between p-6 border-r border-slate-800 shrink-0">
+      {/* 🟢 Light Header */}
+      <header className="flex flex-col md:flex-row md:items-center md:justify-between pb-6 mb-8 border-b border-slate-200 gap-4">
         <div>
-          {/* Brand Heading */}
-          <div className="flex items-center gap-2 px-2 py-3 border-b border-white/10 mb-6">
-            <span className="w-3 h-3 rounded-full bg-slate-400 animate-pulse"></span>
-            <span className="font-semibold text-sm tracking-wide uppercase text-slate-200">System Kernel v4.2</span>
+          <div className="flex items-center gap-2 text-indigo-600 font-semibold text-xs tracking-wider uppercase mb-1">
+            <Activity className="w-4 h-4" /> Real-Time Analytics
           </div>
-
-          {/* Navigation Links */}
-          <nav className="space-y-1">
-            {[
-              { id: "overview", label: "Operations Control", icon: "■" },
-              { id: "nodes", label: "Distribution Topology", icon: "☲" },
-              { id: "financials", label: "Settlement Ledgers", icon: "⚖" },
-              { id: "compliance", label: "KYC / Audit Vault", icon: "⎔" },
-              { id: "settings", label: "System Parameter Rules", icon: "⚙" }
-            ].map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                  activeTab === item.id 
-                    ? "bg-white text-slate-950 shadow-md font-semibold" 
-                    : "text-slate-400 hover:bg-white/5 hover:text-white"
-                }`}
-              >
-                <span className="text-sm leading-none">{item.icon}</span>
-                {item.label}
-              </button>
-            ))}
-          </nav>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
+            Agent Management Console
+          </h1>
+          <p className="text-slate-500 text-sm mt-0.5">
+            Monitor system performance, user onboarding, and operational status.
+          </p>
         </div>
 
-        {/* User Identity Segment */}
-        <div className="pt-4 border-t border-white/10 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-slate-800 border border-white/20 flex items-center justify-center text-xs font-bold text-slate-300">
-            AD
-          </div>
-          <div>
-            <h4 className="text-xs font-semibold text-white">Root Administrator</h4>
-            <p className="text-[10px] text-slate-400">Secured Instance Session</p>
-          </div>
-        </div>
-      </aside>
+        <button
+          onClick={() => fetchDashboardData()}
+          disabled={isLoading}
+          className="inline-flex items-center gap-2 bg-white hover:bg-slate-100 active:scale-95 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-medium transition shadow-sm border border-slate-200 disabled:opacity-50 cursor-pointer"
+        >
+          <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin text-indigo-600" : "text-slate-500"}`} />
+          <span>{isLoading ? "Syncing..." : "Refresh Analytics"}</span>
+        </button>
+      </header>
 
-      {/* ================= MAIN CONTENT SURFACE ================= */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        
-        {/* Top Navbar */}
-        <header className="h-14 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-4">
-            <h2 className="text-sm font-semibold tracking-tight uppercase text-slate-800">
-              {activeTab.replace("-", " ")} Workspace
-            </h2>
-            <div className="hidden sm:flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md text-[10px] font-mono text-slate-600">
-              STATUS: <span className="text-emerald-600 font-bold">ONLINE</span>
-            </div>
-          </div>
-
-          {/* Context Controls */}
+      {/* 🔴 Light Error Banner */}
+      {error && (
+        <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between text-rose-800">
           <div className="flex items-center gap-3">
-            <select
-              value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value)}
-              className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 focus:outline-none focus:border-slate-500 cursor-pointer"
-            >
-              <option value="24h">Metrics: Last 24 Hours</option>
-              <option value="7d">Metrics: Last 7 Days</option>
-              <option value="30d">Metrics: Last 30 Days</option>
-            </select>
+            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+            <span className="text-sm font-medium">{error}</span>
           </div>
-        </header>
-
-        {/* Dashboard Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
-          
-          {/* ================= METRIC SUMMARY ROW ================= */}
-          <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-            {systemMetrics.map((metric, i) => (
-              <div key={i} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
-                <div>
-                  <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1">
-                    {metric.label}
-                  </span>
-                  <h3 className="text-xl font-semibold tracking-tight text-slate-900">
-                    {metric.value}
-                  </h3>
-                </div>
-                <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-                  <span className="font-medium text-slate-600">{metric.change}</span>
-                  <span className={`w-2 h-2 rounded-full ${
-                    metric.status === "optimal" ? "bg-emerald-500" :
-                    metric.status === "stable" ? "bg-slate-500" : "bg-amber-500"
-                  }`} />
-                </div>
-              </div>
-            ))}
-          </section>
-
-          {/* ================= INTERACTIVE WORKSPACE SPLIT ================= */}
-          <section className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-            
-            {/* System Controls & Config Panel (4 Columns) */}
-            <div className="xl:col-span-4 bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-5">
-              <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
-                  Threshold Controls
-                </h3>
-                <p className="text-[11px] text-slate-500">
-                  Dynamically isolate nodes operating beyond safe capacities.
-                </p>
-              </div>
-
-              {/* Slider Control */}
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs font-medium">
-                  <span className="text-slate-600">Anomaly Isolation Target</span>
-                  <span className="font-mono font-bold text-slate-900">{systemAlertThreshold}% Capacity</span>
-                </div>
-                <input
-                  type="range"
-                  min="70"
-                  max="99"
-                  value={systemAlertThreshold}
-                  onChange={(e) => setSystemAlertThreshold(Number(e.target.value))}
-                  className="w-full accent-slate-800 cursor-pointer"
-                />
-                <div className="flex justify-between text-[10px] text-slate-400 font-mono">
-                  <span>70% Minimum Limit</span>
-                  <span>99% Rigid Absolute</span>
-                </div>
-              </div>
-
-              <hr className="border-slate-100" />
-
-              {/* Functional Process Blueprint Actions */}
-              <div className="space-y-2">
-                <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-700">
-                  Critical Operations Flow
-                </h4>
-                <div className="space-y-1.5">
-                  <button className="w-full text-left p-2.5 bg-slate-50 border border-slate-200 hover:border-slate-400 rounded-lg text-xs transition-all flex items-center justify-between group cursor-pointer">
-                    <div>
-                      <p className="font-semibold text-slate-800">Lock Ingestion Pools</p>
-                      <p className="text-[10px] text-slate-400">Halts real-time database state mutations</p>
-                    </div>
-                    <span className="text-slate-400 group-hover:text-slate-900 font-bold">→</span>
-                  </button>
-                  <button className="w-full text-left p-2.5 bg-slate-50 border border-slate-200 hover:border-slate-400 rounded-lg text-xs transition-all flex items-center justify-between group cursor-pointer">
-                    <div>
-                      <p className="font-semibold text-slate-800">Trigger Topology Audit</p>
-                      <p className="text-[10px] text-slate-400">Verifies binary nodes matching structures</p>
-                    </div>
-                    <span className="text-slate-400 group-hover:text-slate-900 font-bold">→</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Live Data Grid Table Ledger (8 Columns) */}
-            <div className="xl:col-span-8 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
-              {/* Data Filtering Bar */}
-              <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                    Real-time Transaction Ledger
-                  </h3>
-                  <p className="text-[11px] text-slate-500">System distribution events log grid.</p>
-                </div>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search Node ID, Partner, or Category..."
-                    className="w-full sm:w-64 pl-3 pr-8 py-1 bg-white rounded-lg border border-slate-200 text-xs focus:outline-none focus:border-slate-500 transition-all"
-                  />
-                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none">⌕</span>
-                </div>
-              </div>
-
-              {/* Tabular Responsive Segment */}
-              <div className="flex-1 overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                      <th className="p-3 pl-4">Audit ID</th>
-                      <th className="p-3">Distributor Entity</th>
-                      <th className="p-3">Type</th>
-                      <th className="p-3 text-right">Settlement</th>
-                      <th className="p-3 pr-4 text-center">Engine Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-xs">
-                    {filteredLogs.length > 0 ? (
-                      filteredLogs.map((log) => (
-                        <tr key={log.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="p-3 pl-4 font-mono font-semibold text-slate-600">{log.id}</td>
-                          <td className="p-3">
-                            <p className="font-semibold text-slate-900">{log.agent}</p>
-                            <p className="text-[10px] text-slate-400">{log.region} • {log.date}</p>
-                          </td>
-                          <td className="p-3 font-medium text-slate-600">{log.type}</td>
-                          <td className="p-3 text-right font-mono font-bold text-slate-900">{log.volume}</td>
-                          <td className="p-3 pr-4 text-center">
-                            <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wide uppercase border ${
-                              log.status === "Settled" 
-                                ? "bg-slate-50 border-slate-300 text-slate-800"
-                                : log.status.includes("Flagged")
-                                ? "bg-red-50 border-red-200 text-red-700"
-                                : "bg-amber-50 border-amber-200 text-amber-700"
-                            }`}>
-                              {log.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="5" className="p-8 text-center text-xs text-slate-400 font-medium">
-                          No internal distribution logs match your system search query parameters.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-          </section>
-
+          <button
+            onClick={clearError}
+            className="text-xs bg-rose-100 hover:bg-rose-200 text-rose-700 px-3 py-1 rounded-lg font-medium transition"
+          >
+            Dismiss
+          </button>
         </div>
-      </main>
+      )}
+
+      {/* 📊 High-Contrast Light KPI Cards */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+        
+        {/* Total Agents */}
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md transition">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Total Agents</span>
+            <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">
+              <Users className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-4">
+            <h3 className="text-3xl font-extrabold text-slate-900">
+              {isLoading ? "..." : (summary.totalAgents || 0)}
+            </h3>
+            <p className="text-xs text-slate-500 mt-1 flex items-center gap-1 font-medium">
+              Registered platform users
+            </p>
+          </div>
+        </div>
+
+        {/* Active Agents */}
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md transition">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Active Status</span>
+            <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
+              <UserCheck className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-4">
+            <h3 className="text-3xl font-extrabold text-slate-900">
+              {isLoading ? "..." : (summary.activeAgents || 0)}
+            </h3>
+            <p className="text-xs text-emerald-600 mt-1 font-medium flex items-center gap-0.5">
+              <ArrowUpRight className="w-3.5 h-3.5" /> Operational
+            </p>
+          </div>
+        </div>
+
+        {/* Inactive Agents */}
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md transition">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Inactive / Pending</span>
+            <div className="p-2.5 bg-amber-50 text-amber-600 rounded-xl">
+              <UserMinus className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-4">
+            <h3 className="text-3xl font-extrabold text-slate-900">
+              {isLoading ? "..." : (summary.inactiveAgents || 0)}
+            </h3>
+            <p className="text-xs text-amber-600 mt-1 font-medium">
+              Requires review / dormant
+            </p>
+          </div>
+        </div>
+
+        {/* Blocked Agents */}
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md transition">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Blocked Accounts</span>
+            <div className="p-2.5 bg-rose-50 text-rose-600 rounded-xl">
+              <UserX className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-4">
+            <h3 className="text-3xl font-extrabold text-slate-900">
+              {isLoading ? "..." : (summary.blockedAgents || 0)}
+            </h3>
+            <p className="text-xs text-rose-600 mt-1 font-medium flex items-center gap-1">
+              <ShieldAlert className="w-3.5 h-3.5" /> Restricted access
+            </p>
+          </div>
+        </div>
+
+      </section>
+
+      {/* 📉 Interactive Visualizations Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+        
+        {/* Area Chart: Monthly Trend (2 Columns Wide) */}
+        <div className="lg:col-span-2 bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-indigo-600" /> Onboarding Growth Trajectory
+              </h2>
+              <p className="text-xs text-slate-500">Monthly new agent registrations over time</p>
+            </div>
+          </div>
+
+          <div className="h-72 w-full">
+            {isLoading ? (
+              <div className="h-full w-full bg-slate-100 animate-pulse rounded-xl" />
+            ) : formattedTrendData.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+                No trend metrics available.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={formattedTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="indigoGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#6366F1" stopOpacity={0.0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                  <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#64748B" }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 12, fill: "#64748B" }} axisLine={false} tickLine={false} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: "#FFFFFF", borderRadius: "12px", border: "1px solid #E2E8F0", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" }} 
+                  />
+                  <Area type="monotone" dataKey="Agents" stroke="#4F46E5" strokeWidth={3} fillOpacity={1} fill="url(#indigoGradient)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
+        {/* Pie Chart: Status Breakdown */}
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+          <div>
+            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2 mb-1">
+              <PieIcon className="w-5 h-5 text-indigo-600" /> Status Distribution
+            </h2>
+            <p className="text-xs text-slate-500 mb-4">Breakdown of current user base</p>
+
+            <div className="h-56 w-full flex items-center justify-center">
+              {isLoading ? (
+                <div className="h-44 w-44 rounded-full border-4 border-slate-200 border-t-indigo-600 animate-spin" />
+              ) : statusDistributionData.length === 0 ? (
+                <div className="text-slate-400 text-sm">No agent status data</div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={statusDistributionData}
+                      innerRadius={55}
+                      outerRadius={80}
+                      paddingAngle={4}
+                      dataKey="value"
+                    >
+                      {statusDistributionData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ backgroundColor: "#FFFFFF", borderRadius: "8px", border: "1px solid #E2E8F0" }} />
+                    <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      {/* 📋 Table: Recently Registered Agents */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-base font-bold text-slate-900">Recently Onboarded Agents</h2>
+            <p className="text-xs text-slate-500">Latest registration entries in the system</p>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="space-y-3 py-4">
+            {[1, 2, 3].map((n) => (
+              <div key={n} className="h-10 bg-slate-100 animate-pulse rounded-lg" />
+            ))}
+          </div>
+        ) : recentAgents.length === 0 ? (
+          <div className="text-center py-10 text-slate-400 text-sm">
+            No recent agents recorded.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider font-semibold">
+                  <th className="pb-3 pl-2">Agent Name</th>
+                  <th className="pb-3">Email Address</th>
+                  <th className="pb-3">Assigned Role</th>
+                  <th className="pb-3 text-right pr-2">Current Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-sm">
+                {recentAgents.map((agent) => (
+                  <tr key={agent._id} className="hover:bg-slate-50/80 transition">
+                    <td className="py-3.5 pl-2 font-semibold text-slate-900">
+                      {agent.fullName}
+                    </td>
+                    <td className="py-3.5 text-slate-600">{agent.email}</td>
+                    <td className="py-3.5">
+                      <span className="px-2.5 py-1 text-xs bg-slate-100 text-slate-700 rounded-md font-medium border border-slate-200">
+                        {agent.role || "Agent"}
+                      </span>
+                    </td>
+                    <td className="py-3.5 text-right pr-2">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                          agent.status === "Active"
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            : agent.status === "Blocked"
+                            ? "bg-rose-50 text-rose-700 border border-rose-200"
+                            : "bg-amber-50 text-amber-700 border border-amber-200"
+                        }`}
+                      >
+                        {agent.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
     </div>
   );

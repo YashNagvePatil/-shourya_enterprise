@@ -7,6 +7,8 @@ import ProfilePage from "../features/agent/pages/AgentProfile";
 import WalletPayout from "../features/agent/pages/AgnetWallet";
 import AgentNetwork from "../features/agent/pages/AgentNetwork";
 import AdminDashboard from "../features/admin/pages/Dashboard";
+import AgentListPage from "../features/admin/pages/AgentListPage";
+import AgentDetailPage from "../features/admin/pages/AgentDetails";
 
 export const routes = createBrowserRouter([
   {
@@ -57,6 +59,16 @@ export const routes = createBrowserRouter([
         path: "/admin/dashboard",
         element: <AdminDashboard/>,
       },
+
+        {
+        path: "/admin/agenetList",
+        element: <AgentListPage/>,
+      },
+
+      {
+        path:'/admin/agentDetails',
+        element:<AgentDetailPage/>
+      }
     ]
   }
 ]);
