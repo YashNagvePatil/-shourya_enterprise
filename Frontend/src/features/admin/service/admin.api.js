@@ -49,3 +49,9 @@ export const changeAgentStatus = async (agentId, status, reason) => {
   });
   return response.data;
 };
+
+export const createProduct = async (formData) => {
+  // Axios automatically sets 'multipart/form-data' header when passing FormData
+  const response = await api.post("/admin/createProduct", formData);
+  return response.data;
+};

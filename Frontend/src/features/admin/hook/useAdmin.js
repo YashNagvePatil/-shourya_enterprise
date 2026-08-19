@@ -1,6 +1,7 @@
 import { useCallback,useRef,useEffect,useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { getAgentsdata,getAgentList,getAgentDetails,changeAgentStatus } from "../service/admin.api.js";
+import { createProductThunk, resetProductState } from "../state/product.slice.js";
 import { useSearchParams } from "react-router"; 
 // Redux Slice Actions
 import {
@@ -244,6 +245,60 @@ export const useAgentDetail = () => {
     loadAgentProfile,
     toggleStatus,
     clearProfile,
+  };
+};
+
+
+
+
+export const useCreateProduct = () => {
+  const dispatch = useDispatch();
+
+  // Extract Product State from Redux
+  const { isLoading, isSuccess, isError, error, message } = useSelector(
+    (state) => state.product
+  );
+
+  /**
+   * Submit Product Handler
+   * @param {Object} productData - Object containing text fields and image Files array
+   * @example
+   * submitProduct({ name: 'Product A', price: 100, images: [File1, File2] })
+   */
+  const handleCreateProduct = async (productData) => {
+    const formData = new FormData();
+
+    // Append all regular fields
+    Object.keys(productData).forEach((key) => {
+      if (key !== "images") {
+        formData.append(key, productData[key]);
+      }
+    });
+
+    // Append multiple files for Multer under 'images' key
+    if (productData.images && Array.isArray(productData.images)) {
+      productData.images.forEach((file) => {
+        formData.append("images", file);
+      });
+    }
+
+    // Dispatch Thunk Action
+    return await dispatch(createProductThunk(formData));
+  };
+
+  // State Reset Helper
+  const clearState = () => {
+    dispatch(resetProductState());
+  };
+
+  return {
+    handleCreateProduct,
+    clearState,
+    isLoading,
+    isSuccess,
+    isError,
+    error,
+    message,
   };
 };
 

@@ -1,7 +1,10 @@
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, Outlet } from "react-router";
+import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
+
+// Pages
 import RegisterPage from "../features/auth/pages/Register";
 import LoginPage from "../features/auth/pages/Login";
-import HomePage from "../features/products/pages/Homepage";
 import Dashboard from "../features/agent/pages/AgentDashboard";
 import ProfilePage from "../features/agent/pages/AgentProfile";
 import WalletPayout from "../features/agent/pages/AgnetWallet";
@@ -9,66 +12,61 @@ import AgentNetwork from "../features/agent/pages/AgentNetwork";
 import AdminDashboard from "../features/admin/pages/Dashboard";
 import AgentListPage from "../features/admin/pages/AgentListPage";
 import AgentDetailPage from "../features/admin/pages/AgentDetails";
+import CreateProductPage from "../features/admin/pages/CreateProduct";
+import Home from "../components/Home";
+
+// Root Layout Component with Persistent Navbar & Footer
+const RootLayout = () => {
+  return (
+    <div className="min-h-screen flex flex-col bg-black text-white">
+      <Navbar />
+      <main className="flex-grow">
+        <Outlet /> {/* Dynamic page components render here */}
+      </main>
+      <Footer />
+    </div>
+  );
+};
 
 export const routes = createBrowserRouter([
   {
     path: "/",
-    element: <HomePage />,
-  },
-
-  {
-    path: "/register",
-    element: <RegisterPage />,
-  },
-  {
-    path: "/login",
-    element: <LoginPage />,
-  },
-
-  {
-    path: "/agent",
+    element: <RootLayout />,
     children: [
       {
-        path: "/agent/Dashboard",
-        element: <Dashboard />,
+        index: true, // Default page at '/'
+        element: <Home />
+      },
+      {
+        path: "register",
+        element: <RegisterPage />,
+      },
+      {
+        path: "login",
+        element: <LoginPage />,
       },
 
+      // Agent Routes (Relative Paths)
       {
-        path: "/agent/profile",
-        element: <ProfilePage />,
+        path: "agent",
+        children: [
+          { path: "dashboard", element: <Dashboard /> },
+          { path: "profile", element: <ProfilePage /> },
+          { path: "wallet", element: <WalletPayout /> },
+          { path: "network", element: <AgentNetwork /> },
+        ],
       },
 
+      // Admin Routes (Relative Paths)
       {
-        path: "/agent/wallet",
-        element: <WalletPayout />,
-      },
-
-      {
-        path: "/agent/Network",
-        element: <AgentNetwork />,
+        path: "admin",
+        children: [
+          { path: "dashboard", element: <AdminDashboard /> },
+          { path: "agenetList", element: <AgentListPage /> },
+          { path: "agentDetails", element: <AgentDetailPage /> },
+          { path: "createProduct", element: <CreateProductPage /> },
+        ],
       },
     ],
-
   },
-
-  {
-    path:"admin",
-    children:[
-      
-      {
-        path: "/admin/dashboard",
-        element: <AdminDashboard/>,
-      },
-
-        {
-        path: "/admin/agenetList",
-        element: <AgentListPage/>,
-      },
-
-      {
-        path:'/admin/agentDetails',
-        element:<AgentDetailPage/>
-      }
-    ]
-  }
 ]);
