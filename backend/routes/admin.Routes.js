@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { getAdminDashboardData, getAgentById, getAgentsList, toggleAgentStatus,} from "../controllers/admin.controller.js";
 import { authenticateUser } from "../middlewares/agent.middleware.js";
+import { createProduct} from "../controllers/product.controller.js";
 
 
 const router = Router()
@@ -35,5 +36,7 @@ const router = Router()
 
 
   router.patch("/agent/status/:id",authenticateUser,toggleAgentStatus)
+
+  router.post("/createProduct",authenticateUser,createProduct)
 
 export default router
