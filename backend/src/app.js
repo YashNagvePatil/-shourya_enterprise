@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser"
 import authRouter from "../routes/auth.routes.js"
 import agentRouter from "../routes/agentDashboard.routes.js"
 import adminRouter from "../routes/admin.Routes.js"
+import productRouter from "../routes/product.routes.js"
 import cors from "cors"
 const app = express()
 
@@ -28,6 +29,8 @@ app.use(express.urlencoded({ extended: true, limit: "15mb" }));
  app.use("/api/auth",authRouter)
  app.use("/api/agent",agentRouter)
  app.use("/api/admin",adminRouter)
+ app.use("/api/home",productRouter)
 
 
-  export default app
+
+ export default app

@@ -1,6 +1,6 @@
 import productDao from "../dao/product.dao.js";
 import { uploadMultipleToCloudinary } from "../services/storage.service.js";
-
+import productModel from "../models/product.model.js";
 // ==========================================
 // Create Product Controller (With Detailed Debug Logging)
 // ==========================================
@@ -31,6 +31,7 @@ export const createProduct = async (req, res) => {
       packageTier,
       gstPercentage,
       images,
+     
     } = req.body;
 
     // ------------------------------------------
@@ -207,6 +208,95 @@ export const createProduct = async (req, res) => {
         errorName: error.name,
         stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
       },
+    });
+  }
+};
+
+
+
+
+export const getAllProducts = async (req, res) => {
+  try {
+    const { category, search, page = 1, limit = 12 } = req.query;
+
+    const query = {};
+
+    if (category && category !== "ALL") {
+      query.category = category;
+    }
+
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { sku: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const pageNum = Math.max(1, parseInt(page, 10));
+    const limitNum = Math.max(1, parseInt(limit, 10));
+    const skip = (pageNum - 1) * limitNum;
+
+    const [products, totalProducts] = await Promise.all([
+      productModel.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      productModel.countDocuments(query),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      count: products.length,
+      totalProducts,
+      totalPages: Math.ceil(totalProducts / limitNum),
+      currentPage: pageNum,
+      data: products,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch products",
+      error: error.message,
+    });
+  }
+};
+
+export const getProductDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 1. Fetch target product details
+    const product = await productModel.findById(id);
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    // 2. Fetch related products in the same category (excluding current product)
+    const relatedProducts = await productModel.find({
+      category: product.category,
+      _id: { $ne: product._id },
+    })
+      .limit(4)
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      data: {
+        product,
+        relatedProducts,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error fetching product details",
+      error: error.message,
     });
   }
 };

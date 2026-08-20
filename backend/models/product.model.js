@@ -28,11 +28,6 @@ const productSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-    category: {
-      type: String,
-      required: [true, "Category is required"],
-      trim: true,
-    },
     brand: {
       type: String,
       default: "Generic",
@@ -106,6 +101,20 @@ const productSchema = new mongoose.Schema(
     gstPercentage: {
       type: Number,
       default: 18, // GST Tax Rate
+    },
+      category: {
+       type: String,
+       required: [true, "Category is required"],
+        trim: true,
+       enum: {
+        values: [
+        "BEST SELLERS",
+        "FEATURED COLLECTION",
+        "EXECUTIVE BUNDLES",
+        "NEW ARRIVALS",
+       ],
+        message: "{VALUE} is not a valid product category", // Custom error message
+      },
     },
   },
   {
