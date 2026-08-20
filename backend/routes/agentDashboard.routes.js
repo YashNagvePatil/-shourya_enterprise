@@ -1,5 +1,5 @@
 import{ Router} from "express"
-import { dashBoard, getWalletDetails, netWorkTree } from "../controllers/agent.controller.js"
+import { addToCart, dashBoard, getCart, getWalletDetails, netWorkTree, removeFromCart } from "../controllers/agent.controller.js"
 import {authenticateUser} from "../middlewares/agent.middleware.js"
 const router = Router()
 
@@ -33,7 +33,12 @@ router.get("/wallet",authenticateUser,getWalletDetails)
 
 
 
+router.get("/", authenticateUser, getCart);
 
+// 2. Add / Update Item in Cart
+router.post("/", authenticateUser, addToCart);
 
+// 3. Remove Item from Cart (productId param zaroori hai)
+router.delete("/:productId", authenticateUser, removeFromCart);
 
 export default router

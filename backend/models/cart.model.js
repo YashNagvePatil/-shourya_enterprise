@@ -43,4 +43,4 @@ cartSchema.methods.calculateTotals = function () {
   );
 };
 
-export default mongoose.model("Cart", cartSchema);
+export default mongoose.model("Cart",cartSchema);

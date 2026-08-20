@@ -1,4 +1,7 @@
 import * as agentDao from "../dao/agent.dao.js";
+import productModel from "../models/product.model.js";
+import cartModel from "../models/cart.model.js";
+
 
 
 
@@ -199,5 +202,77 @@ export const getWalletDetails = async (req, res) => {
   }
 };
 
-
 // profilePage has not separate api frontend geting data through dashBoard api 
+
+
+
+// Get Authenticated Agent's Cart
+export const getCart = async (req, res) => {
+  try {
+    let cart = await cartModel.findOne({ user: req.user._id }).populate("items.product");
+    if (!cart) {
+      cart = await cartModel.create({ user: req.user._id, items: [] });
+    }
+    res.status(200).json({ success: true, cart });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Add / Update Product in Cart
+export const addToCart = async (req, res) => {
+  try {
+    const { productId, quantity } = req.body;
+    const userId = req.user._id; // Logged-in Agent ID from Auth Middleware
+
+    const product = await productModel.findById(productId);
+    if (!product) return res.status(404).json({ message: "Product not found" });
+
+    let cart = await cartModel.findOne({ user: userId });
+    if (!cart) {
+      cart = new cart({ user: userId, items: [] });
+    }
+
+    const itemIndex = cart.items.findIndex(
+      (item) => item.product.toString() === productId
+    );
+
+    if (itemIndex > -1) {
+      cart.items[itemIndex].quantity += quantity;
+    } else {
+      cart.items.push({
+        product: productId,
+        quantity,
+        price: product.price,
+        pv: product.pv || 0,
+      });
+    }
+
+    cart.calculateTotals();
+    await cart.save();
+
+    res.status(200).json({ success: true, cart });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Remove Item from Cart
+export const removeFromCart = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const cart = await cartModel.findOne({ user: req.user._id });
+
+    if (cart) {
+      cart.items = cart.items.filter(
+        (item) => item.product.toString() !== productId
+      );
+      cart.calculateTotals();
+      await cart.save();
+    }
+
+    res.status(200).json({ success: true, cart });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
