@@ -249,44 +249,60 @@ export const useAgentDetail = () => {
 };
 
 
+// create product 
 
+const fileToBase64 = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = (error) => reject(error);
+  });
+};
 
 export const useCreateProduct = () => {
   const dispatch = useDispatch();
 
-  // Extract Product State from Redux
   const { isLoading, isSuccess, isError, error, message } = useSelector(
-    (state) => state.product
+    (state) => state.createProduct
   );
 
   /**
    * Submit Product Handler
-   * @param {Object} productData - Object containing text fields and image Files array
-   * @example
-   * submitProduct({ name: 'Product A', price: 100, images: [File1, File2] })
+   * @param {Object} productData - { name: 'Product A', price: 100, images: [File1, File2] }
    */
   const handleCreateProduct = async (productData) => {
-    const formData = new FormData();
+    try {
+      let base64Images = [];
 
-    // Append all regular fields
-    Object.keys(productData).forEach((key) => {
-      if (key !== "images") {
-        formData.append(key, productData[key]);
+      // 1. Convert File objects in images array to Base64 strings
+      if (
+        productData.images &&
+        Array.isArray(productData.images) &&
+        productData.images.length > 0
+      ) {
+        base64Images = await Promise.all(
+          productData.images.map((file) =>
+            file instanceof File ? fileToBase64(file) : file
+          )
+        );
       }
-    });
 
-    // Append multiple files for Multer under 'images' key
-    if (productData.images && Array.isArray(productData.images)) {
-      productData.images.forEach((file) => {
-        formData.append("images", file);
-      });
+      // 2. Assemble Pure JSON Payload
+      const payload = {
+        ...productData,
+        images: base64Images,
+      };
+
+      // 3. Dispatch JSON Object to Redux Thunk and unwrap response
+      const response = await dispatch(createProductThunk(payload)).unwrap();
+      return response;
+    } catch (err) {
+      console.error("Error creating product:", err);
+      throw err;
     }
-
-    // Dispatch Thunk Action
-    return await dispatch(createProductThunk(formData));
   };
 
-  // State Reset Helper
   const clearState = () => {
     dispatch(resetProductState());
   };

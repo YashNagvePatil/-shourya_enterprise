@@ -1,13 +1,13 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import { createProduct as createProductApi } from "../service/admin.api"; // Adjust path as needed
+import { createProduct as createProductApi } from "../service/admin.api";
 
-// 1. Async Thunk for Product Creation
+// 1. Async Thunk for Product Creation (JSON / Base64 Payload)
 export const createProductThunk = createAsyncThunk(
   "product/createProduct",
-  async (formData, { rejectWithValue }) => {
+  async (productData, { rejectWithValue }) => {
     try {
-      // API Call sending FormData (multipart/form-data)
-      const response = await createProductApi(formData);
+      // API Call sending pure JSON Payload (with Base64 Images)
+      const response = await createProductApi(productData);
       return response; // Expected: { success, message, meta, data }
     } catch (error) {
       const errorMessage =
@@ -29,10 +29,10 @@ const initialState = {
 
 // 3. Slice Definition
 const productSlice = createSlice({
-  name: "product",
+  name: "createProduct",
   initialState,
   reducers: {
-    // Reset state after success or displaying notification
+    // Reset state after success or notification display
     resetProductState: (state) => {
       state.isLoading = false;
       state.isSuccess = false;
@@ -58,7 +58,7 @@ const productSlice = createSlice({
         state.isError = false;
         state.message = action.payload?.message || "Product created successfully!";
         
-        // Add new product to state array if returned
+        // Add newly created product to the top of list
         if (action.payload?.data) {
           state.products.unshift(action.payload.data);
         }

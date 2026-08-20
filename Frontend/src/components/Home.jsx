@@ -1,12 +1,12 @@
 import React from 'react'
 import HeroSlider from './Hero'
-import ProductsPage from './ProductSlider'
+import ProductCard from './ProductSlider'
 
 const Home = () => {
   return (
     <>
        <HeroSlider/>
-       <ProductsPage/>
+       <ProductCard />
     </>
   )
 }

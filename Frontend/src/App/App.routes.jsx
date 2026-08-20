@@ -14,6 +14,7 @@ import AgentListPage from "../features/admin/pages/AgentListPage";
 import AgentDetailPage from "../features/admin/pages/AgentDetails";
 import CreateProductPage from "../features/admin/pages/CreateProduct";
 import Home from "../components/Home";
+import ProductDetailsPage from "../features/products/pages/ProductDetails";
 
 // Root Layout Component with Persistent Navbar & Footer
 const RootLayout = () => {
@@ -44,6 +45,11 @@ export const routes = createBrowserRouter([
       {
         path: "login",
         element: <LoginPage />,
+      },
+
+       {
+        path: "products/:id",
+        element: <ProductDetailsPage />,
       },
 
       // Agent Routes (Relative Paths)

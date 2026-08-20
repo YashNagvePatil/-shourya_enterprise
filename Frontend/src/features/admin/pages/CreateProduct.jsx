@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useCreateProduct } from "../hook/useAdmin";
 
+const CATEGORIES = [
+  "FEATURED COLLECTION",
+  "BEST SELLERS",
+  "EXECUTIVE BUNDLES",
+  "NEW ARRIVALS",
+];
+
 const CreateProductPage = () => {
   const {
     handleCreateProduct,
@@ -189,35 +196,50 @@ const CreateProductPage = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-xs uppercase tracking-wider text-gray-600 mb-2">
-                  Category *
-                </label>
-                <input
-                  type="text"
-                  name="category"
-                  value={formData.category}
-                  onChange={handleChange}
-                  required
-                  placeholder="e.g. Wellness"
-                  className="w-full bg-white border border-gray-300 p-3 text-sm text-gray-900 font-light rounded-none focus:outline-none focus:border-black transition-colors"
-                />
+            {/* Category Radio Group */}
+            <div>
+              <label className="block text-xs uppercase tracking-wider text-gray-600 mb-3">
+                Category *
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {CATEGORIES.map((catOption) => (
+                  <label
+                    key={catOption}
+                    className={`flex items-center space-x-3 p-3 border cursor-pointer transition-colors ${
+                      formData.category === catOption
+                        ? "border-black bg-gray-50 font-normal"
+                        : "border-gray-200 bg-white hover:border-gray-400"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="category"
+                      value={catOption}
+                      checked={formData.category === catOption}
+                      onChange={handleChange}
+                      required
+                      className="w-4 h-4 accent-black cursor-pointer"
+                    />
+                    <span className="text-xs tracking-wider text-gray-900 uppercase">
+                      {catOption}
+                    </span>
+                  </label>
+                ))}
               </div>
+            </div>
 
-              <div>
-                <label className="block text-xs uppercase tracking-wider text-gray-600 mb-2">
-                  Brand
-                </label>
-                <input
-                  type="text"
-                  name="brand"
-                  value={formData.brand}
-                  onChange={handleChange}
-                  placeholder="e.g. Generic"
-                  className="w-full bg-white border border-gray-300 p-3 text-sm text-gray-900 font-light rounded-none focus:outline-none focus:border-black transition-colors"
-                />
-              </div>
+            <div>
+              <label className="block text-xs uppercase tracking-wider text-gray-600 mb-2">
+                Brand
+              </label>
+              <input
+                type="text"
+                name="brand"
+                value={formData.brand}
+                onChange={handleChange}
+                placeholder="e.g. Generic"
+                className="w-full bg-white border border-gray-300 p-3 text-sm text-gray-900 font-light rounded-none focus:outline-none focus:border-black transition-colors"
+              />
             </div>
 
             <div>
