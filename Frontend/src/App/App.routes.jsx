@@ -15,6 +15,8 @@ import AgentDetailPage from "../features/admin/pages/AgentDetails";
 import CreateProductPage from "../features/admin/pages/CreateProduct";
 import Home from "../components/Home";
 import ProductDetailsPage from "../features/products/pages/ProductDetails";
+import CartPage from "../features/cart/pages/Cartpage";
+import PaymentPage from "../features/Payment/pages/Payment";
 
 // Root Layout Component with Persistent Navbar & Footer
 const RootLayout = () => {
@@ -52,6 +54,16 @@ export const routes = createBrowserRouter([
         element: <ProductDetailsPage />,
       },
 
+      {
+        path: "cart",
+        element: <CartPage/>,
+      },
+     
+      {
+        path:"payment",
+        element:<PaymentPage/>
+      },
+
       // Agent Routes (Relative Paths)
       {
         path: "agent",
@@ -68,7 +80,7 @@ export const routes = createBrowserRouter([
         path: "admin",
         children: [
           { path: "dashboard", element: <AdminDashboard /> },
-          { path: "agenetList", element: <AgentListPage /> },
+          { path: "agentList", element: <AgentListPage /> },
           { path: "agentDetails", element: <AgentDetailPage /> },
           { path: "createProduct", element: <CreateProductPage /> },
         ],

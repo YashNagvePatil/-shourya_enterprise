@@ -1,8 +1,10 @@
-import React, { useEffect, useRef } from "react";
-import { Link } from "react-router";
-import { useGetProduct } from "../features/products/hook/useGetProduct";
-import { getImageUrl } from "../features/products/hook/useGetProduct";
-// Enhanced Flipkart-Style Product Card Component
+import React, { useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router";
+import { useGetProduct, getImageUrl } from "../features/products/hook/useGetProduct";
+import { useCart } from "../features/cart/hook/usecart"; // Path apne project structure ke hisab se adjust karein
+import { usePayment } from "../features/Payment/hook/usePayment";
+import { createPayment } from "../features/Payment/service/payment.api";
+
 const ProductCard = ({ product }) => {
   // Database Fields Extraction with Fallbacks
   const {
@@ -17,12 +19,12 @@ const ProductCard = ({ product }) => {
   } = product || {};
 
   const imageUrl = getImageUrl(images[0]);
-
-  // Image Fallback
-  // const imageUrl =
-  //   images.length > 0
-  //     ? images[0]
-  //     : "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&q=80&w=800";
+  const navigate = useNavigate();
+  const { addToCart } = useCart();
+  const {executePayment} = usePayment()
+  // Local Loading States for Buttons
+  const [isAdding, setIsAdding] = useState(false);
+  const [isBuying, setIsBuying] = useState(false);
 
   // Discount Calculation
   const discountPercent =
@@ -31,6 +33,61 @@ const ProductCard = ({ product }) => {
   // Static Rating Data
   const rating = 4.5;
   const reviewCount = 128;
+
+  // 1. Add To Cart Handler
+  const handleAddToCart = async (e) => {
+    e.preventDefault();
+    if (isAdding) return;
+    try {
+      setIsAdding(true);
+      await addToCart(_id, 1);
+    } catch (error) {
+      console.error("Failed to add product to cart:", error);
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+  // 2. Buy Now Handler (Add to cart + Navigate to Cart/Checkout)
+const handleBuyNow = async (e, productId) => {
+  e.preventDefault();
+
+  if (!productId) {
+    alert("Product ID is missing!");
+    return;
+  }
+
+  if (isBuying) return;
+
+  try {
+    setIsBuying(true);
+
+    // STEP 1: Pehle DB me Order create karein
+    // (Apni actual Order creation API ya Redux action ko yahan call karein)
+    const orderResponse = await createPayment({ productId, quantity: 1 });
+
+    if (!orderResponse || !orderResponse.order?._id) {
+      alert("Order creation failed");
+      return;
+    }
+
+    const createdOrderId = orderResponse.order._id;
+
+    // STEP 2: Ab actual Order ID pass karein payment execution me
+    const paymentResponse = await executePayment(createdOrderId);
+
+    if (paymentResponse && paymentResponse.success) {
+      navigate("/payment", { state: { orderId: createdOrderId } });
+    } else {
+      alert(paymentResponse?.message || "Payment Failed");
+    }
+  } catch (error) {
+    console.error("Buy now failed:", error);
+    alert(error.response?.data?.message || "Something went wrong!");
+  } finally {
+    setIsBuying(false);
+  }
+};
 
   return (
     <div className="flex-none w-64 sm:w-72 bg-zinc-950 border border-white/10 rounded-md group hover:border-white/30 transition-all duration-300 flex flex-col justify-between overflow-hidden shadow-lg">
@@ -105,12 +162,28 @@ const ProductCard = ({ product }) => {
 
         {/* 3. Action Buttons (Add To Cart + Buy Now) */}
         <div className="pt-2 flex items-center space-x-2">
-          <button className="flex-1 border border-white/20 bg-zinc-900 hover:bg-zinc-800 text-white transition-colors duration-300 text-[11px] font-bold uppercase tracking-wider py-2.5 rounded-sm">
-            Add To Cart
+          <button
+            onClick={handleAddToCart}
+            disabled={isAdding || isBuying}
+            className="flex-1 border border-white/20 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-white transition-colors duration-300 text-[11px] font-bold uppercase tracking-wider py-2.5 rounded-sm flex items-center justify-center"
+          >
+            {isAdding ? (
+              <span className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+            ) : (
+              "Add To Cart"
+            )}
           </button>
           
-          <button className="flex-1 bg-white hover:bg-zinc-200 text-black transition-colors duration-300 text-[11px] font-bold uppercase tracking-wider py-2.5 rounded-sm">
-            Buy Now
+          <button
+            onClick={(e) => handleBuyNow(e, product._id)}
+            disabled={isAdding || isBuying}
+            className="flex-1 bg-white hover:bg-zinc-200 disabled:opacity-50 text-black transition-colors duration-300 text-[11px] font-bold uppercase tracking-wider py-2.5 rounded-sm flex items-center justify-center"
+          >
+            {isBuying ? (
+              <span className="w-3.5 h-3.5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+            ) : (
+              "Buy Now"
+            )}
           </button>
         </div>
       </div>

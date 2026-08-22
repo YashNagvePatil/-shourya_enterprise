@@ -19,7 +19,8 @@ export const LoginPage = () => {
   // Submit Handler
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+    
+    console.log("clicked")
     if (!identifier || !password) return;
 
     // Backend payload structure matching controller
@@ -30,7 +31,7 @@ export const LoginPage = () => {
 
     if (result.success) {
       // Redirect on successful login
-      navigate("/agent_Dashboard"); 
+      navigate("/agent/Dashboard"); 
     }
   };
 

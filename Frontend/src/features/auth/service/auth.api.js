@@ -10,13 +10,13 @@ const api = axios.create({
 });
 
 export const register = async (userData) => {
-  const response = await api.post("/auth/register", userData);
+  const response = await api.post("/auth/register",userData);
   return response.data; 
 };
 
 export const login = async (credentials) => {
   // credentials object looks like: { identifier: "...", password: "..." }
-  const response = await api.post("/auth/login", credentials);
+  const response = await api.post("/auth/login",credentials);
   return response.data;
 };
 
