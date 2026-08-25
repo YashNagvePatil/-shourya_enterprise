@@ -1,6 +1,7 @@
 import userModel from "../models/user.models.js";
 import { config } from "../config/config.js";
 import jwt from "jsonwebtoken";
+import { uploadMultipleToCloudinary } from "../services/storage.service.js";
 import * as authDao from "../dao/auth.dao.js"
 
 async function sendTokenResponse(user, res, message) {
@@ -50,6 +51,8 @@ async function genrateUniqueDistributerId() {
 
 // --- Register Controller ---
 
+
+
 export const register = async (req, res) => {
   const {
     email,
@@ -57,17 +60,17 @@ export const register = async (req, res) => {
     password,
     fullName,
     role,
-    panCardNumber,
-    adharCardNumber,
     parentAgentId,
     parrentAgentName,
     position,
+    panCardImage,   // Base64 string from req.body
+    adharCardImage, // Base64 string from req.body
   } = req.body;
 
   console.log(`[DEBUG] Registration Attempt for: ${email} | Role: ${role}`);
 
   try {
-    // SAFETY NET 1: Required Fields Validation Block
+    // SAFETY NET 1: Required Text Fields & Base64 Images Validation Block
     if (!email || !contact || !password || !fullName) {
       return res.status(400).json({
         success: false,
@@ -76,23 +79,41 @@ export const register = async (req, res) => {
       });
     }
 
+    if (!panCardImage || !adharCardImage) {
+      return res.status(400).json({
+        success: false,
+        message: "Both PAN Card and Aadhaar Card images are required!",
+      });
+    }
+
     const cleanEmail = email.toLowerCase().trim();
 
-    // SAFETY NET 2: Structural Duplicate Matrix Exception Check via DAO
+    // SAFETY NET 2: Structural Duplicate Check via DAO
     const existingUser = await authDao.findExistingUserByEmailOrContact(
       cleanEmail,
-      contact,
+      contact
     );
 
     if (existingUser) {
       console.warn(
-        `[DEBUG] Duplicate User Blocked: ${cleanEmail} / ${contact}`,
+        `[DEBUG] Duplicate User Blocked: ${cleanEmail} / ${contact}`
       );
       return res.status(400).json({
         success: false,
         message: "Email or Contact number already registered!",
       });
     }
+
+    // SAFETY NET 3: Direct Base64 Concurrent Cloudinary Upload
+    // Passing Base64 strings directly to your existing function
+    const uploadResults = await uploadMultipleToCloudinary(
+      [panCardImage, adharCardImage],
+      "kyc_documents" // Cloudinary folder name
+    );
+
+    // Extract Cloudinary secure URLs
+    const panCardImageUrl = uploadResults[0]?.url || uploadResults[0]?.secure_url;
+    const adharCardImageUrl = uploadResults[1]?.url || uploadResults[1]?.secure_url;
 
     let parentUser = null;
     let finalPosition = null;
@@ -102,12 +123,10 @@ export const register = async (req, res) => {
       const totalAgentCount = await authDao.getAgentCount();
 
       if (totalAgentCount === 0) {
-        // CASE A: Processing setup parameters for Root Element Node
         console.log("[DEBUG] No agents in DB. Creating First Root Agent...");
         parentUser = null;
         finalPosition = null;
       } else {
-        // CASE B: Processing validations for Normal Tree Nodes
         finalPosition = position === "left" ? "left" : "right";
 
         if (!parentAgentId) {
@@ -117,7 +136,6 @@ export const register = async (req, res) => {
           });
         }
 
-        // Verify parent node validity via DAO
         parentUser = await authDao.findParentByDistributorId(parentAgentId);
 
         if (!parentUser) {
@@ -128,16 +146,15 @@ export const register = async (req, res) => {
           });
         }
 
-        // SAFETY NET 3: Slot Collision Verification Engine via DAO
         const targetPosition = position === "left" ? "left" : "right";
         const isSlotOccupied = await authDao.checkSlotOccupation(
           parentUser._id,
-          targetPosition,
+          targetPosition
         );
 
         if (isSlotOccupied) {
           console.warn(
-            `[DEBUG] Slot Conflict: ${parentAgentId} -> ${targetPosition} is already taken!`,
+            `[DEBUG] Slot Conflict: ${parentAgentId} -> ${targetPosition} is already taken!`
           );
           return res.status(400).json({
             success: false,
@@ -147,7 +164,7 @@ export const register = async (req, res) => {
       }
     }
 
-    // SAFETY NET 4: Generate Guaranteed Unique Agent ID Layout Index
+    // Generate Guaranteed Unique Agent ID Layout Index
     const newDistributedId = await genrateUniqueDistributerId();
     console.log(`[DEBUG] New Agent ID Generated: ${newDistributedId}`);
 
@@ -157,8 +174,8 @@ export const register = async (req, res) => {
       contact,
       password,
       fullName: fullName.trim(),
-      adharCardNumber,
-      panCardNumber,
+      panCardImage: panCardImageUrl,     // Cloudinary URL string
+      adharCardImage: adharCardImageUrl, // Cloudinary URL string
       distributerId: newDistributedId,
       role: role === "Admin" ? "Admin" : "Agent",
       position: role === "Admin" ? null : finalPosition,
@@ -190,41 +207,38 @@ export const register = async (req, res) => {
     // Save entity state using the data access layer
     const user = await authDao.createAgentRecord(agentPayload);
     console.log(
-      `[DEBUG] Registration Successful! Created User ID: ${user._id}`,
+      `[DEBUG] Registration Successful! Created User ID: ${user._id}`
     );
+
     if (role !== "Admin" && parentUser) {
       console.log(
-        `[TREE UPDATE] Processing network updates under parent ID: ${parentUser.distributerId}`,
+        `[TREE UPDATE] Processing network updates under parent ID: ${parentUser.distributerId}`
       );
 
-      // 1. Parent ka child node pointer link karein
       await authDao.updateParentChildSlot(
         parentUser._id,
         finalPosition,
-        user._id,
+        user._id
       );
 
-      // 2. Sponsor ka counter increment karein (SponserId check ke sath)
       if (user.sponserId && user.sponserId !== "DIRECT") {
         await authDao.incrementSponsorDirectCount(user.sponserId);
       }
 
-      // 3. Poore upline chain ke loops ko update karein
-      const initialJoiningBV = 0; // Agar package activation par BV milna hai toh yahan pass karein
+      const initialJoiningBV = 0;
       await authDao.updateAllUplinesCounters(
         parentUser._id,
         finalPosition,
-        initialJoiningBV,
+        initialJoiningBV
       );
 
       console.log(`[TREE UPDATE] All uplines sync completely.`);
     }
 
-    // Generate session payload response
     return await sendTokenResponse(user, res, "Registration Successful!");
   } catch (error) {
     console.error(
-      `[CRITICAL ERROR] Registration Loop Failed: ${error.message}`,
+      `[CRITICAL ERROR] Registration Loop Failed: ${error.message}`
     );
     return res.status(500).json({
       success: false,
@@ -305,4 +319,29 @@ export const login = async (req, res) => {
   }
 };
 
+
+// controllers/auth.controller.js
+
+export const logout = async (req, res) => {
+  try {
+    // Cookie ko exact same options ke sath clear karein
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: false, // Production me: process.env.NODE_ENV === "production"
+      sameSite: "lax",
+      path: "/", // Mandatory: Path match hona zaroori hai warna browser cookie delete nahi karega
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Logged out successfully",
+    });
+  } catch (error) {
+    console.error("Logout Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Logout failed! Internal server error.",
+    });
+  }
+};
 

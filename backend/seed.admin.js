@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import bcrypt from "bcryptjs";
 import adminModel from "./models/admin.model.js"; 
 import { config } from "./config/config.js";
 

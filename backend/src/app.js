@@ -5,6 +5,7 @@ import authRouter from "../routes/auth.routes.js"
 import agentRouter from "../routes/agentDashboard.routes.js"
 import adminRouter from "../routes/admin.Routes.js"
 import productRouter from "../routes/product.routes.js"
+import payMentRouter from "../routes/payment.routes.js"
 import cors from "cors"
 const app = express()
 
@@ -16,7 +17,7 @@ app.use(express.urlencoded({ extended: true, limit: "15mb" }));
 
  app.use(cors({
   origin:"http://localhost:5173",
-  methods:["GET","POST","PUT","DELETE"],
+  methods:["GET","POST","PUT","DELETE","PATCH"],
   credentials:true
  }))
 
@@ -30,7 +31,7 @@ app.use(express.urlencoded({ extended: true, limit: "15mb" }));
  app.use("/api/agent",agentRouter)
  app.use("/api/admin",adminRouter)
  app.use("/api/home",productRouter)
-
+ app.use("/api",payMentRouter)
 
 
  export default app

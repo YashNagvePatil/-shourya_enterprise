@@ -33,10 +33,10 @@ router.get("/wallet",authenticateUser,getWalletDetails)
 
 
 
-router.get("/", authenticateUser, getCart);
+router.get("/getCart", authenticateUser, getCart);
 
 // 2. Add / Update Item in Cart
-router.post("/", authenticateUser, addToCart);
+router.post("/addCart", authenticateUser, addToCart);
 
 // 3. Remove Item from Cart (productId param zaroori hai)
 router.delete("/:productId", authenticateUser, removeFromCart);

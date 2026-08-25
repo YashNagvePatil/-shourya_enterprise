@@ -89,7 +89,6 @@ export const getAgentById = async (req, res) => {
     }
 
     // 2. Recent Activity / Work: Downline me jude naye members (Referrals)
-    // Parent Agent ID ke through direct joinings ko "Recent Work" maante hain
     const recentMembers = await userModel
       .find({ parentAgentId: id })
       .select("fullName distributerId packageAmount isActivated createdAt status")
@@ -111,6 +110,10 @@ export const getAgentById = async (req, res) => {
       success: true,
       data: {
         ...agent,
+
+        // KYC Documents (PAN & Aadhaar Image Links/Base64)
+        panCardImage: agent.panCardImage || null,
+        adharCardImage: agent.adharCardImage || null,
 
         // Frontend keys ke liye fallback mappings
         phone: agent.contact || null,
@@ -145,25 +148,62 @@ export const getAgentById = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-//  Block / Unblock Agent
+
+
+//  Block / Unblock Agent/Active
 export const toggleAgentStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status, reason } = req.body; // status: "Blocked" | "Active"
 
+    // 1. Basic Status Validation
+    if (!status || !["Active", "Blocked"].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status provided. It must be either 'Active' or 'Blocked'.",
+      });
+    }
+
+    // 2. Build Update Fields Dynamically
+    const updateFields = { status };
+
+    if (status === "Blocked") {
+      // Agar block kar rahe hain toh reason save karo
+      updateFields.blockReason = reason || "No reason provided";
+    } else if (status === "Active") {
+      // Agar unblock/active kar rahe hain toh puraani reason clear kar do
+      updateFields.blockReason = "";
+    }
+
+    // 3. Update Database Record
     const updatedAgent = await userModel.findByIdAndUpdate(
       id,
-      { status, blockReason: reason || "" },
-      { returnDocument:"after" }
+      updateFields,
+      { returnDocument: "after" }
     );
 
-    res.status(200).json({
+    if (!updatedAgent) {
+      return res.status(404).json({
+        success: false,
+        message: "Agent not found.",
+      });
+    }
+
+    // 4. Dynamic Response Message
+    const isBlocked = status === "Blocked";
+    const message = isBlocked
+      ? "Agent has been blocked successfully."
+      : "Agent has been unblocked and activated successfully.";
+
+    return res.status(200).json({
       success: true,
-      message: `Agent status updated to ${status}`,
+      message,
       data: updatedAgent,
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
-

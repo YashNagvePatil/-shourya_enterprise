@@ -53,8 +53,14 @@ const userSchema = new mongoose.Schema(
     pendingPayout: { type: Number, default: 0 },        // Requested for Withdrawal
     
     // --- KYC Details ---
-    panCardNumber: { type: String, uppercase: true, trim: true, unique: true, sparse: true, default: null },
-    adharCardNumber: { type: String, trim: true, unique: true, sparse: true, default: null },
+    panCardImage: {
+      type: String, // Cloudinary secure_url store hoga
+      default: null
+    },
+    adharCardImage: {
+      type: String, // Cloudinary secure_url store hoga
+      default: null
+    },
     kycStatus: { type: String, enum: ["Not_Submitted", "Pending", "Approved", "Rejected"], default: "Pending" },
 
     // --- Bank Details for Withdrawals ---
