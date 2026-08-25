@@ -1,14 +1,14 @@
 import React from "react";
-import { useNavigate } from "react-router"; 
+import { useNavigate } from "react-router"; // Updated to react-router-dom
 import { useAgentList } from "../hook/useAdmin";
 
 const AgentListPage = ({ onSelectAgent }) => {
-  const navigate = useNavigate(); // 2. Hook initialize karein
+  const navigate = useNavigate();
 
   const {
-    agentsList,
-    pagination,
-    filters,
+    agentsList = [],
+    pagination = {},
+    filters = {},
     isLoading,
     error,
     handleSearchChange,
@@ -17,12 +17,12 @@ const AgentListPage = ({ onSelectAgent }) => {
     refreshList,
   } = useAgentList();
 
-  // 3. Click Handler Function
-  const handleAgentClick = (agentId) => {
-    if (onSelectAgent) {
-      onSelectAgent(agentId); // Parent component callback (if any)
+  // Click Handler Function
+  const handleAgentClick = (e, agentId) => {
+    e.preventDefault();
+    if (typeof onSelectAgent === "function") {
+      onSelectAgent(agentId);
     }
-    // Navigate with Query Parameter
     navigate(`/admin/agentDetails?id=${agentId}`);
   };
 
@@ -32,8 +32,9 @@ const AgentListPage = ({ onSelectAgent }) => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-slate-800">Agent List Management</h1>
         <button
-          onClick={() => refreshList()}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+          type="button"
+          onClick={() => refreshList && refreshList()}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition cursor-pointer"
         >
           🔄 Refresh
         </button>
@@ -44,14 +45,14 @@ const AgentListPage = ({ onSelectAgent }) => {
         <input
           type="text"
           placeholder="Search by name or email..."
-          value={filters.search}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          value={filters.search || ""}
+          onChange={(e) => handleSearchChange && handleSearchChange(e.target.value)}
+          className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-black"
         />
 
         <select
-          value={filters.status}
-          onChange={(e) => handleStatusChange(e.target.value)}
+          value={filters.status || ""}
+          onChange={(e) => handleStatusChange && handleStatusChange(e.target.value)}
           className="px-4 py-2 border rounded-lg text-slate-700"
         >
           <option value="">All Statuses</option>
@@ -89,8 +90,7 @@ const AgentListPage = ({ onSelectAgent }) => {
               {agentsList.map((agent) => (
                 <tr
                   key={agent._id}
-                  onClick={() => handleAgentClick(agent._id)} // <-- Dynamic navigation trigger
-                  className="hover:bg-slate-100/80 cursor-pointer transition"
+                  className="hover:bg-slate-100/80 transition"
                 >
                   <td className="p-4 font-medium text-slate-800">{agent.fullName}</td>
                   <td className="p-4 text-slate-600">{agent.email}</td>
@@ -108,8 +108,14 @@ const AgentListPage = ({ onSelectAgent }) => {
                       {agent.status}
                     </span>
                   </td>
-                  <td className="p-4 text-right text-indigo-600 font-medium">
-                    View Details →
+                  <td className="p-4 text-right">
+                    <button
+                      type="button"
+                      onClick={(e) => handleAgentClick(e, agent._id)}
+                      className="text-indigo-600 font-medium hover:underline cursor-pointer"
+                    >
+                      View Details →
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -120,23 +126,25 @@ const AgentListPage = ({ onSelectAgent }) => {
         {/* Pagination Bar */}
         <div className="flex justify-between items-center p-4 border-t border-slate-200 text-sm text-slate-600">
           <div>
-            Total Agents: <span className="font-semibold">{pagination.totalCount}</span>
+            Total Agents: <span className="font-semibold">{pagination.totalCount || 0}</span>
           </div>
           <div className="flex items-center gap-2">
             <button
+              type="button"
               disabled={!pagination.hasPrevPage || isLoading}
-              onClick={() => handlePageChange(pagination.currentPage - 1)}
-              className="px-3 py-1.5 bg-slate-100 rounded border hover:bg-slate-200 disabled:opacity-50"
+              onClick={() => handlePageChange && handlePageChange(pagination.currentPage - 1)}
+              className="px-3 py-1.5 bg-slate-100 rounded border hover:bg-slate-200 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
             >
               Previous
             </button>
             <span>
-              Page {pagination.currentPage} of {pagination.totalPages}
+              Page {pagination.currentPage || 1} of {pagination.totalPages || 1}
             </span>
             <button
+              type="button"
               disabled={!pagination.hasNextPage || isLoading}
-              onClick={() => handlePageChange(pagination.currentPage + 1)}
-              className="px-3 py-1.5 bg-slate-100 rounded border hover:bg-slate-200 disabled:opacity-50"
+              onClick={() => handlePageChange && handlePageChange(pagination.currentPage + 1)}
+              className="px-3 py-1.5 bg-slate-100 rounded border hover:bg-slate-200 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
             >
               Next
             </button>

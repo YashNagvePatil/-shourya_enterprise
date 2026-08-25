@@ -1,6 +1,6 @@
 import { useDispatch, useSelector } from "react-redux";
-import { setError, setLoading, setUser,clearError } from "../state/auth.slice.js";
-import { register,login } from "../service/auth.api.js";
+import { setError, setLoading, setUser,clearError,logout } from "../state/auth.slice.js";
+import { register,login,logoutApi } from "../service/auth.api.js";
 
 export const useAuth = () => {
   const dispatch = useDispatch();
@@ -31,22 +31,27 @@ export const useAuth = () => {
       dispatch(setLoading(false));
     }
   }
-
-  async function handleLogin(credentials) {
+async function handleLogin(credentials) {
     try {
-      // 1. Loading Start & Error Clear
       dispatch(setLoading(true));
       dispatch(clearError());
 
-      // 2. API Call (credentials = { identifier: "...", password: "..." })
       const data = await login(credentials);
 
-      // 3. Save User to Redux State
-      dispatch(setUser(data.user));
+      // 1. Safe User + Role Object Build
+      // Agar backend `data.user` object bhej rha h ya alag se `data.role` bhej rha h, dono handle ho jayenge
+      const userData = typeof data.user === 'object' 
+        ? { ...data.user, role: data.user.role || data.role }
+        : { name: data.user, role: data.role };
 
-      return { success: true, user: data.user, message: data.message };
+      // 2. LocalStorage me save karein (Persistence ke liye)
+      localStorage.setItem("user", JSON.stringify(userData));
+
+      // 3. Redux State me dispatch karein
+      dispatch(setUser(userData));
+
+      return { success: true, user: userData, message: data.message };
     } catch (err) {
-      // 4. Handle Error
       const errorMessage =
         err.response?.data?.message || err.message || "Login failed!";
       dispatch(setError(errorMessage));
@@ -56,11 +61,27 @@ export const useAuth = () => {
     }
   }
 
+ async function handleLogout() {
+    try {
+      dispatch(setLoading(true));
+      // 1. Backend API Call (HttpOnly Cookie Delete karega)
+      await logoutApi();
+    } catch (err) {
+      console.error("Logout API Error:", err);
+    } finally {
+      // 2. Client Side State Clear (Success ho ya Error)
+      dispatch(logout()); // Redux reset + localStorage.removeItem("user")
+      dispatch(setLoading(false));
+    }
+  }
+
+
   return {
     user,
     loading,
     error,
     handleRegister,
-    handleLogin
+    handleLogin,
+     handleLogout
   };
 };

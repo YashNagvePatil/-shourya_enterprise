@@ -1,9 +1,12 @@
 import { createSlice } from "@reduxjs/toolkit";
 
+// Initial state ko localStorage se check karke set karein
+const savedUser = JSON.parse(localStorage.getItem("user") || "null");
+
 const authSlice = createSlice({
   name: "auth",
   initialState: {
-    user: null,
+    user: savedUser,
     loading: false, 
     error: null,
   },
@@ -32,6 +35,7 @@ const authSlice = createSlice({
       state.user = null;
       state.loading = false;
       state.error = null;
+      localStorage.removeItem("user"); // Storage clear on logout
     },
   },
 });

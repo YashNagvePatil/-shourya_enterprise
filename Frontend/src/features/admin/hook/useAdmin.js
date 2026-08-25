@@ -210,22 +210,45 @@ export const useAgentDetail = () => {
   );
 
   // 2. Toggle Status (Block / Unblock)
-  const toggleStatus = async () => {
-    if (!selectedAgent?._id) return;
-    const nextStatus = selectedAgent.status === "Blocked" ? "Active" : "Blocked";
+// 2. Toggle Status (Block / Unblock)
+    const toggleStatus = async (forcedStatus = null) => {
+ 
+  const targetId = selectedAgent?._id || selectedAgent?.id || agentId;
 
-    dispatch(toggleAgentStatusStart());
-    try {
-      const responseData = await changeAgentStatus(selectedAgent._id, nextStatus, blockReason);
-      const updatedData = responseData?.data?.data || responseData?.data || responseData;
-      dispatch(toggleAgentStatusSuccess(updatedData));
-      setBlockModalOpen(false);
-      setBlockReason("");
-    } catch (err) {
-      const msg = err.response?.data?.message || "Action failed";
-      dispatch(toggleAgentStatusFailure(msg));
-    }
-  };
+  console.log(">>> Attempting toggleStatus for Target ID:", targetId);
+
+  if (!targetId) {
+    console.error(">>> ERROR: Target Agent ID is missing in toggleStatus!");
+    dispatch(toggleAgentStatusFailure("Agent ID missing for status update"));
+    return;
+  }
+
+  let nextStatus = forcedStatus;
+  if (!nextStatus) {
+    nextStatus = selectedAgent?.status === "Blocked" ? "Active" : "Blocked";
+  }
+
+  const finalReason = nextStatus === "Active" ? "" : blockReason;
+
+  dispatch(toggleAgentStatusStart());
+  try {
+    const responseData = await changeAgentStatus(
+      targetId, // 👈 Fix: Passing verified targetId instead of direct selectedAgent._id
+      nextStatus,
+      finalReason
+    );
+
+    const updatedData = responseData?.data?.data || responseData?.data || responseData;
+
+    dispatch(toggleAgentStatusSuccess(updatedData));
+    setBlockModalOpen(false);
+    setBlockReason("");
+  } catch (err) {
+    console.error(">>> Status Update API Error:", err);
+    const msg = err.response?.data?.message || err.message || "Action failed";
+    dispatch(toggleAgentStatusFailure(msg));
+  }
+};
 
   // 3. Clear Profile Cleanup Wrapper
   const clearProfile = useCallback(() => {

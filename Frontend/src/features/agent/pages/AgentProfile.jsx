@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router";
 import { useFetchProfile } from "../hook/useAgent"; 
 import { 
   User, 
@@ -14,7 +15,8 @@ import {
   Loader2,
   RefreshCw,
   Building2,
-  Fingerprint
+  Fingerprint,
+  ArrowLeft
 } from "lucide-react";
 
 // =========================================================================
@@ -54,6 +56,7 @@ const maskBankAccount = (accNum) => {
 };
 
 const ProfilePage = () => {
+  const navigate = useNavigate();
   const { profile, wallet, binaryStats, loading, error, refetchDashboard } = useFetchProfile();
 
   const copyToClipboard = (text) => {
@@ -102,6 +105,15 @@ const ProfilePage = () => {
         {/* 1. PREMIUM COMPACT HEADER */}
         <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
           <div className="flex items-center space-x-4">
+            {/* BACK TO DASHBOARD BUTTON */}
+            <button
+              onClick={() => navigate("/agent/dashboard")}
+              className="p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-lg transition active:scale-98 cursor-pointer flex items-center justify-center shrink-0"
+              title="Back to Dashboard"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+
             <div className="w-14 h-14 rounded-lg bg-slate-900 flex items-center justify-center text-xl font-medium text-white shadow-inner">
               {getInitials(profile.fullName)}
             </div>
@@ -194,7 +206,6 @@ const ProfilePage = () => {
                     <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider flex items-center">
                       <Mail className="w-3 h-3 mr-1 text-slate-300" /> Email Endpoint
                     </span>
-                    {/* 🔒 Masked Email */}
                     <span className="text-xs font-mono font-medium text-slate-600 block break-all">{maskEmail(profile.email)}</span>
                   </div>
 
@@ -202,7 +213,6 @@ const ProfilePage = () => {
                     <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider flex items-center">
                       <Phone className="w-3 h-3 mr-1 text-slate-300" /> Registered Line
                     </span>
-                    {/* 🔒 Masked Phone */}
                     <span className="text-xs font-mono font-medium text-slate-600 block">{maskPhone(profile.phone)}</span>
                   </div>
 
@@ -219,7 +229,7 @@ const ProfilePage = () => {
                 </div>
               </div>
 
-              {/* 🔒 Masked Address */}
+              {/* Masked Address */}
               <div className="space-y-0.5 bg-slate-50 p-3 rounded-lg border border-slate-100 mt-4">
                 <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider flex items-center">
                   <MapPin className="w-3 h-3 mr-1 text-slate-300" /> Corporate Headquarters / Address
@@ -243,7 +253,6 @@ const ProfilePage = () => {
                   </div>
                   <div className="space-y-0.5">
                     <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider block">Vault Account Number</span>
-                    {/* 🔒 Masked Account Number */}
                     <span className="text-xs font-mono font-medium text-slate-600 block tracking-wide">{maskBankAccount(profile.bankDetails.accountNumber)}</span>
                   </div>
                   <div className="space-y-0.5">

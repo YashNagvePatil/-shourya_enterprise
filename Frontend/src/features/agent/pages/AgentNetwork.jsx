@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
-import { User, ShieldCheck, Award, Users, GitCommit, Network, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router";
+import { User, ShieldCheck, Award, Users, GitCommit, Network, Loader2, ArrowLeft } from "lucide-react";
 import { useAgentNetwork } from "../hook/useAgent"; 
 
 // Reusable Tree Node UI Card Component (Fixed Mapping to leftChild/rightChild)
@@ -59,6 +60,7 @@ const TreeNodeCard = ({ node, fallBackSide }) => {
 };
 
 const AgentNetwork = () => {
+  const navigate = useNavigate();
   const { binaryStats, treeNodes, isLoading, error, fetchNetworkTree } = useAgentNetwork();
 
   useEffect(() => {
@@ -93,9 +95,19 @@ const AgentNetwork = () => {
         
         {/* HEADER STATS PANEL */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Network Genealogy Matrix</h1>
-            <p className="text-xs text-slate-500">Visual mapping of your binary direct channels and downline node hierarchy.</p>
+          <div className="flex items-center space-x-3">
+            {/* BACK TO DASHBOARD BUTTON */}
+            <button
+              onClick={() => navigate("/agent/dashboard")}
+              className="p-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-xl transition shadow-xs cursor-pointer flex items-center justify-center shrink-0"
+              title="Back to Dashboard"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+            <div>
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight">Network Genealogy Matrix</h1>
+              <p className="text-xs text-slate-500">Visual mapping of your binary direct channels and downline node hierarchy.</p>
+            </div>
           </div>
           
           <div className="flex items-center space-x-4 bg-white border border-slate-200 rounded-lg p-2 px-3 text-xs font-medium shadow-sm">

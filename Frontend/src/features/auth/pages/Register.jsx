@@ -1,27 +1,38 @@
 import React, { useState } from "react";
 import { useAuth } from "../hook/useAuth.js";
 
+// Initial state object for easy reset
+const initialFormData = {
+  fullName: "",
+  email: "",
+  contact: "",
+  password: "",
+  role: "Agent",
+  panCardImage: "",
+  adharCardImage: "",
+  parentAgentId: "",
+  parrentAgentName: "",
+};
+
 export const RegisterPage = () => {
   // 1. Hook and State Management
   const { handleRegister, loading, error } = useAuth();
 
   const [position, setPosition] = useState("left");
   const [showPassword, setShowPassword] = useState(false);
+  const [formData, setFormData] = useState(initialFormData);
 
-  // Form State
-  const [formData, setFormData] = useState({
-    fullName: "",
-    email: "",
-    contact: "",
-    password: "",
-    role: "Agent",
-    panCardNumber: "",
-    adharCardNumber: "",
-    parentAgentId: "",
-    parrentAgentName: "",
-  });
+  // Helper Function: Convert File to Base64 String
+  const convertToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (err) => reject(err);
+    });
+  };
 
-  // Input Handler
+  // Text Input Handler
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -30,11 +41,31 @@ export const RegisterPage = () => {
     }));
   };
 
+  // File Input Handler
+  const handleFileChange = async (e) => {
+    const { name, files } = e.target;
+    if (files && files[0]) {
+      try {
+        const base64String = await convertToBase64(files[0]);
+        setFormData((prev) => ({
+          ...prev,
+          [name]: base64String,
+        }));
+      } catch (err) {
+        console.error("Base64 conversion failed:", err);
+      }
+    }
+  };
+
   // Submit Handler
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Hook Call with Form Data and Position
+    if (!formData.panCardImage || !formData.adharCardImage) {
+      alert("Please upload both PAN and Aadhaar Card images.");
+      return;
+    }
+
     const res = await handleRegister({
       ...formData,
       position,
@@ -42,6 +73,11 @@ export const RegisterPage = () => {
 
     if (res?.success) {
       alert("Registration Successful!");
+
+      // ✅ Form State and File Input Fields Clear/Reset
+      setFormData(initialFormData);
+      setPosition("left");
+      e.target.reset(); // Native DOM form reset (clears HTML file inputs)
     }
   };
 
@@ -49,8 +85,8 @@ export const RegisterPage = () => {
     <div className="h-screen bg-slate-100 text-slate-900 font-sans flex items-center justify-center p-0 sm:p-4 overflow-hidden">
       {/* Main Container */}
       <div className="w-full max-w-7xl h-full lg:h-[94vh] grid grid-cols-1 lg:grid-cols-12 bg-white shadow-2xl sm:rounded-2xl border border-slate-200 overflow-hidden">
-        
-        {/* ================= LEFT SIDE: Grayscale Home Appliance Showcase BG ================= */}
+
+        {/* LEFT SIDE: Showcase BG */}
         <div className="relative hidden lg:flex lg:col-span-5 bg-slate-950 flex-col justify-between p-8 text-white overflow-hidden">
           <div
             className="absolute inset-0 bg-cover bg-center opacity-20 mix-blend-luminosity grayscale contrast-125"
@@ -99,10 +135,10 @@ export const RegisterPage = () => {
           </div>
         </div>
 
-        {/* ================= RIGHT SIDE: Balanced Monochrome Form UI ================= */}
+        {/* RIGHT SIDE: Form UI */}
         <div className="lg:col-span-7 p-5 sm:p-8 flex flex-col justify-center bg-white overflow-y-auto">
           <div className="max-w-xl mx-auto w-full">
-            
+
             {/* Header */}
             <div className="mb-4">
               <h2 className="text-xl sm:text-2xl font-light text-slate-900 tracking-tight">
@@ -121,7 +157,7 @@ export const RegisterPage = () => {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-3.5">
-              
+
               {/* SECTION 1: Personal Information */}
               <div className="space-y-2.5">
                 <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
@@ -129,7 +165,6 @@ export const RegisterPage = () => {
                 </h3>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* Full Name */}
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       Full Name *
@@ -145,7 +180,6 @@ export const RegisterPage = () => {
                     />
                   </div>
 
-                  {/* Email */}
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       Email Address *
@@ -161,7 +195,6 @@ export const RegisterPage = () => {
                     />
                   </div>
 
-                  {/* Mobile Contact */}
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       Mobile Number *
@@ -177,7 +210,7 @@ export const RegisterPage = () => {
                     />
                   </div>
 
-                  {/* Password Field */}
+                  {/* Password Field with Original Eye Toggle */}
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       Password *
@@ -231,11 +264,10 @@ export const RegisterPage = () => {
                       value={formData.parentAgentId}
                       onChange={handleChange}
                       placeholder="e.g. AGT1001"
-                      className="w-full px-3 py-1.5 bg-white rounded-lg border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-600 transition-all"
+                      className="w-full px-3 py-1.5 bg-white rounded-lg border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-slate-600 transition-all"
                     />
                   </div>
 
-                  {/* Gray Toggle Buttons */}
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       Placement Side
@@ -268,50 +300,62 @@ export const RegisterPage = () => {
                 </div>
               </div>
 
-              {/* SECTION 3: Identity Details (KYC) */}
+              {/* SECTION 3: Identity Documents (KYC Photo Uploads) */}
               <div className="space-y-2">
                 <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                  Identity Details (KYC)
+                  Identity Verification Documents (KYC)
                 </h3>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* PAN Card Photo Upload */}
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      PAN Card Number
+                      PAN Card Photo *
                     </label>
-                    <input
-                      type="text"
-                      name="panCardNumber"
-                      value={formData.panCardNumber}
-                      onChange={handleChange}
-                      placeholder="ABCDE1234F"
-                      className="w-full px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-slate-600 transition-all uppercase"
-                    />
+                    <div className="relative">
+                      <input
+                        type="file"
+                        name="panCardImage"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        required
+                        className="w-full px-2 py-1 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-600 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[11px] file:font-semibold file:bg-slate-800 file:text-white hover:file:bg-slate-700 cursor-pointer"
+                      />
+                    </div>
+                    {formData.panCardImage && (
+                      <p className="text-[10px] text-emerald-600 mt-1 font-medium">✓ PAN Image Selected</p>
+                    )}
                   </div>
 
+                  {/* Aadhaar Card Photo Upload */}
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Aadhar Card Number
+                      Aadhaar Card Photo *
                     </label>
-                    <input
-                      type="text"
-                      name="adharCardNumber"
-                      value={formData.adharCardNumber}
-                      onChange={handleChange}
-                      placeholder="[Aadhaar Redacted]"
-                      className="w-full px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-slate-600 transition-all"
-                    />
+                    <div className="relative">
+                      <input
+                        type="file"
+                        name="adharCardImage"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        required
+                        className="w-full px-2 py-1 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-600 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[11px] file:font-semibold file:bg-slate-800 file:text-white hover:file:bg-slate-700 cursor-pointer"
+                      />
+                    </div>
+                    {formData.adharCardImage && (
+                      <p className="text-[10px] text-emerald-600 mt-1 font-medium">✓ Aadhaar Image Selected</p>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Adjusted Submit Button (Slate-Gray Palette) */}
+              {/* Submit Button */}
               <button
                 type="submit"
                 disabled={loading}
                 className="w-full mt-4 py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs rounded-xl shadow-md active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40"
               >
-                {loading ? "Registering..." : "Complete Registration →"}
+                {loading ? "Uploading & Registering..." : "Complete Registration →"}
               </button>
 
               {/* Navigation Link */}

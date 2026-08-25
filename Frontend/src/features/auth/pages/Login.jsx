@@ -31,7 +31,7 @@ export const LoginPage = () => {
 
     if (result.success) {
       // Redirect on successful login
-      navigate("/agent/Dashboard"); 
+      navigate("/"); 
     }
   };
 

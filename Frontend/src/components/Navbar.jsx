@@ -1,19 +1,34 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router";
-import { useCart } from "../features/cart/hook/usecart"; // Apne folder structure ke hisab se path adjust karein
+import { useCart } from "../features/cart/hook/usecart"; 
+import { useAuth } from "../features/auth/hook/useAuth";
 
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { cart, fetchCart } = useCart();
+  
+  // Auth hook se logged-in user details fetch karein
+  const { user } = useAuth(); 
 
   // Component mount hone par current cart fetch karne ke liye
   useEffect(() => {
     fetchCart();
   }, [fetchCart]);
 
-  // Cart me kul kitni total quantities hain unka sum calculate karne ke liye
+  // Cart me total quantity sum
   const cartCount =
     cart?.items?.reduce((total, item) => total + item.quantity, 0) || 0;
+
+  // Role ke basis par dashboard URL decide karne ke liye helper function
+  const userRole = user?.role?.toLowerCase();
+
+  const getDashboardPath = () => {
+    if (userRole === "admin") return "/admin/dashboard";
+    if (userRole=== "agent") return "/agent/dashboard";
+    return null;
+  };
+
+  const dashboardPath = getDashboardPath(user?.role);
 
   return (
     <nav className="w-full bg-black/90 text-white border-b border-white/10 sticky top-0 z-50 backdrop-blur-md">
@@ -49,11 +64,21 @@ const Navbar = () => {
               Our Vision
             </a>
             <a
-              href="#contact"
+              href="/contactUs"
               className="text-zinc-400 hover:text-white transition-colors duration-300 relative py-1 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-[1px] after:bg-white hover:after:w-full after:transition-all after:duration-300"
             >
               Contact Us
             </a>
+
+            {/* Conditional Dashboard Link (Desktop) */}
+            {dashboardPath && (
+              <Link
+                to={dashboardPath}
+                className="text-zinc-400 hover:text-white transition-colors duration-300 relative py-1 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-[1px] after:bg-white hover:after:w-full after:transition-all after:duration-300"
+              >
+                Dashboard
+              </Link>
+            )}
           </div>
 
           {/* Right: Cart, Sign In & Mobile Toggle */}
@@ -79,7 +104,7 @@ const Navbar = () => {
                 />
               </svg>
 
-              {/* Dynamic Badge: Sirf tabhi dikhega jab cart empty nahi ho */}
+              {/* Dynamic Badge */}
               {cartCount > 0 && (
                 <span className="absolute top-1 right-1 bg-white text-black text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
                   {cartCount}
@@ -148,6 +173,17 @@ const Navbar = () => {
           >
             Contact Us
           </a>
+
+          {/* Conditional Dashboard Link (Mobile) */}
+          {dashboardPath && (
+            <Link
+              to={dashboardPath}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="block text-zinc-400 hover:text-white text-sm font-medium uppercase tracking-widest"
+            >
+              Dashboard
+            </Link>
+          )}
 
           {/* Mobile Sign In Link */}
           <div className="pt-2 border-t border-white/10">

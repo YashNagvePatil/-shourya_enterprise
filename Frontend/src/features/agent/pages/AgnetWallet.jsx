@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 import { 
   Wallet, 
   ArrowUpRight, 
@@ -9,12 +10,14 @@ import {
   DollarSign, 
   ArrowRight,
   TrendingUp,
-  Loader2
+  Loader2,
+  ArrowLeft
 } from "lucide-react";
 // Import the custom hook from your hooks directory
 import { useAgentWallet } from "../hook/useAgent"; 
 
 const WalletPayout = () => {
+  const navigate = useNavigate();
   const [withdrawAmount, setWithdrawAmount] = useState("");
   
   // Destructure reactive states and service dispatchers from the hook
@@ -82,10 +85,21 @@ const WalletPayout = () => {
     <div className="w-full min-h-screen bg-slate-50/50 p-6 font-sans text-slate-800">
       <div className="max-w-6xl mx-auto space-y-6">
         
-        {/* HEADER SECTION */}
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Wallet & Payout Ledger</h1>
-          <p className="text-xs text-slate-500">Manage your earnings, bonuses, and instantly withdraw nodes settlement.</p>
+        {/* BACK TO DASHBOARD NAVIGATION & HEADER SECTION */}
+        <div className="space-y-3">
+          <button
+            type="button"
+            onClick={() => navigate("//agent/dashboard")}
+            className="inline-flex items-center space-x-2 text-xs font-medium text-slate-900 hover:text-slate-500 transition active:scale-95 cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to Dashboard</span>
+          </button>
+
+          <div>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Wallet & Payout Ledger</h1>
+            <p className="text-xs text-slate-500">Manage your earnings, bonuses, and instantly withdraw nodes settlement.</p>
+          </div>
         </div>
 
         {/* STATS MATRIX SECTION */}

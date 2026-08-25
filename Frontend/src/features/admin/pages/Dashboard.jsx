@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useAdmin } from "../hook/useAdmin.js";
+import { useAuth } from "../../auth/hook/useAuth.js";
 import { 
   Users, 
   UserCheck, 
@@ -18,7 +19,8 @@ import {
   Boxes,
   Menu,
   X,
-  LogOut
+  LogOut,
+  ChevronRight
 } from "lucide-react";
 import { 
   AreaChart, 
@@ -37,6 +39,12 @@ import {
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { handleLogout } = useAuth();
+
+ const logout = async () =>{
+   await  handleLogout()
+   navigate("/login")
+ }
 
   const { 
     summary = {}, 
@@ -71,7 +79,7 @@ const AdminDashboard = () => {
     ].filter(item => item.value > 0);
   }, [summary]);
 
-  // 🟢 Sidebar Navigation Items with Exact Routes
+  // 🟢 Navigation Menu Items
   const navItems = [
     { id: "dashboard", label: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
     { id: "agentList", label: "Agent List", path: "/admin/agentList", icon: Users, badge: summary.totalAgents },
@@ -86,96 +94,102 @@ const AdminDashboard = () => {
       {isMobileSidebarOpen && (
         <div 
           onClick={() => setIsMobileSidebarOpen(false)}
-          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 md:hidden transition-opacity"
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 md:hidden transition-opacity"
         />
       )}
 
-      {/* 🟢 Indigo Sidebar Navigation */}
+      {/* 🟢 Strictly Fixed Sidebar */}
       <aside className={`
-        fixed md:sticky top-0 left-0 z-40 h-screen w-64 bg-white border-r border-slate-200/80 
-        flex flex-col justify-between transition-transform duration-300 ease-in-out shrink-0
+        fixed top-0 left-0 z-40 h-screen w-64 bg-slate-900 text-slate-300
+        flex flex-col justify-between transition-transform duration-300 ease-in-out shrink-0 shadow-xl
         ${isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
       `}>
-        <div>
-          {/* Header */}
-          <div className="h-20 px-6 border-b border-slate-100 flex items-center justify-between">
+        {/* Header (Non-scrolling) */}
+        <div className="h-20 px-6 border-b border-slate-800 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-indigo-600 rounded-xl text-white shadow-lg shadow-indigo-500/20">
+              <Activity className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="font-bold text-white text-base leading-none">Shourya</h2>
+              <span className="text-[10px] font-semibold tracking-wider text-indigo-400 uppercase">Enterprise</span>
+            </div>
+          </div>
+          
+          <button 
+            onClick={() => setIsMobileSidebarOpen(false)}
+            className="md:hidden p-1.5 text-slate-400 hover:text-white rounded-lg transition"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Navigation Links (Internally Scrollable if viewport height is small) */}
+        <div className="p-4 space-y-1.5 overflow-y-auto flex-1">
+          <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">Main Menu</p>
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = location.pathname === item.path;
+
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  navigate(item.path);
+                  setIsMobileSidebarOpen(false);
+                }}
+                className={`
+                  w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-medium transition cursor-pointer group
+                  ${isActive 
+                    ? "bg-indigo-600 text-white font-semibold shadow-md shadow-indigo-600/30" 
+                    : "text-slate-400 hover:bg-slate-800/60 hover:text-white"}
+                `}
+              >
+                <div className="flex items-center gap-3">
+                  <Icon className={`w-4 h-4 transition-colors ${isActive ? "text-white" : "text-slate-400 group-hover:text-white"}`} />
+                  <span>{item.label}</span>
+                </div>
+                
+                {item.badge !== undefined ? (
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${isActive ? "bg-white/20 text-white" : "bg-slate-800 text-slate-400"}`}>
+                    {item.badge || 0}
+                  </span>
+                ) : (
+                  <ChevronRight className={`w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity ${isActive ? "hidden" : "block text-slate-500"}`} />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* User Profile & Logout Footer (Non-scrolling pin to bottom) */}
+        <div className="p-4 border-t border-slate-800/80 shrink-0">
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/50 border border-slate-800">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-indigo-600 rounded-xl text-white shadow-md shadow-indigo-100">
-                <Activity className="w-5 h-5" />
+              <div className="w-8 h-8 rounded-full bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center font-bold text-xs">
+                AD
               </div>
-              <div>
-                <h2 className="font-bold text-slate-900 leading-none">Shourya</h2>
-                <span className="text-[10px] font-semibold tracking-wider text-indigo-600 uppercase">Enterprise</span>
+              <div className="text-left">
+                <p className="text-xs font-bold text-white leading-tight">Admin Console</p>
+                <p className="text-[10px] text-slate-400">Super Admin</p>
               </div>
             </div>
             
             <button 
-              onClick={() => setIsMobileSidebarOpen(false)}
-              className="md:hidden p-1.5 text-slate-400 hover:text-slate-600 rounded-lg"
+              onClick={logout}
+              className="text-slate-400 hover:text-rose-400 p-1.5 rounded-lg hover:bg-slate-800 transition cursor-pointer" 
+              title="Logout"
             >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Nav Links */}
-          <div className="p-4 space-y-1">
-            <p className="px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Main Menu</p>
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname === item.path;
-
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    navigate(item.path);
-                    setIsMobileSidebarOpen(false);
-                  }}
-                  className={`
-                    w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer
-                    ${isActive 
-                      ? "bg-indigo-50 text-indigo-600 font-semibold shadow-sm" 
-                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}
-                  `}
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon className={`w-4 h-4 ${isActive ? "text-indigo-600" : "text-slate-400"}`} />
-                    <span>{item.label}</span>
-                  </div>
-                  {item.badge !== undefined && (
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${isActive ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-600"}`}>
-                      {item.badge || 0}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Profile Footer */}
-        <div className="p-4 border-t border-slate-100">
-          <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200/60">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs">
-                AD
-              </div>
-              <div className="text-left">
-                <p className="text-xs font-bold text-slate-900 leading-tight">Admin Console</p>
-                <p className="text-[10px] text-slate-500">Super Admin</p>
-              </div>
-            </div>
-            <button className="text-slate-400 hover:text-rose-600 p-1 rounded-lg transition" title="Logout">
               <LogOut className="w-4 h-4" />
             </button>
           </div>
         </div>
       </aside>
 
-      {/* 🟢 Main Dashboard Area */}
-      <main className="flex-1 min-w-0 p-4 md:p-8">
+      {/* 🟢 Main Dashboard Content Area (Margin-Left Added for Desktop offset) */}
+      <main className="flex-1 min-w-0 md:ml-64 p-4 md:p-8">
         
-        {/* Mobile Header Bar */}
+        {/* Mobile Top Header Bar */}
         <div className="md:hidden flex items-center justify-between mb-6 pb-4 border-b border-slate-200">
           <button
             onClick={() => setIsMobileSidebarOpen(true)}
@@ -187,7 +201,7 @@ const AdminDashboard = () => {
           <div className="w-9" />
         </div>
 
-        {/* Dashboard Content */}
+        {/* Dashboard Header */}
         <header className="flex flex-col md:flex-row md:items-center md:justify-between pb-6 mb-8 border-b border-slate-200 gap-4">
           <div>
             <div className="flex items-center gap-2 text-indigo-600 font-semibold text-xs tracking-wider uppercase mb-1">
@@ -211,7 +225,7 @@ const AdminDashboard = () => {
           </button>
         </header>
 
-        {/* Error Banner */}
+        {/* Error Alert Banner */}
         {error && (
           <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between text-rose-800">
             <div className="flex items-center gap-3">
@@ -294,7 +308,7 @@ const AdminDashboard = () => {
           </div>
         </section>
 
-        {/* Charts Grid */}
+        {/* Analytics Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
           <div className="lg:col-span-2 bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm">
             <div className="flex items-center justify-between mb-6">
@@ -369,7 +383,7 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Table */}
+        {/* Agents Table */}
         <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <div>

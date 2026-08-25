@@ -20,3 +20,13 @@ export const login = async (credentials) => {
   return response.data;
 };
 
+
+
+export const logoutApi = async () => {
+  const response = await api.post(
+    "/auth/logout", 
+    {}, 
+    { withCredentials: true } // Cookies handle karne ke liye zaroori hai
+  );
+  return response.data;
+};

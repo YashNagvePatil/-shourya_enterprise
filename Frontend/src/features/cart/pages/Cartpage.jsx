@@ -76,7 +76,7 @@ const CartPage = () => {
         
         {/* Breadcrumb Navigation */}
         <nav className="flex items-center space-x-2 text-xs text-zinc-500 uppercase tracking-widest mb-8">
-          <Link to="/products" className="hover:text-white transition-colors">
+          <Link to="/" className="hover:text-white transition-colors">
             Catalog
           </Link>
           <span>/</span>

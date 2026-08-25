@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { useFetchDashboard } from "../hook/useAgent";
-
+import { useNavigate } from "react-router";
+import { useAuth } from "../../auth/hook/useAuth";
 import { 
   Wallet, 
   Users, 
@@ -11,10 +12,20 @@ import {
   ShieldCheck, 
   CreditCard,
   UserCheck,
-  ChevronRight
+  ChevronRight,
+  LayoutDashboard,
+  User,
+  Network,
+  Menu,
+  X,
+  LogOut
 } from "lucide-react";
 
 const Dashboard = () => {
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const navigate = useNavigate()
+  const {handleLogout} = useAuth()
   const {
     profile,
     wallet,
@@ -24,6 +35,20 @@ const Dashboard = () => {
     error,
     refetchDashboard,
   } = useFetchDashboard();
+
+  //  Logout Handler (Functionality bad me add karenge)
+  const handlelogout = async  () => {
+      await handleLogout()
+
+      navigate("/login")
+  };
+
+  const navItems = [
+    { id: "dashboard", label: "Dashboard",path:"/agent/dashboard", icon: LayoutDashboard },
+    { id: "network", label: "Network",path:"/agent/network",  icon: Network },
+    { id: "profile", label: "Profile",path:"/agent/profile",  icon: User },
+    { id: "wallet", label: "Wallet",path:"/agent/wallet",  icon: Wallet },
+  ];
 
   if (loading) {
     return (
@@ -53,220 +78,319 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/80 text-slate-800 font-sans p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-slate-50/80 text-slate-800 font-sans flex">
 
-        {/* 1. TOP HEADER (LIGHT CARD) */}
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-xl bg-sky-50 border border-sky-100 flex items-center justify-center text-lg font-light text-sky-600">
-              {profile?.fullName?.charAt(0) || "A"}
-            </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <h1 className="text-xl sm:text-2xl font-light tracking-tight text-slate-900">
-                  Welcome, <span className="font-normal text-sky-600">{profile?.fullName || "Agent"}</span>
-                </h1>
-                <span className="px-2.5 py-0.5 text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full">
-                  {profile?.status || "Active"}
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 font-light mt-1">
-                ID: <span className="text-slate-700 font-mono font-normal">{profile?.distributerId || "N/A"}</span> • Rank: <span className="text-slate-700 font-normal">{profile?.rank || "Distributor"}</span>
-              </p>
-            </div>
-          </div>
+      {/* MOBILE BACKDROP OVERLAY */}
+      {isMobileSidebarOpen && (
+        <div 
+          onClick={() => setIsMobileSidebarOpen(false)}
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-30 lg:hidden"
+        />
+      )}
 
-          <button
-            onClick={refetchDashboard}
-            className="self-start md:self-auto flex items-center space-x-2 px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl border border-slate-200 text-xs font-light transition active:scale-95 cursor-pointer"
-          >
-            <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
-            <span>Refresh Data</span>
-          </button>
-        </header>
-
-        {/* 2. STATS OVERVIEW CARDS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Main Wallet */}
-          <div className="bg-white border border-slate-200/80 hover:border-sky-300 p-5 rounded-2xl transition-all shadow-sm group">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-normal text-slate-500">Main Wallet</span>
-              <div className="p-2 bg-sky-50 text-sky-600 rounded-xl border border-sky-100 group-hover:bg-sky-600 group-hover:text-white transition">
-                <Wallet className="w-4 h-4" />
+      {/* 1. LEFT SIDEBAR (z-40) */}
+      <aside 
+        className={`fixed top-0 left-0 bottom-0 w-64 bg-white border-r border-slate-200/80 z-40 flex flex-col justify-between transition-transform duration-300 ease-in-out ${
+          isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        }`}
+      >
+        <div>
+          {/* Brand Logo / Title */}
+          <div className="h-16 flex items-center justify-between px-6 border-b border-slate-100">
+            <div className="flex items-center space-x-2.5">
+              <div className="w-8 h-8 rounded-lg bg-sky-600 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+                A
               </div>
+              <span className="font-semibold text-slate-800 tracking-tight text-base">Agent Portal</span>
             </div>
-            <div className="mt-3">
-              <h3 className="text-2xl font-light text-slate-900 tracking-tight">
-                ₹{wallet?.walletBalance?.toLocaleString() || "0"}
-              </h3>
-              <p className="text-[11px] text-slate-500 font-light mt-1 flex items-center">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 mr-1" />
-                Available for withdrawal
-              </p>
-            </div>
-          </div>
-
-          {/* Total Earnings */}
-          <div className="bg-white border border-slate-200/80 hover:border-emerald-300 p-5 rounded-2xl transition-all shadow-sm group">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-normal text-slate-500">Total Earnings</span>
-              <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100 group-hover:bg-emerald-600 group-hover:text-white transition">
-                <TrendingUp className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-3">
-              <h3 className="text-2xl font-light text-slate-900 tracking-tight">
-                ₹{wallet?.totalEarning?.toLocaleString() || "0"}
-              </h3>
-              <p className="text-[11px] text-emerald-600 font-light mt-1 flex items-center">
-                <ArrowUpRight className="w-3.5 h-3.5 mr-0.5" />
-                Lifetime revenue
-              </p>
-            </div>
-          </div>
-
-          {/* Direct Downlines */}
-          <div className="bg-white border border-slate-200/80 hover:border-purple-300 p-5 rounded-2xl transition-all shadow-sm group">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-normal text-slate-500">Direct Referrals</span>
-              <div className="p-2 bg-purple-50 text-purple-600 rounded-xl border border-purple-100 group-hover:bg-purple-600 group-hover:text-white transition">
-                <Users className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-3">
-              <h3 className="text-2xl font-light text-slate-900 tracking-tight">
-                {binaryStats?.totalDirects || 0}
-              </h3>
-              <p className="text-[11px] text-slate-500 font-light mt-1">
-                Active team builders
-              </p>
-            </div>
-          </div>
-
-          {/* Matching Bonus */}
-          <div className="bg-white border border-slate-200/80 hover:border-amber-300 p-5 rounded-2xl transition-all shadow-sm group">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-normal text-slate-500">Matching Bonus</span>
-              <div className="p-2 bg-amber-50 text-amber-600 rounded-xl border border-amber-100 group-hover:bg-amber-600 group-hover:text-white transition">
-                <CreditCard className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-3">
-              <h3 className="text-2xl font-light text-slate-900 tracking-tight">
-                ₹{wallet?.totalMatchingBonus?.toLocaleString() || "0"}
-              </h3>
-              <p className="text-[11px] text-amber-700 font-light mt-1">
-                Binary income accumulated
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* 3. BINARY LEGS PROGRESS */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center space-x-2">
-              <GitBranch className="w-4 h-4 text-sky-600" />
-              <h2 className="text-base font-normal text-slate-800">Binary Leg Performance</h2>
-            </div>
-            <span className="text-xs text-slate-400 font-light">Business Volume (BV)</span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Left Leg */}
-            <div className="bg-slate-50/60 p-4 rounded-xl border border-slate-200/60">
-              <div className="flex justify-between items-center mb-1.5">
-                <span className="text-xs font-medium text-sky-700">Left Leg</span>
-                <span className="text-xs text-slate-500 font-light">Agents: {binaryStats?.leftLeg?.totalAgents || 0}</span>
-              </div>
-              <div className="flex items-baseline justify-between mb-2">
-                <span className="text-xl font-light text-slate-900">{binaryStats?.leftLeg?.currentBV || 0} <span className="text-xs text-slate-500 font-light">BV</span></span>
-              </div>
-              <div className="w-full bg-slate-200/70 h-2 rounded-full overflow-hidden">
-                <div 
-                  className="bg-sky-500 h-full rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min(((binaryStats?.leftLeg?.currentBV || 0) / 10000) * 100, 100)}%` }}
-                ></div>
-              </div>
-            </div>
-
-            {/* Right Leg */}
-            <div className="bg-slate-50/60 p-4 rounded-xl border border-slate-200/60">
-              <div className="flex justify-between items-center mb-1.5">
-                <span className="text-xs font-medium text-purple-700">Right Leg</span>
-                <span className="text-xs text-slate-500 font-light">Agents: {binaryStats?.rightLeg?.totalAgents || 0}</span>
-              </div>
-              <div className="flex items-baseline justify-between mb-2">
-                <span className="text-xl font-light text-slate-900">{binaryStats?.rightLeg?.currentBV || 0} <span className="text-xs text-slate-500 font-light">BV</span></span>
-              </div>
-              <div className="w-full bg-slate-200/70 h-2 rounded-full overflow-hidden">
-                <div 
-                  className="bg-purple-500 h-full rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min(((binaryStats?.rightLeg?.currentBV || 0) / 10000) * 100, 100)}%` }}
-                ></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 4. RECENT DOWNLINES TABLE */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-base font-normal text-slate-800">Recent Downline Registrations</h2>
-            <button className="text-xs text-sky-600 hover:text-sky-700 font-normal flex items-center cursor-pointer">
-              View All <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+            <button 
+              onClick={() =>               
+                 setIsMobileSidebarOpen(false)
+              }
+              className="lg:hidden text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs font-light text-slate-600">
-              <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200/80">
-                <tr>
-                  <th className="py-3 px-4 font-normal">Member</th>
-                  <th className="py-3 px-4 font-normal">Distributor ID</th>
-                  <th className="py-3 px-4 font-normal">Leg Position</th>
-                  <th className="py-3 px-4 font-normal">Join Date</th>
-                  <th className="py-3 px-4 font-normal">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {recentDownlines && recentDownlines.length > 0 ? (
-                  recentDownlines.map((item, index) => (
-                    <tr key={index} className="hover:bg-slate-50/80 transition">
-                      <td className="py-3 px-4 font-normal text-slate-800 flex items-center space-x-2">
-                        <UserCheck className="w-3.5 h-3.5 text-slate-400" />
-                        <span>{item.fullName}</span>
-                      </td>
-                      <td className="py-3 px-4 font-mono text-slate-500">{item.distributerId}</td>
-                      <td className="py-3 px-4">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                          item.position === "Left" ? "bg-sky-50 text-sky-700 border border-sky-100" : "bg-purple-50 text-purple-700 border border-purple-100"
-                        }`}>
-                          {item.position} Leg
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-slate-500">{item.createdAt || "Recently"}</td>
-                      <td className="py-3 px-4">
-                        <span className="inline-flex items-center text-[11px] text-emerald-600 font-medium">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span> Active
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="5" className="py-8 text-center text-slate-400 font-light">
-                      No recent downlines found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          {/* Nav Links */}
+          <nav className="p-4 space-y-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    setIsMobileSidebarOpen(false);
+                    navigate(item.path);
+                  }}
+                  className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition cursor-pointer ${
+                    isActive
+                      ? "bg-sky-50 text-sky-600 border border-sky-100/80 shadow-xs"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 ${isActive ? "text-sky-600" : "text-slate-400"}`} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
         </div>
 
+        {/* Sidebar Footer: Agent Info + Logout Icon */}
+        <div className="p-3 border-t border-slate-100 flex items-center justify-between gap-2">
+          <div className="flex items-center space-x-2.5 p-2 bg-slate-50 rounded-xl border border-slate-100 flex-1 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center text-xs font-medium shrink-0">
+              {profile?.fullName?.charAt(0) || "A"}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-slate-800 truncate">{profile?.fullName || "Agent"}</p>
+              <p className="text-[10px] text-slate-400 truncate font-mono">{profile?.distributerId || "N/A"}</p>
+            </div>
+          </div>
+
+          {/* 🔴 LOGOUT ICON BUTTON */}
+          <button
+            onClick={handlelogout}
+            title="Logout"
+            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl border border-slate-200/60 hover:border-rose-200 transition cursor-pointer shrink-0"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
+      </aside>
+
+      {/* 2. MAIN CONTENT AREA */}
+      <div className="flex-1 lg:pl-64 flex flex-col min-w-0">
+
+        {/* MOBILE TOP BAR TOGGLE */}
+        <div className="lg:hidden bg-white border-b border-slate-200/80 px-4 py-3 flex items-center justify-between sticky top-0 z-20">
+          <div className="flex items-center space-x-3">
+            <button 
+              onClick={() => setIsMobileSidebarOpen(true)}
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <span className="font-semibold text-sm text-slate-800">Agent Portal</span>
+          </div>
+          <span className="px-2 py-0.5 text-[10px] font-medium bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">
+            {profile?.status || "Active"}
+          </span>
+        </div>
+
+        <main className="p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-5">
+
+          {/* TOP HEADER */}
+          <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white border border-slate-200/80 p-5 rounded-2xl shadow-xs">
+            <div className="flex items-center space-x-4">
+              <div className="w-11 h-11 rounded-xl bg-sky-50 border border-sky-100 flex items-center justify-center text-base font-medium text-sky-600 shrink-0">
+                {profile?.fullName?.charAt(0) || "A"}
+              </div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h1 className="text-lg sm:text-xl font-normal tracking-tight text-slate-900">
+                    Welcome back, <span className="font-medium text-sky-600">{profile?.fullName || "Agent"}</span>
+                  </h1>
+                  <span className="hidden sm:inline-block px-2.5 py-0.5 text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full">
+                    {profile?.status || "Active"}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 font-light mt-0.5">
+                  ID: <span className="text-slate-700 font-mono font-medium">{profile?.distributerId || "N/A"}</span> • Rank: <span className="text-slate-700 font-medium">{profile?.rank || "Distributor"}</span>
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={refetchDashboard}
+              className="self-start md:self-auto flex items-center space-x-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl border border-slate-200 text-xs font-normal transition active:scale-95 cursor-pointer"
+            >
+              <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+              <span>Refresh Data</span>
+            </button>
+          </header>
+
+          {/* STATS CARDS */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+            <div className="bg-white border border-slate-200/80 hover:border-sky-300 p-3.5 sm:p-4 rounded-xl transition-all shadow-xs group">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-slate-500">Main Wallet</span>
+                <div className="p-1.5 bg-sky-50 text-sky-600 rounded-lg border border-sky-100 group-hover:bg-sky-600 group-hover:text-white transition">
+                  <Wallet className="w-3.5 h-3.5" />
+                </div>
+              </div>
+              <div className="mt-2">
+                <h3 className="text-lg sm:text-xl font-medium text-slate-900 tracking-tight">
+                  ₹{wallet?.walletBalance?.toLocaleString() || "0"}
+                </h3>
+                <p className="text-[10px] sm:text-[11px] text-slate-500 font-light mt-0.5 flex items-center">
+                  <ShieldCheck className="w-3 h-3 text-emerald-600 mr-1 shrink-0" />
+                  Available for withdrawal
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-200/80 hover:border-emerald-300 p-3.5 sm:p-4 rounded-xl transition-all shadow-xs group">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-slate-500">Total Earnings</span>
+                <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100 group-hover:bg-emerald-600 group-hover:text-white transition">
+                  <TrendingUp className="w-3.5 h-3.5" />
+                </div>
+              </div>
+              <div className="mt-2">
+                <h3 className="text-lg sm:text-xl font-medium text-slate-900 tracking-tight">
+                  ₹{wallet?.totalEarning?.toLocaleString() || "0"}
+                </h3>
+                <p className="text-[10px] sm:text-[11px] text-emerald-600 font-light mt-0.5 flex items-center">
+                  <ArrowUpRight className="w-3 h-3 mr-0.5 shrink-0" />
+                  Lifetime revenue
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-200/80 hover:border-purple-300 p-3.5 sm:p-4 rounded-xl transition-all shadow-xs group">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-slate-500">Direct Referrals</span>
+                <div className="p-1.5 bg-purple-50 text-purple-600 rounded-lg border border-purple-100 group-hover:bg-purple-600 group-hover:text-white transition">
+                  <Users className="w-3.5 h-3.5" />
+                </div>
+              </div>
+              <div className="mt-2">
+                <h3 className="text-lg sm:text-xl font-medium text-slate-900 tracking-tight">
+                  {binaryStats?.totalDirects || 0}
+                </h3>
+                <p className="text-[10px] sm:text-[11px] text-slate-500 font-light mt-0.5">
+                  Active team builders
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-200/80 hover:border-amber-300 p-3.5 sm:p-4 rounded-xl transition-all shadow-xs group">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-slate-500">Matching Bonus</span>
+                <div className="p-1.5 bg-amber-50 text-amber-600 rounded-lg border border-amber-100 group-hover:bg-amber-600 group-hover:text-white transition">
+                  <CreditCard className="w-3.5 h-3.5" />
+                </div>
+              </div>
+              <div className="mt-2">
+                <h3 className="text-lg sm:text-xl font-medium text-slate-900 tracking-tight">
+                  ₹{wallet?.totalMatchingBonus?.toLocaleString() || "0"}
+                </h3>
+                <p className="text-[10px] sm:text-[11px] text-amber-700 font-light mt-0.5">
+                  Binary income accumulated
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* BINARY LEGS */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <GitBranch className="w-4 h-4 text-sky-600" />
+                <h2 className="text-sm font-medium text-slate-800">Binary Leg Performance</h2>
+              </div>
+              <span className="text-[11px] text-slate-400 font-light">Business Volume (BV)</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-slate-50/60 p-3.5 rounded-xl border border-slate-200/60">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs font-medium text-sky-700">Left Leg</span>
+                  <span className="text-[11px] text-slate-500 font-light">Agents: {binaryStats?.leftLeg?.totalAgents || 0}</span>
+                </div>
+                <div className="flex items-baseline justify-between mb-1.5">
+                  <span className="text-lg font-medium text-slate-900">{binaryStats?.leftLeg?.currentBV || 0} <span className="text-xs text-slate-500 font-light">BV</span></span>
+                </div>
+                <div className="w-full bg-slate-200/70 h-1.5 rounded-full overflow-hidden">
+                  <div 
+                    className="bg-sky-500 h-full rounded-full transition-all duration-500"
+                    style={{ width: `${Math.min(((binaryStats?.leftLeg?.currentBV || 0) / 10000) * 100, 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              <div className="bg-slate-50/60 p-3.5 rounded-xl border border-slate-200/60">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs font-medium text-purple-700">Right Leg</span>
+                  <span className="text-[11px] text-slate-500 font-light">Agents: {binaryStats?.rightLeg?.totalAgents || 0}</span>
+                </div>
+                <div className="flex items-baseline justify-between mb-1.5">
+                  <span className="text-lg font-medium text-slate-900">{binaryStats?.rightLeg?.currentBV || 0} <span className="text-xs text-slate-500 font-light">BV</span></span>
+                </div>
+                <div className="w-full bg-slate-200/70 h-1.5 rounded-full overflow-hidden">
+                  <div 
+                    className="bg-purple-500 h-full rounded-full transition-all duration-500"
+                    style={{ width: `${Math.min(((binaryStats?.rightLeg?.currentBV || 0) / 10000) * 100, 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* RECENT DOWNLINES TABLE */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-medium text-slate-800">Recent Downline Registrations</h2>
+              <button className="text-xs text-sky-600 hover:text-sky-700 font-normal flex items-center cursor-pointer">
+                View All <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs font-light text-slate-600">
+                <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200/80">
+                  <tr>
+                    <th className="py-2.5 px-3.5 font-medium">Member</th>
+                    <th className="py-2.5 px-3.5 font-medium">Distributor ID</th>
+                    <th className="py-2.5 px-3.5 font-medium">Leg Position</th>
+                    <th className="py-2.5 px-3.5 font-medium">Join Date</th>
+                    <th className="py-2.5 px-3.5 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {recentDownlines && recentDownlines.length > 0 ? (
+                    recentDownlines.map((item, index) => (
+                      <tr key={index} className="hover:bg-slate-50/80 transition">
+                        <td className="py-2.5 px-3.5 font-medium text-slate-800 flex items-center space-x-2">
+                          <UserCheck className="w-3.5 h-3.5 text-slate-400" />
+                          <span>{item.fullName}</span>
+                        </td>
+                        <td className="py-2.5 px-3.5 font-mono text-slate-500">{item.distributerId}</td>
+                        <td className="py-2.5 px-3.5">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                            item.position === "Left" ? "bg-sky-50 text-sky-700 border border-sky-100" : "bg-purple-50 text-purple-700 border border-purple-100"
+                          }`}>
+                            {item.position} Leg
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3.5 text-slate-500">{item.createdAt || "Recently"}</td>
+                        <td className="py-2.5 px-3.5">
+                          <span className="inline-flex items-center text-[11px] text-emerald-600 font-medium">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span> Active
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="5" className="py-6 text-center text-slate-400 font-light">
+                        No recent downlines found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </main>
       </div>
+
     </div>
   );
 };

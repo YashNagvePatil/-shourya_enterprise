@@ -42,12 +42,29 @@ export const getAgentDetails = async (agentId,queryParams = {}) => {
   return response.data;
 }
 
-export const changeAgentStatus = async (agentId, status, reason) => {
-  const response = await api.patch(`/admin/agent/status/${agentId}`, {
-    status,
-    reason,
-  });
-  return response.data;
+export const changeAgentStatus = async (agentId, status, reason = "") => {
+  console.log(">>> [API CALL] changeAgentStatus initialized:");
+  console.log("   -> Agent ID:", agentId);
+  console.log("   -> Status Target:", status);
+  console.log("   -> Reason:", reason);
+
+  if (!agentId) {
+    console.error(">>> [API ERROR] agentId passed to changeAgentStatus is invalid/undefined!");
+    throw new Error("Agent ID missing for status change API call.");
+  }
+
+  try {
+    const response = await api.patch(`/admin/agent/status/${agentId}`, {
+      status, // "Active" or "Blocked"
+      reason: status === "Blocked" ? reason : "",
+    });
+    
+    console.log(">>> [API SUCCESS] Status updated successfully:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error(">>> [API ERROR] changeAgentStatus failed:", error.response || error);
+    throw error.response?.data || { message: "Something went wrong!" };
+  }
 };
 
 export const createProduct = async (productData) => {

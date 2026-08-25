@@ -17,6 +17,7 @@ import Home from "../components/Home";
 import ProductDetailsPage from "../features/products/pages/ProductDetails";
 import CartPage from "../features/cart/pages/Cartpage";
 import PaymentPage from "../features/Payment/pages/Payment";
+import ContactPage from "../components/ContactUs";
 
 // Root Layout Component with Persistent Navbar & Footer
 const RootLayout = () => {
@@ -62,6 +63,10 @@ export const routes = createBrowserRouter([
       {
         path:"payment",
         element:<PaymentPage/>
+      },
+       {
+        path:"contactUs",
+        element:<ContactPage/>
       },
 
       // Agent Routes (Relative Paths)
