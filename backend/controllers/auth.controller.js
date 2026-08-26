@@ -1,15 +1,23 @@
 import userModel from "../models/user.models.js";
+import { FRANCHISE_TYPES } from "../models/franchise.model.js";
 import { config } from "../config/config.js";
 import jwt from "jsonwebtoken";
 import { uploadMultipleToCloudinary } from "../services/storage.service.js";
 import * as authDao from "../dao/auth.dao.js"
 
-async function sendTokenResponse(user, res, message) {
-  const token = jwt.sign({ id: user._id, role: user.role }, config.JWT_SECRET, {
-    expiresIn: "7d",
-  });
+ export async function sendTokenResponse(user, res, message, statusCode = 200) {
+  const token = jwt.sign(
+    {
+      id: user._id,
+      role: user.role || "FRANCHISE",
+      franchiseType: user.franchiseType || null,
+      address: user.address || null,
+    },
+    config.JWT_SECRET,
+    { expiresIn: "7d" }
+  );
 
-  // Set HTTP-Only Cookie
+  // Set HTTP-Only Cookie (Exact original configuration retained)
   res.cookie("token", token, {
     httpOnly: true,
     secure: false,
@@ -18,18 +26,26 @@ async function sendTokenResponse(user, res, message) {
     path: "/",
   });
 
-  return res.status(201).json({
+  return res.status(statusCode).json({
     message,
     success: true,
+    token, // Sent in body for mobile/header authorization flexibility
     user: {
       id: user._id,
       email: user.email,
-      contact: user.contact,
+      contact: user.contact || user.mobile,
       fullName: user.fullName,
-      role: user.role,
-      distributerId: user.distributerId, // New agent id
-      parentAgentName: user.parrentAgentName,
-      parentAgentId: user.parentAgentId,
+      role: user.role || "FRANCHISE",
+      // Franchise Panel specific fields
+      ...(user.franchiseType && { franchiseType: user.franchiseType }),
+      ...(user.address && { address: user.address }),
+      ...(user.status && { status: user.status }),
+      // Agent Panel specific fields
+      ...(user.distributerId && { distributerId: user.distributerId }),
+      ...(user.parentAgentName || user.parrentAgentName
+        ? { parentAgentName: user.parentAgentName || user.parrentAgentName }
+        : {}),
+      ...(user.parentAgentId && { parentAgentId: user.parentAgentId }),
     },
   });
 }

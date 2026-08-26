@@ -1,6 +1,6 @@
-import  { Franchise, FRANCHISE_TYPES }  from "../models/Franchise"
-import SupplyRequest from "../models/SupplyRequest"
-import  FranchiseInventory from "../models/FranchiseInventory"
+import franchiseModel from "../models/franchise.model.js";
+import  supplyRequestModel from "../models/supplyRequest.model.js";
+import franchiseInventoryModel from "../models/franchiseInventory.model.js";
 import  bcrypt from "bcryptjs"
 
 // 1. Specialized Franchise Registration
@@ -11,18 +11,17 @@ export const registerFranchise = async (req, res) => {
       address, udyamNumber, bankDetails, panNumber, aadhaarNumber
     } = req.body;
 
-    const existingUser = await Franchise.findOne({ $or: [{ email }, { mobile }] });
+    const existingUser = await franchiseModel.findOne({ $or: [{ email }, { mobile }] });
     if (existingUser) {
       return res.status(400).json({ success: false, message: "Franchise already exists with this Email or Mobile" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
 
     // Document URLs handled via File Upload Middleware (e.g. Multer/S3)
-    const newFranchise = new Franchise({
+    const newFranchise = new franchiseModel({
       fullName,
       email,
-      password: hashedPassword,
+      password: password,
       mobile,
       franchiseType,
       address,
@@ -48,10 +47,48 @@ export const registerFranchise = async (req, res) => {
   }
 };
 
+export const loginFranchise = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: "Please provide email and password" });
+    }
+
+    const franchise = await franchiseModel.findOne({ email });
+    if (!franchise) {
+      return res.status(401).json({ success: false, message: "Invalid email or password" });
+    }
+
+    // Leverages Mongoose schema comparePassword method
+    const isMatch = await franchise.comparePassword(password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: "Invalid email or password" });
+    }
+
+    if (franchise.status !== "Active") {
+      return res.status(403).json({
+        success: false,
+        message: `Account is currently ${franchise.status}. Contact Admin for verification.`
+      });
+    }
+
+    // Attach role explicitly before issuing token
+    franchise.role = "FRANCHISE";
+
+    // Call unified token function
+    return sendTokenResponse(franchise, res, "Franchise logged in successfully", 200);
+
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
 // 2. Fetch Franchise Profile & Overview
 export const getFranchiseProfile = async (req, res) => {
   try {
-    const franchise = await Franchise.findById(req.user.id).select("-password");
+    const franchise = await franchiseModel.findById(req.user.id).select("-password");
     if (!franchise) return res.status(404).json({ success: false, message: "Franchise not found" });
 
     const planConfig = FRANCHISE_TYPES[franchise.franchiseType];
@@ -72,7 +109,7 @@ export const getFranchiseProfile = async (req, res) => {
 export const createSupplyRequest = async (req, res) => {
   try {
     const { items } = req.body;
-    const franchise = await Franchise.findById(req.user.id);
+    const franchise = await franchiseModel.findById(req.user.id);
 
     let visibility = { district: false, state: false, admin: true };
 
@@ -83,7 +120,7 @@ export const createSupplyRequest = async (req, res) => {
       visibility.state = true;
     }
 
-    const supplyRequest = new SupplyRequest({
+    const supplyRequest = new supplyRequestModel({
       requestNumber: `REQ-${Date.now()}`,
       requesterFranchise: franchise._id,
       requesterType: franchise.franchiseType,

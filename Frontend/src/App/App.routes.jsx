@@ -19,6 +19,7 @@ import CartPage from "../features/cart/pages/Cartpage";
 import PaymentPage from "../features/Payment/pages/Payment";
 import ContactPage from "../components/ContactUs";
 import InventoryManager from "../features/inventory/pages/Inventory";
+import FranchiseRegister from "../features/franchise/pages/FranchiseRegister";
 // Root Layout Component with Persistent Navbar & Footer
 const RootLayout = () => {
   return (
@@ -89,6 +90,13 @@ export const routes = createBrowserRouter([
           { path: "agentDetails", element: <AgentDetailPage /> },
           { path: "createProduct", element: <CreateProductPage /> },
           { path: "inventory", element: <InventoryManager/> },
+        ],
+      },
+       {
+        path: "franchise",
+        children: [
+          { path: "register", element: < FranchiseRegister/> },
+          
         ],
       },
     ],

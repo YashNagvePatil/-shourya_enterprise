@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import  mongoose  from "mongoose"
 
 const franchiseInventorySchema = new mongoose.Schema(
   {
@@ -10,4 +10,6 @@ const franchiseInventorySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model("FranchiseInventory", franchiseInventorySchema);
+const franchiseInventoryModel = mongoose.model("FranchiseInventory", franchiseInventorySchema);
+
+export default franchiseInventoryModel

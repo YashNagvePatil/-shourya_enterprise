@@ -33,6 +33,6 @@ app.use(express.urlencoded({ extended: true, limit: "15mb" }));
  app.use("/api/admin",adminRouter)
  app.use("/api/home",productRouter)
  app.use("/api",payMentRouter)
- app.use("/api",franchiseRouter)
+ app.use("/api/franchise",franchiseRouter)
 
  export default app
