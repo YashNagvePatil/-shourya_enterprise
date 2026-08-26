@@ -7,4 +7,5 @@ const router = Router()
 
  router.post("/payment",authenticateUser,verifyAndDistributeMLM)
 
+ 
  export default router

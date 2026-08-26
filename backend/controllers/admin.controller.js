@@ -1,5 +1,7 @@
 import * as adminDao from "../dao/admin.dao.js";
 import userModel from "../models/user.models.js";
+import inventryModel from "../models/inventry.model.js";
+import productModel from "../models/product.model.js";
 
 /**
  * @desc    Get complete Agent Analytics & Metrics for Admin Dashboard
@@ -204,6 +206,184 @@ export const toggleAgentStatus = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: error.message,
+    });
+  }
+};
+
+export const purchaseItem = async (req, res) => {
+  try {
+    const { itemId, quantity, purchasePrice } = req.body;
+
+    if (!itemId || !quantity || quantity <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid item ID and positive quantity are required",
+      });
+    }
+
+    // Find or create Inventory entry
+    let inventoryItem = await inventryModel.findOne({
+      $or: [{ _id: itemId }, { product: itemId }],
+    });
+
+    if (!inventoryItem) {
+      const product = await productModel.findById(itemId);
+      if (!product) {
+        return res.status(404).json({ success: false, message: "Product not found" });
+      }
+
+      inventoryItem = new inventryModel({
+        product: product._id,
+        sku: product.sku,
+        quantity: product.stock || 0,
+        costPrice: purchasePrice || product.price,
+      });
+    }
+
+    // Update stock quantity
+    inventoryItem.quantity += Number(quantity);
+    if (purchasePrice) inventoryItem.costPrice = Number(purchasePrice);
+
+    await inventoryItem.save();
+
+    // Also update Product.stock in Product collection for consistency
+    await productModel.findByIdAndUpdate(inventoryItem.product, {
+      $inc: { stock: Number(quantity) },
+    });
+
+    await inventoryItem.populate("product");
+
+    return res.status(200).json({
+      success: true,
+      message: `Successfully added ${quantity} units to stock`,
+      data: inventoryItem,
+    });
+  } catch (error) {
+    console.error("Error in purchaseItem:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      error: error.message,
+    });
+  }
+};
+
+export const deductItemStock = async (req, res) => {
+  try {
+    const { itemId, quantity } = req.body;
+
+    // 1. Validation
+    if (!itemId || !quantity || Number(quantity) <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid item ID and positive quantity are required",
+      });
+    }
+
+    const deductQty = Number(quantity);
+
+    // 2. Search existing inventory record
+    let inventoryItem = await inventryModel.findOne({
+      $or: [{ _id: itemId }, { product: itemId }],
+    });
+
+    // 3. Fallback to Product Collection if no inventory entry exists yet
+    if (!inventoryItem) {
+      const product = await productModel.findById(itemId);
+
+      if (!product) {
+        return res.status(404).json({
+          success: false,
+          message: "Product not found in system",
+        });
+      }
+
+      // Initialize inventory document with current product details
+      inventoryItem = new inventryModel({
+        product: product._id,
+        sku: product.sku || `SKU-${Date.now()}`,
+        quantity: product.stock || 0, // 👈 Product schema se baseline stock pick karega (e.g. 175)
+        costPrice: product.price || 0,
+      });
+    }
+
+    // 4. Stock sufficiency check
+    if (inventoryItem.quantity < deductQty) {
+      return res.status(400).json({
+        success: false,
+        message: `Insufficient stock! Available stock: ${inventoryItem.quantity}`,
+      });
+    }
+
+    // 5. Deduct from Inventory collection
+    inventoryItem.quantity -= deductQty;
+    await inventoryItem.save();
+
+    // 6. Dual-Sync: Update stock in Product collection as well
+    await productModel.findByIdAndUpdate(inventoryItem.product, {
+      $inc: { stock: -deductQty },
+    });
+
+    await inventoryItem.populate("product");
+
+    return res.status(200).json({
+      success: true,
+      message: `Successfully deducted ${deductQty} units from stock`,
+      data: inventoryItem,
+    });
+  } catch (error) {
+    console.error("Error in deductItemStock:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      error: error.message,
+    });
+  }
+};
+
+export const getInventoryItem = async (req, res) => {
+  try {
+    const { itemId } = req.params;
+
+    // 1. Try finding in Inventory Collection
+    let inventoryItem = await inventryModel
+      .findOne({
+        $or: [{ _id: itemId }, { product: itemId }],
+      })
+      .populate("product");
+
+    // 2. If no record in Inventory Collection, check Product Collection
+    if (!inventoryItem) {
+      const product = await productModel.findById(itemId);
+
+      if (!product) {
+        return res.status(404).json({
+          success: false,
+          message: "Product not found in system",
+        });
+      }
+
+      // Auto-Sync: Create Inventory entry using existing Product details
+      inventoryItem = await inventryModel.create({
+        product: product._id,
+        sku: product.sku || `SKU-${Date.now()}`,
+        quantity: product.stock || 0, // 👈 Takes 175 from Product Schema
+        costPrice: product.price || 0,
+      });
+
+      inventoryItem = await inventoryItem.populate("product");
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: inventoryItem,
+    });
+  } catch (error) {
+    console.error("Error in getInventoryItem:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      error: error.message,
     });
   }
 };

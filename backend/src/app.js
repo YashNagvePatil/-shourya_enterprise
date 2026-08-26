@@ -6,6 +6,7 @@ import agentRouter from "../routes/agentDashboard.routes.js"
 import adminRouter from "../routes/admin.Routes.js"
 import productRouter from "../routes/product.routes.js"
 import payMentRouter from "../routes/payment.routes.js"
+import franchiseRouter from "../routes/franchise.Routes.js"
 import cors from "cors"
 const app = express()
 
@@ -32,6 +33,6 @@ app.use(express.urlencoded({ extended: true, limit: "15mb" }));
  app.use("/api/admin",adminRouter)
  app.use("/api/home",productRouter)
  app.use("/api",payMentRouter)
-
+ app.use("/api",franchiseRouter)
 
  export default app

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getAdminDashboardData, getAgentById, getAgentsList, toggleAgentStatus,} from "../controllers/admin.controller.js";
+import { deductItemStock, getAdminDashboardData, getAgentById, getAgentsList, getInventoryItem, purchaseItem, toggleAgentStatus,} from "../controllers/admin.controller.js";
 import { authenticateUser } from "../middlewares/agent.middleware.js";
 import { createProduct} from "../controllers/product.controller.js";
 
@@ -33,10 +33,37 @@ const router = Router()
 
   router.get("/agent/:id",authenticateUser,getAgentById)
  
-
-
   router.patch("/agent/status/:id",authenticateUser,toggleAgentStatus)
 
   router.post("/createProduct",authenticateUser,createProduct)
+
+
+ /**
+ * @desc    Sell / Deduct Item Stock from Inventory
+ * @route   POST /api/inventory/deduct
+ * @access  Private/Admin
+ */
+
+  router.post("/inventory/purchase",authenticateUser,purchaseItem)
+
+  /**
+   * @desc    Sell / Deduct Item Stock from Inventory
+   * @route   POST /api/inventory/deduct
+   * @access  Private/Admin
+   */
+
+  router.post("/inventory/deduct",authenticateUser,deductItemStock)
+
+   /**
+    * @desc    Get Current Inventory Details by ID
+    * @route   GET /api/inventory/:itemId
+    * @access  Private
+    */
+
+
+  router.get("/inventory/:itemId",authenticateUser,getInventoryItem)
+
+
+
 
 export default router
