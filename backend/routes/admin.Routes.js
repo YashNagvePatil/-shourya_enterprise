@@ -64,6 +64,27 @@ const router = Router()
   router.get("/inventory/:itemId",authenticateUser,getInventoryItem)
 
 
+  // franchise management controllers 
+
+  // Dashboard & Analytics
+router.get("/dashboard/overview", getDashboardOverview);
+router.get("/dashboard/analytics", getNetworkAnalytics);
+
+// Franchise & Onboarding Management
+router.get("/applications/pending", getPendingApplications);
+router.patch("/applications/:franchiseId/review", reviewApplication);
+router.get("/franchises/hierarchy", getFranchiseHierarchy);
+router.patch("/franchises/:franchiseId/status", updateFranchiseStatus);
+
+// Supply Management
+router.get("/supplies", getGlobalSupplyRequests);
+router.patch("/supplies/:requestId/status", updateSupplyDispatchStatus);
+
+// Financials & Settlements
+router.get("/financials/summary", getFinancialSummary);
+router.post("/financials/settle", processSettlement);
+
+
 
 
 export default router

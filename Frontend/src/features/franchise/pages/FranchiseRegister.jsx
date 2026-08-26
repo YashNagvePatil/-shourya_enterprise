@@ -82,7 +82,7 @@ const  FranchiseRegister = () => {
   };
 
   return (
-    <div className="min-h-screen flex bg-stone-50 font-light text-slate-700">
+    <div className="min-h-screen flex bg-stone-50 font-light text-slate-700 overflow-x-hidden">
       {/* Left Banner */}
       <div className="hidden lg:flex lg:w-1/3 bg-gradient-to-b from-amber-500 to-yellow-600 p-10 text-white flex-col justify-between">
         <div>
