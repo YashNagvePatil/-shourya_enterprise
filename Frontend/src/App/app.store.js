@@ -6,6 +6,7 @@ import productReducer from "../features/admin/state/product.slice"
 import getProductReducer from "../features/products/state/getProduct.slice"
 import cartReducer from "../features/cart/state/cart.slice"
 import paymentReducer from "../features/Payment/state/payment.slice"
+import inventoryReducer from "../features/inventory/state/inventory.slice"
 const store = configureStore({
     reducer:{
            auth:authReducer,
@@ -14,7 +15,8 @@ const store = configureStore({
            createProduct:productReducer,
            getProducts:getProductReducer,
            cart:cartReducer,
-           payment:paymentReducer
+           payment:paymentReducer,
+           inventory:inventoryReducer
     }
 })
 
