@@ -7,6 +7,7 @@ import getProductReducer from "../features/products/state/getProduct.slice"
 import cartReducer from "../features/cart/state/cart.slice"
 import paymentReducer from "../features/Payment/state/payment.slice"
 import inventoryReducer from "../features/inventory/state/inventory.slice"
+import adminDashboardForFranchiseReducer from "../features/admin/franchiseMangement/state/manageFranchiseDashboard.slice" 
 const store = configureStore({
     reducer:{
            auth:authReducer,
@@ -16,7 +17,8 @@ const store = configureStore({
            getProducts:getProductReducer,
            cart:cartReducer,
            payment:paymentReducer,
-           inventory:inventoryReducer
+           inventory:inventoryReducer,
+           adminDashboardForFranchise:adminDashboardForFranchiseReducer
     }
 })
 
