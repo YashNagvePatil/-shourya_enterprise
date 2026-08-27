@@ -1,15 +1,20 @@
+import franchiseModel  from "../../models/franchise.model.js"
+import  orderModel  from "../../models/order.model.js"
+
+
 // Handles high-level network analytics, active franchise counts, and system metrics
+
 export const getDashboardOverview = async (req, res) => {
   try {
-    const totalFranchises = await Franchise.countDocuments({ status: "ACTIVE" });
-    const pendingApplications = await Franchise.countDocuments({ status: "PENDING" });
+    const totalFranchises = await franchiseModel.countDocuments({ status: "ACTIVE" });
+    const pendingApplications = await franchiseModel.countDocuments({ status: "PENDING" });
     
-    const countByTier = await Franchise.aggregate([
+    const countByTier = await franchiseModel.aggregate([
       { $match: { status: "ACTIVE" } },
       { $group: { _id: "$franchiseType", count: { $sum: 1 } } }
     ]);
 
-    const revenueSummary = await Order.aggregate([
+    const revenueSummary = await orderModel.aggregate([
       { $match: { paymentStatus: "COMPLETED" } },
       { $group: { _id: null, totalGmv: { $sum: "$totalAmount" }, totalOrders: { $sum: 1 } } }
     ]);
@@ -31,7 +36,7 @@ export const getDashboardOverview = async (req, res) => {
 
 export const getNetworkAnalytics = async (req, res) => {
   try {
-    const monthlyStats = await Order.aggregate([
+    const monthlyStats = await orderModel.aggregate([
       {
         $group: {
           _id: { $month: "$createdAt" },

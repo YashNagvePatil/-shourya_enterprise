@@ -1,17 +1,22 @@
+import franchiseModel from "../../models/franchise.model.js";
+
+
 // Handles onboarding reviews, KYC verification, status overrides, and hierarchy retrieval
+
+
 export const getPendingApplications = async (req, res) => {
   try {
     const { tier, page = 1, limit = 10 } = req.query;
     const query = { status: "PENDING" };
     if (tier) query.franchiseType = tier;
 
-    const applications = await Franchise.find(query)
+    const applications = await franchiseModel.find(query)
       .select("-password")
       .skip((page - 1) * limit)
       .limit(Number(limit))
       .sort({ createdAt: -1 });
 
-    const total = await Franchise.countDocuments(query);
+    const total = await franchiseModel.countDocuments(query);
 
     return res.status(200).json({ success: true, applications, total, page });
   } catch (error) {
@@ -24,7 +29,7 @@ export const reviewApplication = async (req, res) => {
     const { franchiseId } = req.params;
     const { action, rejectionReason } = req.body; // action: 'APPROVE' | 'REJECT'
 
-    const franchise = await Franchise.findById(franchiseId);
+    const franchise = await franchiseModel.findById(franchiseId);
     if (!franchise) return res.status(404).json({ success: false, message: "Franchise not found" });
 
     if (action === "APPROVE") {
@@ -45,7 +50,7 @@ export const reviewApplication = async (req, res) => {
 
 export const getFranchiseHierarchy = async (req, res) => {
   try {
-    const hierarchy = await Franchise.find({ status: "ACTIVE" })
+    const hierarchy = await franchiseModel.find({ status: "ACTIVE" })
       .select("fullName email franchiseType address status wallet createdAt")
       .sort({ "address.state": 1, "address.district": 1 });
 
@@ -60,7 +65,7 @@ export const updateFranchiseStatus = async (req, res) => {
     const { franchiseId } = req.params;
     const { status } = req.body; // 'ACTIVE' | 'SUSPENDED' | 'BLOCKED'
 
-    const updated = await Franchise.findByIdAndUpdate(
+    const updated = await franchiseModel.findByIdAndUpdate(
       franchiseId,
       { status },
       { new: true }

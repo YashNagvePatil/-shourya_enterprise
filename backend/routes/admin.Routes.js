@@ -2,7 +2,10 @@ import { Router } from "express";
 import { deductItemStock, getAdminDashboardData, getAgentById, getAgentsList, getInventoryItem, purchaseItem, toggleAgentStatus,} from "../controllers/admin.controller.js";
 import { authenticateUser } from "../middlewares/agent.middleware.js";
 import { createProduct} from "../controllers/product.controller.js";
-
+import {getDashboardOverview,getNetworkAnalytics} from "../controllers/franchiseMangment/franchiseMangeDashboard.controller.js"
+import {getPendingApplications,reviewApplication,getFranchiseHierarchy,updateFranchiseStatus} from "../controllers/franchiseMangment/franchiseMangement.controller.js"
+import {getGlobalSupplyRequests,updateSupplyDispatchStatus} from "../controllers/franchiseMangment/adminSupply.Controller.js"
+import {getFinancialSummary, processSettlement} from "../controllers/franchiseMangment/adminFinaclials.controller.js"
 
 const router = Router()
 
