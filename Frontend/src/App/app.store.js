@@ -9,6 +9,7 @@ import paymentReducer from "../features/Payment/state/payment.slice"
 import inventoryReducer from "../features/inventory/state/inventory.slice"
 import adminDashboardForFranchiseReducer from "../features/admin/franchiseMangement/state/manageFranchiseDashboard.slice" 
 import franchiseManageKycReducer from "../features/admin/franchiseMangement/state/franchiseVerifyKyc.slice"
+import ManagefranchiseSupplyReducer from "../features/admin/franchiseMangement/state/managefranchiseSupplySlice"
 const store = configureStore({
     reducer:{
            auth:authReducer,
@@ -20,7 +21,8 @@ const store = configureStore({
            payment:paymentReducer,
            inventory:inventoryReducer,
            adminDashboardForFranchise:adminDashboardForFranchiseReducer,
-           franchiseManageKyc:franchiseManageKycReducer
+           franchiseManageKyc:franchiseManageKycReducer,
+           ManagefranchiseSupply:ManagefranchiseSupplyReducer
     }
 })
 
