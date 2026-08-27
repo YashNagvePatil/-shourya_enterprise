@@ -8,6 +8,7 @@ import cartReducer from "../features/cart/state/cart.slice"
 import paymentReducer from "../features/Payment/state/payment.slice"
 import inventoryReducer from "../features/inventory/state/inventory.slice"
 import adminDashboardForFranchiseReducer from "../features/admin/franchiseMangement/state/manageFranchiseDashboard.slice" 
+import franchiseManageKycReducer from "../features/admin/franchiseMangement/state/franchiseVerifyKyc.slice"
 const store = configureStore({
     reducer:{
            auth:authReducer,
@@ -18,7 +19,8 @@ const store = configureStore({
            cart:cartReducer,
            payment:paymentReducer,
            inventory:inventoryReducer,
-           adminDashboardForFranchise:adminDashboardForFranchiseReducer
+           adminDashboardForFranchise:adminDashboardForFranchiseReducer,
+           franchiseManageKyc:franchiseManageKycReducer
     }
 })
 

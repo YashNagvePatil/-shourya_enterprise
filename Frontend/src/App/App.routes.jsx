@@ -21,6 +21,7 @@ import ContactPage from "../components/ContactUs";
 import InventoryManager from "../features/inventory/pages/Inventory";
 import FranchiseRegister from "../features/franchise/pages/FranchiseRegister";
 import MangeFranchiseDashboard from "../features/admin/franchiseMangement/pages/mangeFranchiseDashboard";
+import FranchiseGovernanceUI from "../features/admin/franchiseMangement/pages/FranchiseVerifyKyc";
 // Root Layout Component with Persistent Navbar & Footer
 const RootLayout = () => {
   return (
@@ -91,7 +92,8 @@ export const routes = createBrowserRouter([
           { path: "agentDetails", element: <AgentDetailPage /> },
           { path: "createProduct", element: <CreateProductPage /> },
           { path: "inventory", element: <InventoryManager/> },
-          { path: "franchiseManageDashboard", element:<MangeFranchiseDashboard/>}
+          { path: "franchiseManageDashboard", element:<MangeFranchiseDashboard/>},
+          { path:"FranchiseVerifyKyc", element:<FranchiseGovernanceUI/>}
         ],
       },
        {
