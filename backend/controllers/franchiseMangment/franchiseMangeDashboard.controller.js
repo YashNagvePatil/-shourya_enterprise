@@ -6,11 +6,11 @@ import  orderModel  from "../../models/order.model.js"
 
 export const getDashboardOverview = async (req, res) => {
   try {
-    const totalFranchises = await franchiseModel.countDocuments({ status: "ACTIVE" });
-    const pendingApplications = await franchiseModel.countDocuments({ status: "PENDING" });
+    const totalFranchises = await franchiseModel.countDocuments({ status: "Active" });
+    const pendingApplications = await franchiseModel.countDocuments({ status: "Pending" });
     
     const countByTier = await franchiseModel.aggregate([
-      { $match: { status: "ACTIVE" } },
+      { $match: { status: "Active" } },
       { $group: { _id: "$franchiseType", count: { $sum: 1 } } }
     ]);
 
