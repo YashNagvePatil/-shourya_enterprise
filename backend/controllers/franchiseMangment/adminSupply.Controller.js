@@ -1,3 +1,6 @@
+import  supplyRequestModel from "../../models/supplyRequest.model.js"
+
+
 // Manages network-wide stock supply requests and fulfillment dispatches
 export const getGlobalSupplyRequests = async (req, res) => {
   try {
@@ -5,7 +8,7 @@ export const getGlobalSupplyRequests = async (req, res) => {
     const filter = {};
     if (status && status !== "ALL") filter.status = status;
 
-    const requests = await SupplyRequest.find(filter)
+    const requests = await supplyRequestModel.find(filter)
       .populate("franchiseId", "fullName email franchiseType address")
       .populate("items.productId", "name sku price")
       .sort({ createdAt: -1 });
@@ -21,7 +24,7 @@ export const updateSupplyDispatchStatus = async (req, res) => {
     const { requestId } = req.params;
     const { status, trackingNumber, notes } = req.body; // 'APPROVED' | 'DISPATCHED' | 'DELIVERED' | 'CANCELLED'
 
-    const supplyReq = await SupplyRequest.findById(requestId);
+    const supplyReq = await supplyRequestModel.findById(requestId);
     if (!supplyReq) return res.status(404).json({ success: false, message: "Request not found" });
 
     supplyReq.status = status;
