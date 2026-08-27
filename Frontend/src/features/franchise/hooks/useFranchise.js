@@ -1,134 +1,122 @@
+import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { franchiseRegister } from "../service/franchise.api.js"; // Adjust import path
 import {
-  setFranchiseUser,
-  updateFranchiseProfile,
-  updateWalletBalance,
-  clearFranchiseUser,
-  selectFranchiseUser,
-  selectIsAuthenticated,
-  selectUserStatus,
-} from "./franchiseUser.slice.js";
+  setFranchiseLoading,
+  setFranchiseError,
+  clearFranchiseError,
+  registrationSuccess,
+  resetRegistrationState,
+} from "../state/franchiseUser.slice.js"; // Adjust import path
 
-import {
-  setFinancialOverview,
-  setDashboardMetrics,
-  setDateFilter,
-  resetDashboardState,
-  selectFinancials,
-  selectDashboardMetrics,
-  selectDashboardDateFilter,
-} from "./franchiseDashboard.slice.js";
-
-import {
-  setSupplyRequests,
-  addSupplyRequest,
-  updateSupplyRequestStatus,
-  setSelectedSupplyRequest,
-  setSupplyFilters,
-  clearSupplyState,
-  selectAllSupplyRequests,
-  selectSelectedSupplyRequest,
-  selectSupplyFilters,
-} from "./franchiseSupplies.slice.js";
-
-import {
-  setInventory,
-  addInventoryItem,
-  updateInventoryStock,
-  setSelectedItem,
-  setInventoryFilters,
-  clearInventoryState,
-  selectInventoryItems,
-  selectSelectedItem,
-  selectInventoryFilters,
-} from "./franchiseInventory.slice.js";
-
+/**
+ * Custom Hook to handle all Franchise related state & logic
+ */
 export const useFranchise = () => {
   const dispatch = useDispatch();
 
-  // Selectors
-  const user = useSelector(selectFranchiseUser);
-  const isAuthenticated = useSelector(selectIsAuthenticated);
-  const userStatus = useSelector(selectUserStatus);
+  const {
+    currentFranchise,
+    isRegisteredSuccess,
+    registeredFranchiseId,
+    loading,
+    error,
+  } = useSelector((state) => state.franchise);
 
-  const financials = useSelector(selectFinancials);
-  const dashboardMetrics = useSelector(selectDashboardMetrics);
-  const dashboardDateFilter = useSelector(selectDashboardDateFilter);
-
-  const supplyRequests = useSelector(selectAllSupplyRequests);
-  const selectedSupplyRequest = useSelector(selectSelectedSupplyRequest);
-  const supplyFilters = useSelector(selectSupplyFilters);
-
-  const inventoryItems = useSelector(selectInventoryItems);
-  const selectedInventoryItem = useSelector(selectSelectedItem);
-  const inventoryFilters = useSelector(selectInventoryFilters);
-
-  // User Actions
-  const handleSetUser = (userData) => dispatch(setFranchiseUser(userData));
-  const handleUpdateProfile = (profileData) => dispatch(updateFranchiseProfile(profileData));
-  const handleUpdateWallet = (walletData) => dispatch(updateWalletBalance(walletData));
-  const handleLogout = () => {
-    dispatch(clearFranchiseUser());
-    dispatch(resetDashboardState());
-    dispatch(clearSupplyState());
-    dispatch(clearInventoryState());
+  /**
+   * Helper utility to convert a File object to a Base64 string
+   * @param {File} file 
+   * @returns {Promise<String>}
+   */
+  const convertFileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      if (!file) resolve(null);
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (err) => reject(err);
+    });
   };
 
-  // Dashboard Actions
-  const handleSetFinancials = (data) => dispatch(setFinancialOverview(data));
-  const handleSetMetrics = (metrics) => dispatch(setDashboardMetrics(metrics));
-  const handleSetDateFilter = (filter) => dispatch(setDateFilter(filter));
+  /**
+   * Submit Franchise Registration
+   * Accepts plain object (with raw files or base64 strings) or FormData
+   * @param {Object|FormData} payload 
+   */
+  const submitRegistration = useCallback(
+    async (payload) => {
+      dispatch(setFranchiseLoading(true));
+      dispatch(clearFranchiseError());
 
-  // Supply Request Actions
-  const handleSetSupplyRequests = (requests) => dispatch(setSupplyRequests(requests));
-  const handleAddSupplyRequest = (request) => dispatch(addSupplyRequest(request));
-  const handleUpdateSupplyStatus = (requestId, status) =>
-    dispatch(updateSupplyRequestStatus({ requestId, status }));
-  const handleSelectSupplyRequest = (request) => dispatch(setSelectedSupplyRequest(request));
-  const handleSetSupplyFilters = (filters) => dispatch(setSupplyFilters(filters));
+      try {
+        let finalPayload = payload;
 
-  // Inventory Actions
-  const handleSetInventory = (items) => dispatch(setInventory(items));
-  const handleAddInventoryItem = (item) => dispatch(addInventoryItem(item));
-  const handleRecordSale = (productId, quantitySold) =>
-    dispatch(updateInventoryStock({ productId, quantitySold }));
-  const handleSelectInventoryItem = (item) => dispatch(setSelectedItem(item));
-  const handleSetInventoryFilters = (filters) => dispatch(setInventoryFilters(filters));
+        // If payload is a plain object containing File instances for images, auto-convert them to Base64
+        if (!(payload instanceof FormData) && typeof payload === "object") {
+          const [firmDocs, shopLicense, panCardImage, aadhaarCardImage] =
+            await Promise.all([
+              payload.firmDocs instanceof File
+                ? convertFileToBase64(payload.firmDocs)
+                : payload.firmDocs,
+              payload.shopLicense instanceof File
+                ? convertFileToBase64(payload.shopLicense)
+                : payload.shopLicense,
+              payload.panCardImage instanceof File
+                ? convertFileToBase64(payload.panCardImage)
+                : payload.panCardImage,
+              payload.aadhaarCardImage instanceof File
+                ? convertFileToBase64(payload.aadhaarCardImage)
+                : payload.aadhaarCardImage,
+            ]);
+
+          finalPayload = {
+            ...payload,
+            firmDocs,
+            shopLicense,
+            panCardImage,
+            aadhaarCardImage,
+          };
+        }
+
+        const response = await franchiseRegister(finalPayload);
+
+        dispatch(registrationSuccess(response));
+        return response;
+      } catch (err) {
+        const errorMessage = err.message || "Registration failed. Please try again.";
+        dispatch(setFranchiseError(errorMessage));
+        throw err;
+      }
+    },
+    [dispatch]
+  );
+
+  /**
+   * Clear error state
+   */
+  const clearError = useCallback(() => {
+    dispatch(clearFranchiseError());
+  }, [dispatch]);
+
+  /**
+   * Reset registration status (useful when navigating away from success page)
+   */
+  const resetRegistration = useCallback(() => {
+    dispatch(resetRegistrationState());
+  }, [dispatch]);
 
   return {
-    // State Values
-    user,
-    isAuthenticated,
-    userStatus,
-    financials,
-    dashboardMetrics,
-    dashboardDateFilter,
-    supplyRequests,
-    selectedSupplyRequest,
-    supplyFilters,
-    inventoryItems,
-    selectedInventoryItem,
-    inventoryFilters,
+    // State
+    currentFranchise,
+    isRegisteredSuccess,
+    registeredFranchiseId,
+    loading,
+    error,
 
-    // Dispatcher Methods
-    handleSetUser,
-    handleUpdateProfile,
-    handleUpdateWallet,
-    handleLogout,
-    handleSetFinancials,
-    handleSetMetrics,
-    handleSetDateFilter,
-    handleSetSupplyRequests,
-    handleAddSupplyRequest,
-    handleUpdateSupplyStatus,
-    handleSelectSupplyRequest,
-    handleSetSupplyFilters,
-    handleSetInventory,
-    handleAddInventoryItem,
-    handleRecordSale,
-    handleSelectInventoryItem,
-    handleSetInventoryFilters,
+    // Methods & Logic
+    submitRegistration,
+    convertFileToBase64,
+    clearError,
+    resetRegistration,
   };
 };
-
-export default useFranchise;

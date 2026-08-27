@@ -1,12 +1,12 @@
 import React, { useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+// 1. Corrected import to react-router-dom for web navigation
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import useAdminDashboard from "../hook/usefranchiseMangeDashboard";
 
 const MangeFranchiseDashboard = () => {
-  const navigate = useNavigate();
   const location = useLocation();
+  const navigate = useNavigate();
 
-  // Hook connectivity for real-time franchise data
   const {
     metrics = {},
     analytics = [],
@@ -49,11 +49,17 @@ const MangeFranchiseDashboard = () => {
   const isAnalyticsLoading = loading?.analytics;
   const hasNoFranchises = !isOverviewLoading && totalFranchises === 0;
 
+  const handleLogout = () => {
+    console.log("Logging out user...");
+    navigate("/login");
+  };
+
+  // 2. Standardized paths to ensure they match your route definitions
   const navItems = [
     {
       id: "analytics",
       label: "Network Analytics",
-      path: "/admin/analytics",
+      path: "/admin/franchise/analytics",
       icon: (
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -61,9 +67,9 @@ const MangeFranchiseDashboard = () => {
       ),
     },
     {
-      id: "financials",
-      label: "Financial Allocations",
-      path: "/admin/financials",
+      id: "finance",
+      label: "Franchise Finance",
+      path: "/admin/franchise/finance",
       icon: (
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -71,9 +77,39 @@ const MangeFranchiseDashboard = () => {
       ),
     },
     {
+      id: "supply",
+      label: "Franchise Supply",
+      path: "/admin/franchise/supply",
+      icon: (
+        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-2m-4-1v8m0 0l3-3m-3 3L9 8m-5 5h2.586a1 1 0 01.707.293l2.414 2.414a1 1 0 00.707.293h3.172a1 1 0 00.707-.293l2.414-2.414a1 1 0 01.707-.293H20" />
+        </svg>
+      ),
+    },
+    {
+      id: "inventory",
+      label: "Franchise Inventory",
+      path: "/admin/franchise/inventory",
+      icon: (
+        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+        </svg>
+      ),
+    },
+    {
+      id: "docs",
+      label: "Franchise Docs",
+      path: "/admin/franchise/docs",
+      icon: (
+        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      ),
+    },
+    {
       id: "outlets",
       label: "Franchise Outlets",
-      path: "/admin/outlets",
+      path: "/admin/franchise/outlets",
       badge: totalFranchises,
       icon: (
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -84,22 +120,11 @@ const MangeFranchiseDashboard = () => {
     {
       id: "applications",
       label: "KYC Applications",
-      path: "/admin/applications",
+      path: "/admin/franchise/applications",
       badge: pendingApplications,
       icon: (
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-      ),
-    },
-    {
-      id: "settings",
-      label: "Network Settings",
-      path: "/admin/settings",
-      icon: (
-        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 012-2h2a2 2 0 012 2v1m-6 0h6" />
         </svg>
       ),
     },
@@ -107,77 +132,83 @@ const MangeFranchiseDashboard = () => {
 
   return (
     <div className="flex min-h-screen bg-[#FDFBF7] font-sans font-light text-[#4A3E3D]">
-      {/* Scrollable Fixed Sidebar */}
-      <aside className="sticky top-0 flex h-screen w-64 flex-col justify-between border-r border-[#F0E6D8] bg-white text-xs font-light">
+      <aside className="sticky top-0 flex h-screen w-64 flex-col justify-between border-r border-[#F0E6D8] bg-white text-xs font-light shrink-0">
         <div className="flex flex-col h-full min-h-0">
-          {/* Brand Header */}
           <div className="flex items-center gap-3 p-6 border-b border-[#FAF6EE] shrink-0">
             <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-[#D82348] text-white font-normal text-xs">
               F
             </span>
             <div>
               <h2 className="text-sm font-normal text-[#2C1E21] tracking-wide">Hub Portal</h2>
-              <p className="text-[10px] font-light text-[#9A827A]">Franchise Ops</p>
+              <p className="text-[10px] font-light text-[#9A827A]">Franchise Management</p>
             </div>
           </div>
 
-          {/* Independently Scrollable Nav Items */}
           <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-1.5 scrollbar-thin scrollbar-thumb-[#F0E6D8]">
             <div className="mb-3 px-3 text-[10px] uppercase tracking-widest text-[#9A827A]">
               Navigation
             </div>
-            {navItems.map((item) => {
-              const isActive = location.pathname === item.path;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => navigate(item.path)}
-                  className={`group flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs transition ${
+            {navItems.map((item) => (
+              <NavLink
+                key={item.id}
+                to={item.path}
+                className={({ isActive }) =>
+                  `group flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs transition ${
                     isActive
                       ? "bg-[#FAF6EE] text-[#D82348] font-normal shadow-2xs"
                       : "text-[#6E5D59] hover:bg-[#FAF8F7] hover:text-[#2C1E21]"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className={isActive ? "text-[#D82348]" : "text-[#9A827A] group-hover:text-[#2C1E21]"}>
-                      {item.icon}
-                    </span>
-                    <span className="tracking-wide">{item.label}</span>
-                  </div>
-                  {item.badge !== undefined && (
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] ${
-                        isActive
-                          ? "bg-[#D82348]/10 text-[#D82348]"
-                          : "bg-[#FAF6EE] text-[#9A827A]"
-                      }`}
-                    >
-                      {item.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <span className={isActive ? "text-[#D82348]" : "text-[#9A827A] group-hover:text-[#2C1E21]"}>
+                        {item.icon}
+                      </span>
+                      <span className="tracking-wide">{item.label}</span>
+                    </div>
+                    {item.badge !== undefined && (
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] ${
+                          isActive
+                            ? "bg-[#D82348]/10 text-[#D82348]"
+                            : "bg-[#FAF6EE] text-[#9A827A]"
+                        }`}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
+                  </>
+                )}
+              </NavLink>
+            ))}
           </nav>
 
-          {/* Connected Hook Status Bar */}
-          <div className="p-4 border-t border-[#FAF6EE] bg-[#FAF8F7]/60 shrink-0">
+          <div className="p-4 border-t border-[#FAF6EE] bg-[#FAF8F7]/60 shrink-0 space-y-3">
             <div className="rounded-xl border border-[#F0E6D8] bg-white p-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-light text-[#9A827A]">Hook Connection</span>
-                <span className="flex h-1.5 w-1.5 rounded-full bg-[#E2C275] animate-pulse"></span>
-              </div>
-              <p className="mt-1 text-[11px] font-normal text-[#2C1E21]">
-                {isOverviewLoading || isAnalyticsLoading ? "Syncing Network..." : "Live Data Synced"}
+              <span className="text-[9px] font-light uppercase tracking-widest text-[#9A827A]">
+                Current Path
+              </span>
+              <p className="mt-0.5 font-mono text-[11px] font-normal text-[#2C1E21] truncate">
+                {location.pathname || "/admin/franchise/analytics"}
               </p>
             </div>
+
+            <button
+              onClick={handleLogout}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#F0E6D8] bg-white px-3 py-2 text-xs font-light text-[#D82348] transition hover:bg-[#D82348]/10 hover:border-[#D82348]/30 active:bg-[#D82348]/20"
+            >
+              <svg className="h-4 w-4 text-[#D82348]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              <span className="font-normal tracking-wide">Logout</span>
+            </button>
           </div>
         </div>
       </aside>
 
-      {/* Main Content Area */}
       <main className="flex-1 min-w-0 p-6 md:p-10 overflow-y-auto">
-        {/* Header Bar */}
         <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#F0E6D8] pb-5">
           <div>
             <h1 className="text-2xl font-light tracking-wide text-[#2C1E21] flex items-center gap-2.5">
@@ -213,14 +244,12 @@ const MangeFranchiseDashboard = () => {
           </button>
         </header>
 
-        {/* Error Alert */}
         {error && (
           <div className="mb-6 rounded-xl border border-[#D82348]/30 bg-[#D82348]/5 p-4 text-xs font-light text-[#D82348]">
             <span className="font-normal">Error:</span> {error}
           </div>
         )}
 
-        {/* Empty State Banner */}
         {hasNoFranchises && (
           <div className="mb-8 rounded-2xl border border-[#F0E6D8] bg-white p-8 text-center shadow-sm">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#F99834]/10 text-[#F99834] mb-3">
@@ -230,12 +259,11 @@ const MangeFranchiseDashboard = () => {
             </div>
             <h3 className="text-sm font-normal text-[#2C1E21]">No Franchises Registered Yet</h3>
             <p className="mt-1 text-xs font-light text-[#9A827A] max-w-md mx-auto">
-              There are currently no active franchise outlets or metrics recorded in the database.
+              There are currently no active franchise outlets or metrics recorded in the database. Metrics will automatically update once franchises are onboarded.
             </p>
           </div>
         )}
 
-        {/* Metrics Grid */}
         <section className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-2xl border border-[#F0E6D8] bg-white p-5 shadow-sm transition hover:border-[#E2C275] hover:shadow-md">
             <div className="flex items-center justify-between">
@@ -330,7 +358,6 @@ const MangeFranchiseDashboard = () => {
           </div>
         </section>
 
-        {/* Main Analytics Content */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="rounded-2xl border border-[#F0E6D8] bg-white p-6 shadow-sm lg:col-span-2">
             <div className="mb-6 border-b border-[#F5EFE6] pb-4">

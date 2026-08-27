@@ -1,47 +1,56 @@
 import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {
-  user: null,
-  isAuthenticated: false,
-  status: "Pending", // 'idle' | 'active' | 'pending' | 'blocked'
+  currentFranchise: null,
+  isRegisteredSuccess: false,
+  registeredFranchiseId: null,
+  loading: false,
+  error: null,
 };
 
-const franchiseUserSlice = createSlice({
-  name: "franchiseUser",
+const franchiseSlice = createSlice({
+  name: "franchise",
   initialState,
   reducers: {
-    setFranchiseUser: (state, action) => {
-      state.user = action.payload;
-      state.isAuthenticated = true;
-      state.status = action.payload?.status || "active";
+    setFranchiseLoading: (state, action) => {
+      state.loading = action.payload;
     },
-    updateFranchiseProfile: (state, action) => {
-      if (state.user) {
-        state.user = { ...state.user, ...action.payload };
-      }
+    setFranchiseError: (state, action) => {
+      state.error = action.payload;
+      state.loading = false;
     },
-    updateWalletBalance: (state, action) => {
-      if (state.user && state.user.wallet) {
-        state.user.wallet = { ...state.user.wallet, ...action.payload };
-      }
+    clearFranchiseError: (state) => {
+      state.error = null;
     },
-    clearFranchiseUser: (state) => {
-      state.user = null;
-      state.isAuthenticated = false;
-      state.status = "idle";
+    registrationSuccess: (state, action) => {
+      state.isRegisteredSuccess = true;
+      state.registeredFranchiseId = action.payload?.franchiseId || null;
+      state.loading = false;
+      state.error = null;
     },
+    resetRegistrationState: (state) => {
+      state.isRegisteredSuccess = false;
+      state.registeredFranchiseId = null;
+      state.error = null;
+      state.loading = false;
+    },
+    setCurrentFranchise: (state, action) => {
+      state.currentFranchise = action.payload;
+      state.loading = false;
+      state.error = null;
+    },
+    resetFranchiseState: () => initialState,
   },
 });
 
 export const {
-  setFranchiseUser,
-  updateFranchiseProfile,
-  updateWalletBalance,
-  clearFranchiseUser,
-} = franchiseUserSlice.actions;
+  setFranchiseLoading,
+  setFranchiseError,
+  clearFranchiseError,
+  registrationSuccess,
+  resetRegistrationState,
+  setCurrentFranchise,
+  resetFranchiseState,
+} = franchiseSlice.actions;
 
-export const selectFranchiseUser = (state) => state.franchiseUser.user;
-export const selectIsAuthenticated = (state) => state.franchiseUser.isAuthenticated;
-export const selectUserStatus = (state) => state.franchiseUser.status;
-
-export default franchiseUserSlice.reducer;
+export default franchiseSlice.reducer;
