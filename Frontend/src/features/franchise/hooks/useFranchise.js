@@ -1,12 +1,14 @@
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { franchiseRegister } from "../service/franchise.api.js"; // Adjust import path
+import { franchiseRegister, franchiseLogin } from "../service/franchise.api.js"; // Adjust import path
 import {
   setFranchiseLoading,
   setFranchiseError,
   clearFranchiseError,
   registrationSuccess,
   resetRegistrationState,
+  loginSuccess,        // Imported for handling login state
+  logoutSuccess,        // Imported for handling logout state
 } from "../state/franchiseUser.slice.js"; // Adjust import path
 
 /**
@@ -17,6 +19,7 @@ export const useFranchise = () => {
 
   const {
     currentFranchise,
+    isAuthenticated,
     isRegisteredSuccess,
     registeredFranchiseId,
     loading,
@@ -92,6 +95,37 @@ export const useFranchise = () => {
   );
 
   /**
+   * Submit Franchise Login
+   * @param {Object} credentials - { email, password }
+   */
+  const submitLogin = useCallback(
+    async (credentials) => {
+      dispatch(setFranchiseLoading(true));
+      dispatch(clearFranchiseError());
+
+      try {
+        const response = await franchiseLogin(credentials);
+
+        // Store franchise data in Redux state upon successful authentication
+        dispatch(loginSuccess(response));
+        return response;
+      } catch (err) {
+        const errorMessage = err.message || "Login failed. Please check your credentials.";
+        dispatch(setFranchiseError(errorMessage));
+        throw err;
+      }
+    },
+    [dispatch]
+  );
+
+  /**
+   * Franchise Logout
+   */
+  const logout = useCallback(() => {
+    dispatch(logoutSuccess());
+  }, [dispatch]);
+
+  /**
    * Clear error state
    */
   const clearError = useCallback(() => {
@@ -108,6 +142,7 @@ export const useFranchise = () => {
   return {
     // State
     currentFranchise,
+    isAuthenticated,
     isRegisteredSuccess,
     registeredFranchiseId,
     loading,
@@ -115,6 +150,8 @@ export const useFranchise = () => {
 
     // Methods & Logic
     submitRegistration,
+    submitLogin,
+    logout,
     convertFileToBase64,
     clearError,
     resetRegistration,

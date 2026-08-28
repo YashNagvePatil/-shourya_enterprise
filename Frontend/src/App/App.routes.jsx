@@ -24,6 +24,8 @@ import MangeFranchiseDashboard from "../features/admin/franchiseMangement/pages/
 import FranchiseGovernanceUI from "../features/admin/franchiseMangement/pages/FranchiseVerifyKyc";
 import ManageFranchiseSupplyUI from "../features/admin/franchiseMangement/pages/ManageFranchiseSupplyUI";
 import ManageFranchiseFinancials from "../features/admin/franchiseMangement/pages/ManageFranchiseFinance";
+import FranchiseDashboard from "../features/franchise/pages/FranchiseDashboard";
+import Franchiselogin from "../features/franchise/pages/franchiseLogin";
 // Root Layout Component with Persistent Navbar & Footer
 const RootLayout = () => {
   return (
@@ -74,6 +76,9 @@ export const routes = createBrowserRouter([
         element:<ContactPage/>
       },
 
+       { path: "registerFranchise", element: < FranchiseRegister/> },
+       
+       {path:"loginFranchise", element:<Franchiselogin/>},
       // Agent Routes (Relative Paths)
       {
         path: "agent",
@@ -97,16 +102,17 @@ export const routes = createBrowserRouter([
           { path: "franchiseManageDashboard", element:<MangeFranchiseDashboard/>},
           { path: "FranchiseVerifyKyc", element:<FranchiseGovernanceUI/>},
           { path:  "manageFranchiseSupply" ,element:<ManageFranchiseSupplyUI/>},
-          { path:  "ManageFranchiseFinancials", element:<ManageFranchiseFinancials/>}
+          { path:  "manageFranchiseFinancials", element:<ManageFranchiseFinancials/>}
         ],
       },
-       {
-        path: "franchise",
-        children: [
-          { path: "register", element: < FranchiseRegister/> },
-          
-        ],
-      },
+
+      // {
+      //   path:"franchise",
+      //   children:[
+      //    { path:"dashboard",element:<FranchiseDashboard/>}
+      //   ]
+      // }
+     
     ],
   },
 ]);

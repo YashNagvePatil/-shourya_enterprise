@@ -2,6 +2,7 @@ import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {
   currentFranchise: null,
+  isAuthenticated: false, // Tracks authentication state for login
   isRegisteredSuccess: false,
   registeredFranchiseId: null,
   loading: false,
@@ -12,6 +13,7 @@ const franchiseSlice = createSlice({
   name: "franchise",
   initialState,
   reducers: {
+    // --- Common / Async Loading & Error Handling ---
     setFranchiseLoading: (state, action) => {
       state.loading = action.payload;
     },
@@ -22,6 +24,8 @@ const franchiseSlice = createSlice({
     clearFranchiseError: (state) => {
       state.error = null;
     },
+
+    // --- Registration Handlers ---
     registrationSuccess: (state, action) => {
       state.isRegisteredSuccess = true;
       state.registeredFranchiseId = action.payload?.franchiseId || null;
@@ -34,11 +38,30 @@ const franchiseSlice = createSlice({
       state.error = null;
       state.loading = false;
     },
-    setCurrentFranchise: (state, action) => {
-      state.currentFranchise = action.payload;
+
+    // --- Login & Authentication Handlers ---
+    loginSuccess: (state, action) => {
+      state.currentFranchise = action.payload?.franchise || action.payload;
+      state.isAuthenticated = true;
       state.loading = false;
       state.error = null;
     },
+    logoutSuccess: (state) => {
+      state.currentFranchise = null;
+      state.isAuthenticated = false;
+      state.loading = false;
+      state.error = null;
+    },
+
+    // --- Profile / General Updates ---
+    setCurrentFranchise: (state, action) => {
+      state.currentFranchise = action.payload;
+      state.isAuthenticated = Boolean(action.payload);
+      state.loading = false;
+      state.error = null;
+    },
+
+    // Full Reset
     resetFranchiseState: () => initialState,
   },
 });
@@ -49,6 +72,8 @@ export const {
   clearFranchiseError,
   registrationSuccess,
   resetRegistrationState,
+  loginSuccess,
+  logoutSuccess,
   setCurrentFranchise,
   resetFranchiseState,
 } = franchiseSlice.actions;

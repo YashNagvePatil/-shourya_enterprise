@@ -4,6 +4,7 @@ const initialState = {
   pendingApplications: [],
   totalPending: 0,
   currentPage: 1,
+  selectedApplication: null, // Holds the single application currently open for detailed doc review
   hierarchy: [],
   hierarchyCount: 0,
   loading: {
@@ -35,15 +36,26 @@ const franchiseManageSlice = createSlice({
       state.successMessage = null;
     },
     setPendingApplications: (state, action) => {
+      // Stores applications including their documents (Udyam, Aadhaar, PAN)
       state.pendingApplications = action.payload.applications;
       state.totalPending = action.payload.total;
       state.currentPage = action.payload.page;
+    },
+    // Useful for setting/opening a specific application in a preview modal
+    setSelectedApplication: (state, action) => {
+      state.selectedApplication = action.payload;
+    },
+    clearSelectedApplication: (state) => {
+      state.selectedApplication = null;
     },
     removePendingApplication: (state, action) => {
       state.pendingApplications = state.pendingApplications.filter(
         (app) => app._id !== action.payload
       );
       state.totalPending = Math.max(0, state.totalPending - 1);
+      if (state.selectedApplication?._id === action.payload) {
+        state.selectedApplication = null;
+      }
     },
     setHierarchy: (state, action) => {
       state.hierarchy = action.payload.hierarchy;
@@ -67,6 +79,8 @@ export const {
   setSuccessMessage,
   clearMessages,
   setPendingApplications,
+  setSelectedApplication,
+  clearSelectedApplication,
   removePendingApplication,
   setHierarchy,
   updateHierarchyStatus,

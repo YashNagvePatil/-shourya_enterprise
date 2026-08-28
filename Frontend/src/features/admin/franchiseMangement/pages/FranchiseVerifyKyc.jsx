@@ -5,6 +5,9 @@ const FranchiseGovernanceUI = () => {
   const [activeTab, setActiveTab] = useState("pending"); // 'pending' | 'hierarchy'
   const [rejectingId, setRejectingId] = useState(null);
   const [rejectionReason, setRejectionReason] = useState("");
+  
+  // Track which applicant's documents are expanded in UI
+  const [expandedDocsId, setExpandedDocsId] = useState(null);
 
   const {
     pendingApplications,
@@ -42,6 +45,10 @@ const FranchiseGovernanceUI = () => {
 
   const onStatusChange = async (id, newStatus) => {
     await handleUpdateStatus(id, newStatus);
+  };
+
+  const toggleDocs = (id) => {
+    setExpandedDocsId(expandedDocsId === id ? null : id);
   };
 
   return (
@@ -153,8 +160,14 @@ const FranchiseGovernanceUI = () => {
                       </p>
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex items-center gap-2">
+                    {/* Actions & Document Toggle */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => toggleDocs(app._id)}
+                        className="rounded-xl border border-[#C28E5C] bg-[#FAF6F0] px-3.5 py-2 text-xs font-light text-[#85573C] transition hover:bg-[#EADCC9]/50"
+                      >
+                        {expandedDocsId === app._id ? "Hide Documents" : "View Documents"}
+                      </button>
                       <button
                         onClick={() => onApprove(app._id)}
                         disabled={loading.review}
@@ -172,6 +185,70 @@ const FranchiseGovernanceUI = () => {
                     </div>
                   </div>
 
+                  {/* Document Photos Section */}
+                  {expandedDocsId === app._id && (
+                    <div className="mt-5 border-t border-[#EADCC9] pt-4">
+                      <h4 className="text-xs font-normal text-[#3D2623] mb-3">
+                        Uploaded Identity & Business Documents
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        {/* Aadhaar Photo */}
+                        <div className="rounded-xl border border-[#EADCC9] bg-[#FAF6F0] p-3 text-center">
+                          <p className="text-[11px] font-medium text-[#85573C] mb-2">Aadhaar Card Photo</p>
+                          {app.documents?.aadhaar ? (
+                            <a href={app.documents.aadhaar} target="_blank" rel="noreferrer">
+                              <img
+                                src={app.documents.aadhaar}
+                                alt="Aadhaar Document"
+                                className="h-36 w-full object-cover rounded-lg border border-[#EADCC9] hover:opacity-90 transition"
+                              />
+                            </a>
+                          ) : (
+                            <div className="flex h-36 items-center justify-center rounded-lg border border-dashed border-[#EADCC9] bg-white text-[11px] text-[#85573C]/60">
+                              Not Provided
+                            </div>
+                          )}
+                        </div>
+
+                        {/* PAN Photo */}
+                        <div className="rounded-xl border border-[#EADCC9] bg-[#FAF6F0] p-3 text-center">
+                          <p className="text-[11px] font-medium text-[#85573C] mb-2">PAN Card Photo</p>
+                          {app.documents?.pan ? (
+                            <a href={app.documents.pan} target="_blank" rel="noreferrer">
+                              <img
+                                src={app.documents.pan}
+                                alt="PAN Document"
+                                className="h-36 w-full object-cover rounded-lg border border-[#EADCC9] hover:opacity-90 transition"
+                              />
+                            </a>
+                          ) : (
+                            <div className="flex h-36 items-center justify-center rounded-lg border border-dashed border-[#EADCC9] bg-white text-[11px] text-[#85573C]/60">
+                              Not Provided
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Udyam Photo */}
+                        <div className="rounded-xl border border-[#EADCC9] bg-[#FAF6F0] p-3 text-center">
+                          <p className="text-[11px] font-medium text-[#85573C] mb-2">Udyam Registration</p>
+                          {app.documents?.udyam ? (
+                            <a href={app.documents.udyam} target="_blank" rel="noreferrer">
+                              <img
+                                src={app.documents.udyam}
+                                alt="Udyam Document"
+                                className="h-36 w-full object-cover rounded-lg border border-[#EADCC9] hover:opacity-90 transition"
+                              />
+                            </a>
+                          ) : (
+                            <div className="flex h-36 items-center justify-center rounded-lg border border-dashed border-[#EADCC9] bg-white text-[11px] text-[#85573C]/60">
+                              Not Provided
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Rejection Form Drawer */}
                   {rejectingId === app._id && (
                     <div className="mt-4 border-t border-[#EADCC9] pt-4">
@@ -183,7 +260,7 @@ const FranchiseGovernanceUI = () => {
                           type="text"
                           value={rejectionReason}
                           onChange={(e) => setRejectionReason(e.target.value)}
-                          placeholder="e.g., Invalid document proof provided"
+                          placeholder="e.g., Blur photo uploaded or invalid details"
                           className="flex-1 rounded-xl border border-[#EADCC9] bg-[#FAF6F0] px-3.5 py-2 text-xs font-light text-[#3D2623] outline-none focus:border-[#C28E5C]"
                         />
                         <button

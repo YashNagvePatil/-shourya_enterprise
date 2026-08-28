@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hook/useAuth.js";
 
 // Initial state object for easy reset
@@ -16,6 +17,7 @@ const initialFormData = {
 
 export const RegisterPage = () => {
   // 1. Hook and State Management
+  const navigate = useNavigate();
   const { handleRegister, loading, error } = useAuth();
 
   const [position, setPosition] = useState("left");
@@ -74,10 +76,13 @@ export const RegisterPage = () => {
     if (res?.success) {
       alert("Registration Successful!");
 
-      // ✅ Form State and File Input Fields Clear/Reset
+      // Form State and File Input Fields Clear/Reset
       setFormData(initialFormData);
       setPosition("left");
-      e.target.reset(); // Native DOM form reset (clears HTML file inputs)
+      e.target.reset();
+
+      // Navigate to login page on success
+      navigate("/login");
     }
   };
 
@@ -85,7 +90,7 @@ export const RegisterPage = () => {
     <div className="h-screen bg-slate-100 text-slate-900 font-sans flex items-center justify-center p-0 sm:p-4 overflow-hidden">
       {/* Main Container */}
       <div className="w-full max-w-7xl h-full lg:h-[94vh] grid grid-cols-1 lg:grid-cols-12 bg-white shadow-2xl sm:rounded-2xl border border-slate-200 overflow-hidden">
-
+        
         {/* LEFT SIDE: Showcase BG */}
         <div className="relative hidden lg:flex lg:col-span-5 bg-slate-950 flex-col justify-between p-8 text-white overflow-hidden">
           <div
@@ -149,6 +154,21 @@ export const RegisterPage = () => {
               </p>
             </div>
 
+            {/* NAVIGATION BUTTON TO FRANCHISE PAGE */}
+            <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-slate-800">Looking to open a Franchise?</p>
+                <p className="text-[11px] text-slate-500">Apply for a regional franchise account instead.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate("/registerFranchise")}
+                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs rounded-lg shadow-sm transition-all cursor-pointer whitespace-nowrap"
+              >
+                Franchise Registration →
+              </button>
+            </div>
+
             {/* Error Message Box */}
             {error && (
               <div className="mb-3 p-2.5 bg-slate-50 border border-slate-400 text-slate-900 text-xs font-medium rounded-lg">
@@ -210,7 +230,7 @@ export const RegisterPage = () => {
                     />
                   </div>
 
-                  {/* Password Field with Original Eye Toggle */}
+                  {/* Password Field */}
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       Password *
@@ -300,7 +320,7 @@ export const RegisterPage = () => {
                 </div>
               </div>
 
-              {/* SECTION 3: Identity Documents (KYC Photo Uploads) */}
+              {/* SECTION 3: Identity Documents */}
               <div className="space-y-2">
                 <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                   Identity Verification Documents (KYC)
@@ -361,9 +381,13 @@ export const RegisterPage = () => {
               {/* Navigation Link */}
               <p className="text-center text-xs text-slate-500 mt-2">
                 Already registered?{" "}
-                <a href="/login" className="text-slate-800 font-semibold hover:underline">
+                <button
+                  type="button"
+                  onClick={() => navigate("/login")}
+                  className="text-slate-800 font-semibold hover:underline bg-transparent border-none p-0 cursor-pointer"
+                >
                   Sign In to Dashboard
-                </a>
+                </button>
               </p>
 
             </form>

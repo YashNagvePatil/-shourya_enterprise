@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
-import { useFranchise } from "../hooks/useFranchise";
-import { getFinancialOverview } from "../services/franchiseApi";
+import { useFranchise } from "../hooks/useFranchise"
+
 
  const FranchiseDashboard = () => {
   const { user, financials, handleSetFinancials } = useFranchise();

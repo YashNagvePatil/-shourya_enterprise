@@ -1,33 +1,32 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { franchiseLogin } from "../services/franchiseApi";
-import { useFranchise } from "../hooks/useFranchise";
+import { useFranchise } from "../hooks/useFranchise"; // Adjust import path as needed
 
 const Franchiselogin = () => {
   const navigate = useNavigate();
-  const { handleSetUser } = useFranchise();
+
+  // Extract authentication state & handlers directly from the custom hook
+  const { submitLogin, loading, error, clearError } = useFranchise();
+
   const [credentials, setCredentials] = useState({ email: "", password: "" });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   const handleChange = (e) => {
-    setCredentials({ ...credentials, [e.target.name]: e.target.value });
+    // Clear Redux error when user starts typing
+    if (error) clearError();
+    setCredentials((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError("");
     try {
-      const res = await franchiseLogin(credentials);
-      if (res.success) {
-        handleSetUser(res.user);
+      const res = await submitLogin(credentials);
+      // Navigate to dashboard upon successful login
+      if (res) {
         navigate("/dashboard");
       }
     } catch (err) {
-      setError(err.message || "Invalid credentials");
-    } finally {
-      setLoading(false);
+      // Error is automatically set in Redux and accessible via the `error` state from useFranchise
+      console.error("Login Error:", err.message);
     }
   };
 
@@ -59,6 +58,7 @@ const Franchiselogin = () => {
             <p className="mt-2 text-sm text-slate-400 font-light">Sign in to manage your branch operations</p>
           </div>
 
+          {/* Redux Error Banner */}
           {error && (
             <div className="p-3 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg">
               {error}
@@ -99,7 +99,7 @@ const Franchiselogin = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-yellow-600 text-white rounded-lg text-sm font-normal hover:from-amber-600 hover:to-yellow-700 transition-all shadow-md shadow-amber-500/20 disabled:opacity-50"
+              className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-yellow-600 text-white rounded-lg text-sm font-normal hover:from-amber-600 hover:to-yellow-700 transition-all shadow-md shadow-amber-500/20 disabled:opacity-50 cursor-pointer"
             >
               {loading ? "Authenticating..." : "Sign In"}
             </button>
@@ -107,7 +107,7 @@ const Franchiselogin = () => {
 
           <p className="text-center text-xs text-slate-400 font-light">
             Need a new franchise account?{" "}
-            <Link to="/register" className="text-amber-600 font-normal hover:underline">
+            <Link to="/register-franchise" className="text-amber-600 font-normal hover:underline">
               Register Branch
             </Link>
           </p>
@@ -117,4 +117,4 @@ const Franchiselogin = () => {
   );
 };
 
-export default Franchiselogin
+export default Franchiselogin;
