@@ -106,12 +106,12 @@ export const routes = createBrowserRouter([
         ],
       },
 
-      // {
-      //   path:"franchise",
-      //   children:[
-      //    { path:"dashboard",element:<FranchiseDashboard/>}
-      //   ]
-      // }
+      {
+        path:"franchise",
+        children:[
+         { path:"dashboard",element:<FranchiseDashboard/>}
+        ]
+      }
      
     ],
   },

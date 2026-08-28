@@ -266,7 +266,7 @@ const FranchiseRegister = () => {
           </form>
 
           <p className="text-center text-xs text-slate-400">
-            Already registered? <p onClick={ navigate("/loginFranchise")} className="text-amber-600">Login here </p>
+            Already registered? <p onClick={navigate("/loginFranchise")} className="text-amber-600 cursor-pointer">Login here </p>
           </p>
         </div>
       </div>

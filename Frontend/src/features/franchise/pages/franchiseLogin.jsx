@@ -22,7 +22,7 @@ const Franchiselogin = () => {
       const res = await submitLogin(credentials);
       // Navigate to dashboard upon successful login
       if (res) {
-        navigate("/dashboard");
+        navigate("/franchise/dashboard");
       }
     } catch (err) {
       // Error is automatically set in Redux and accessible via the `error` state from useFranchise
