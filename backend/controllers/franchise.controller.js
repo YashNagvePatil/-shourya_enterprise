@@ -1,52 +1,91 @@
 import franchiseModel from "../models/franchise.model.js";
-import  supplyRequestModel from "../models/supplyRequest.model.js";
+import supplyRequestModel from "../models/supplyRequest.model.js";
 import franchiseInventoryModel from "../models/franchiseInventory.model.js";
-import  bcrypt from "bcryptjs"
+import { uploadToCloudinary } from "../services/storage.service.js";
+import { sendTokenResponse } from "../controllers/auth.controller.js"; // Adjust import path to your token file
 
 // 1. Specialized Franchise Registration
 export const registerFranchise = async (req, res) => {
   try {
     const {
-      fullName, email, password, mobile, franchiseType,
-      address, udyamNumber, bankDetails, panNumber, aadhaarNumber
-    } = req.body;
-
-    const existingUser = await franchiseModel.findOne({ $or: [{ email }, { mobile }] });
-    if (existingUser) {
-      return res.status(400).json({ success: false, message: "Franchise already exists with this Email or Mobile" });
-    }
-
-
-    // Document URLs handled via File Upload Middleware (e.g. Multer/S3)
-    const newFranchise = new franchiseModel({
       fullName,
       email,
-      password: password,
+      password,
       mobile,
       franchiseType,
       address,
       udyamNumber,
-      firmDocsUrl: req.files?.firmDocs?.[0]?.path || req.body.firmDocsUrl,
-      shopLicenseUrl: req.files?.shopLicense?.[0]?.path || req.body.shopLicenseUrl,
+      firmDocs,          // Base64 string
+      shopLicense,       // Base64 string
       panNumber,
-      panCardImageUrl: req.files?.panCardImage?.[0]?.path || req.body.panCardImageUrl,
+      panCardImage,      // Base64 string
       aadhaarNumber,
-      aadhaarCardImageUrl: req.files?.aadhaarCardImage?.[0]?.path || req.body.aadhaarCardImageUrl,
-      bankDetails
+      aadhaarCardImage,  // Base64 string
+      bankDetails,
+    } = req.body;
+
+    // 1. Existing Franchise Check
+    const existingUser = await franchiseModel.findOne({
+      $or: [{ email }, { mobile }],
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: "Franchise already exists with this Email or Mobile",
+      });
+    }
+
+    // 2. Upload images to Cloudinary concurrently
+    const [firmDocsResult, shopLicenseResult, panCardResult, aadhaarCardResult] =
+      await Promise.all([
+        firmDocs ? uploadToCloudinary(firmDocs, "franchise/firm_docs") : null,
+        shopLicense ? uploadToCloudinary(shopLicense, "franchise/licenses") : null,
+        panCardImage ? uploadToCloudinary(panCardImage, "franchise/pan_cards") : null,
+        aadhaarCardImage ? uploadToCloudinary(aadhaarCardImage, "franchise/aadhaar_cards") : null,
+      ]);
+
+    // 3. Create Franchise Record with secure URLs
+    const newFranchise = new franchiseModel({
+      fullName,
+      email,
+      password,
+      mobile,
+      franchiseType,
+      address,
+      udyamNumber,
+      firmDocsUrl: firmDocsResult?.url || null,
+      shopLicenseUrl: shopLicenseResult?.url || null,
+      panNumber,
+      panCardImageUrl: panCardResult?.url || null,
+      aadhaarNumber,
+      aadhaarCardImageUrl: aadhaarCardResult?.url || null,
+      bankDetails,
     });
 
     await newFranchise.save();
 
-    res.status(201).json({
-      success: true,
-      message: "Franchise registered successfully. Pending Admin verification.",
-      franchiseId: newFranchise._id
-    });
+    // Attach role explicitly before issuing token
+    newFranchise.role = "FRANCHISE";
+
+    // Call external token utility with await
+    return await sendTokenResponse(
+      newFranchise,
+      res,
+      "Franchise registered successfully.",
+      201
+    );
+
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("❌ Error in registerFranchise:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Internal Server Error during registration",
+    });
   }
 };
 
+// 2. Specialized Franchise Login
 export const loginFranchise = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -69,23 +108,22 @@ export const loginFranchise = async (req, res) => {
     if (franchise.status !== "Active") {
       return res.status(403).json({
         success: false,
-        message: `Account is currently ${franchise.status}. Contact Admin for verification.`
+        message: `Account is currently ${franchise.status}. Contact Admin for verification.`,
       });
     }
 
     // Attach role explicitly before issuing token
     franchise.role = "FRANCHISE";
 
-    // Call unified token function
-    return sendTokenResponse(franchise, res, "Franchise logged in successfully", 200);
+    // Call external token utility with await
+    return await sendTokenResponse(franchise, res, "Franchise logged in successfully", 200);
 
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-
-// 2. Fetch Franchise Profile & Overview
+// 3. Fetch Franchise Profile & Overview
 export const getFranchiseProfile = async (req, res) => {
   try {
     const franchise = await franchiseModel.findById(req.user.id).select("-password");
@@ -97,15 +135,15 @@ export const getFranchiseProfile = async (req, res) => {
       success: true,
       data: {
         profile: franchise,
-        planBenefits: planConfig
-      }
+        planBenefits: planConfig,
+      },
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// 3. Create Supply Request (Hierarchy-based Visibility)
+// 4. Create Supply Request (Hierarchy-based Visibility)
 export const createSupplyRequest = async (req, res) => {
   try {
     const { items } = req.body;
@@ -126,7 +164,7 @@ export const createSupplyRequest = async (req, res) => {
       requesterType: franchise.franchiseType,
       requesterLocation: franchise.address,
       items,
-      visibleTo: visibility
+      visibleTo: visibility,
     });
 
     await supplyRequest.save();
@@ -137,28 +175,28 @@ export const createSupplyRequest = async (req, res) => {
   }
 };
 
-// 4. Fetch Supply Requests based on Hierarchy Role
+// 5. Fetch Supply Requests based on Hierarchy Role
 export const getSupplyRequestsForHierarchy = async (req, res) => {
   try {
-    const franchise = await Franchise.findById(req.user.id);
+    const franchise = await franchiseModel.findById(req.user.id);
     let filter = {};
 
     if (franchise.franchiseType === "DISTRICT") {
       filter = {
         "visibleTo.district": true,
-        "requesterLocation.district": franchise.address.district
+        "requesterLocation.district": franchise.address.district,
       };
     } else if (franchise.franchiseType === "STATE") {
       filter = {
         "visibleTo.state": true,
-        "requesterLocation.state": franchise.address.state
+        "requesterLocation.state": franchise.address.state,
       };
     } else {
       // Village level views own requests only
       filter = { requesterFranchise: franchise._id };
     }
 
-    const requests = await SupplyRequest.find(filter)
+    const requests = await supplyRequestModel.find(filter)
       .populate("requesterFranchise", "fullName mobile franchiseType address")
       .populate("items.productId", "name category price");
 
@@ -168,10 +206,10 @@ export const getSupplyRequestsForHierarchy = async (req, res) => {
   }
 };
 
-// 5. Inventory Management (Sell from inventory / update stock)
+// 6. Inventory Management (Sell from inventory / update stock)
 export const getInventory = async (req, res) => {
   try {
-    const inventory = await FranchiseInventory.find({ franchiseId: req.user.id })
+    const inventory = await franchiseInventoryModel.find({ franchiseId: req.user.id })
       .populate("productId");
     res.status(200).json({ success: true, inventory });
   } catch (error) {
@@ -182,9 +220,9 @@ export const getInventory = async (req, res) => {
 export const sellFromInventory = async (req, res) => {
   try {
     const { productId, quantity } = req.body;
-    const inventoryItem = await FranchiseInventory.findOne({
+    const inventoryItem = await franchiseInventoryModel.findOne({
       franchiseId: req.user.id,
-      productId
+      productId,
     });
 
     if (!inventoryItem || inventoryItem.stock < quantity) {
@@ -195,7 +233,7 @@ export const sellFromInventory = async (req, res) => {
     await inventoryItem.save();
 
     // Trigger Commission Updates to Franchise Wallet
-    const franchise = await Franchise.findById(req.user.id);
+    const franchise = await franchiseModel.findById(req.user.id);
     const benefits = FRANCHISE_TYPES[franchise.franchiseType];
 
     let commissionEarned = 0;
@@ -214,17 +252,17 @@ export const sellFromInventory = async (req, res) => {
       success: true,
       message: "Sale processed successfully",
       remainingStock: inventoryItem.stock,
-      commissionEarned
+      commissionEarned,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// 6. Financial Overview (ROI, Rent, & Commissions)
+// 7. Financial Overview (ROI, Rent, & Commissions)
 export const getFinancialOverview = async (req, res) => {
   try {
-    const franchise = await Franchise.findById(req.user.id).select("wallet franchiseType");
+    const franchise = await franchiseModel.findById(req.user.id).select("wallet franchiseType");
     const benefits = FRANCHISE_TYPES[franchise.franchiseType];
 
     res.status(200).json({
@@ -236,10 +274,10 @@ export const getFinancialOverview = async (req, res) => {
           monthlyRent: benefits.rent || 0,
           commissionStructure: {
             perProduct: benefits.commPerProduct || 0,
-            percent: benefits.commPercent || 0
-          }
-        }
-      }
+            percent: benefits.commPercent || 0,
+          },
+        },
+      },
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

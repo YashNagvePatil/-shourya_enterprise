@@ -7,7 +7,7 @@ import franchiseModel from "../../models/franchise.model.js";
 export const getPendingApplications = async (req, res) => {
   try {
     const { tier, page = 1, limit = 10 } = req.query;
-    const query = { status: "PENDING" };
+    const query = { status: "Pending" };
     if (tier) query.franchiseType = tier;
 
     const applications = await franchiseModel.find(query)
@@ -33,11 +33,11 @@ export const reviewApplication = async (req, res) => {
     if (!franchise) return res.status(404).json({ success: false, message: "Franchise not found" });
 
     if (action === "APPROVE") {
-      franchise.status = "ACTIVE";
+      franchise.status = "Active";
       franchise.verifiedAt = new Date();
       franchise.rejectionReason = null;
     } else if (action === "REJECT") {
-      franchise.status = "REJECTED";
+      franchise.status = "Rejected";
       franchise.rejectionReason = rejectionReason || "KYC verification failed";
     }
 
@@ -50,7 +50,7 @@ export const reviewApplication = async (req, res) => {
 
 export const getFranchiseHierarchy = async (req, res) => {
   try {
-    const hierarchy = await franchiseModel.find({ status: "ACTIVE" })
+    const hierarchy = await franchiseModel.find({ status: "Active" })
       .select("fullName email franchiseType address status wallet createdAt")
       .sort({ "address.state": 1, "address.district": 1 });
 
