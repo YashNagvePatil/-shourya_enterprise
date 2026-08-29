@@ -1,6 +1,11 @@
 import productDao from "../dao/product.dao.js";
 import { uploadMultipleToCloudinary } from "../services/storage.service.js";
 import productModel from "../models/product.model.js";
+
+
+
+
+
 // ==========================================
 // Create Product Controller (With Detailed Debug Logging)
 // ==========================================
@@ -215,9 +220,15 @@ export const createProduct = async (req, res) => {
 
 export const getAllProducts = async (req, res) => {
   try {
-    const { category, search, page = 1, limit = 12 } = req.query;
+    const { category, search, page = 1, limit = 12 ,forFranchiseSupplyr} = req.query;
 
     const query = {};
+
+    if (forFranchiseSupply === "true") {
+      query.isAvailableForFranchiseSupply = true;
+    }
+  
+
 
     if (category && category !== "ALL") {
       query.category = category;

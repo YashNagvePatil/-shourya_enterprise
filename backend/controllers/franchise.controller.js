@@ -1,3 +1,4 @@
+import mongoose from "mongoose"
 import franchiseModel from "../models/franchise.model.js";
 import supplyRequestModel from "../models/supplyRequest.model.js";
 import franchiseInventoryModel from "../models/franchiseInventory.model.js";
@@ -5,6 +6,10 @@ import { uploadToCloudinary } from "../services/storage.service.js";
 import { sendTokenResponse } from "../controllers/auth.controller.js"; // Adjust import path to your token file
 import { FRANCHISE_TYPES } from "../models/franchise.model.js";
 import withdrawalModel from "../models/withdrawalModel.js";
+import WalletTransaction from "../models/walletTransactionModel.js";
+import WithdrawalRequest from "../models/withdrawalRequest.model.js";
+import FinancialPayout from "../models/financialPayout.model.js";
+
 // 1. Specialized Franchise Registration
 export const registerFranchise = async (req, res) => {
   try {
@@ -203,8 +208,7 @@ export const getFranchiseProfile = async (req, res) => {
   }
 };
 
-import withdrawalModel from "../models/withdrawalModel.js";
-import mongoose from "mongoose";
+
 
 export const getDashboardAnalytics = async (req, res) => {
   try {
@@ -265,6 +269,365 @@ export const getDashboardAnalytics = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/**
+ * @desc    Get Complete Financial Overview & Wallet Summary for Logged-in Franchise
+ * @route   GET /api/v1/franchise/financials/overview
+ * @access  Private (Franchise)
+ */
+export const getFranchiseFinancialOverview = async (req, res) => {
+  try {
+    const franchiseId = req.user.id;
+
+    // 1. Fetch Franchise Profile & Wallet Details
+    const franchise = await franchiseModel.findById(franchiseId).select("wallet bankDetails status");
+    if (!franchise) {
+      return res.status(404).json({ success: false, message: "Franchise account not found." });
+    }
+
+    // 2. Fetch Active Pending Withdrawal Request (if any)
+    const activePendingWithdrawal = await WithdrawalRequest.findOne({
+      franchiseId,
+      status: "PENDING",
+    }).sort({ createdAt: -1 });
+
+    // 3. Aggregate Total Withdrawn (Approved Payouts)
+    const totalWithdrawnAgg = await WithdrawalRequest.aggregate([
+      { $match: { franchiseId: new mongoose.Types.ObjectId(franchiseId), status: "APPROVED" } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+
+    // 4. Aggregate Total Earnings across all payout types
+    const totalEarnedAgg = await WalletTransaction.aggregate([
+      {
+        $match: {
+          franchiseId: new mongoose.Types.ObjectId(franchiseId),
+          type: { $in: ["RENT", "ROI", "COMMISSION", "CREDIT"] },
+        },
+      },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      financials: {
+        wallet: {
+          balance: franchise.wallet?.balance || 0,
+          pendingRent: franchise.wallet?.pendingRent || 0,
+          pendingRoi: franchise.wallet?.pendingRoi || 0,
+          totalEarned: totalEarnedAgg[0]?.total || 0,
+          totalWithdrawn: totalWithdrawnAgg[0]?.total || 0,
+        },
+        bankDetailsConfigured: Boolean(
+          franchise.bankDetails?.accountNumber && franchise.bankDetails?.ifscCode
+        ),
+        activePendingWithdrawal: activePendingWithdrawal || null,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * @desc    Get Wallet Transaction Passbook (Ledger Audit Trail) with Pagination & Filters
+ * @route   GET /api/v1/franchise/financials/passbook
+ * @access  Private (Franchise)
+ */
+export const getFranchisePassbook = async (req, res) => {
+  try {
+    const franchiseId = req.user.id;
+    const { page = 1, limit = 10, type, startDate, endDate } = req.query;
+
+    const query = { franchiseId };
+
+    // Filter by Payout/Transaction Type
+    if (type && type !== "ALL") {
+      query.type = type;
+    }
+
+    // Filter by Date Range
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) query.createdAt.$gte = new Date(startDate);
+      if (endDate) query.createdAt.$lte = new Date(endDate);
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const [transactions, totalRecords] = await Promise.all([
+      WalletTransaction.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit)),
+      WalletTransaction.countDocuments(query),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        transactions,
+        pagination: {
+          totalRecords,
+          currentPage: Number(page),
+          totalPages: Math.ceil(totalRecords / Number(limit)),
+          limit: Number(limit),
+        },
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * @desc    Submit New Payout Withdrawal Request (ACID Transaction)
+ * @route   POST /api/v1/franchise/financials/withdraw
+ * @access  Private (Franchise)
+ */
+export const requestWithdrawal = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const franchiseId = req.user.id;
+    const { amount, notes } = req.body;
+
+    const withdrawAmount = Number(amount);
+
+    // Validation 1: Positive Amount
+    if (!withdrawAmount || withdrawAmount <= 0) {
+      await session.abortTransaction();
+      return res.status(400).json({ success: false, message: "Valid withdrawal amount is required." });
+    }
+
+    // Validation 2: Check Existing Pending Request (Strict 1-at-a-time restriction)
+    const existingPending = await WithdrawalRequest.findOne({
+      franchiseId,
+      status: "PENDING",
+    }).session(session);
+
+    if (existingPending) {
+      await session.abortTransaction();
+      return res.status(400).json({
+        success: false,
+        message: "You already have an active pending withdrawal request under Admin review.",
+      });
+    }
+
+    // Validation 3: Check Wallet Balance & Bank Details
+    const franchise = await franchiseModel.findById(franchiseId).session(session);
+    if (!franchise) {
+      await session.abortTransaction();
+      return res.status(404).json({ success: false, message: "Franchise account not found." });
+    }
+
+    if (!franchise.bankDetails?.accountNumber || !franchise.bankDetails?.ifscCode) {
+      await session.abortTransaction();
+      return res.status(400).json({
+        success: false,
+        message: "Please complete your Bank Profile details before requesting a payout.",
+      });
+    }
+
+    const balanceBefore = franchise.wallet?.balance || 0;
+    if (balanceBefore < withdrawAmount) {
+      await session.abortTransaction();
+      return res.status(400).json({
+        success: false,
+        message: `Insufficient wallet balance. Available balance: ₹${balanceBefore}`,
+      });
+    }
+
+    // Step 1: Deduct balance from Wallet
+    const balanceAfter = balanceBefore - withdrawAmount;
+    franchise.wallet.balance = balanceAfter;
+    await franchise.save({ session });
+
+    // Step 2: Create Pending Withdrawal Request Record
+    const withdrawalDoc = await WithdrawalRequest.create(
+      [
+        {
+          franchiseId,
+          amount: withdrawAmount,
+          status: "PENDING",
+          bankSnapshot: {
+            accountNumber: franchise.bankDetails.accountNumber,
+            ifscCode: franchise.bankDetails.ifscCode,
+            bankName: franchise.bankDetails.bankName,
+            accountHolderName: franchise.bankDetails.accountHolderName,
+          },
+          notes,
+          requestedAt: new Date(),
+        },
+      ],
+      { session }
+    );
+
+    // Step 3: Create Wallet Passbook Debit Entry
+    await WalletTransaction.create(
+      [
+        {
+          franchiseId,
+          type: "WITHDRAWAL_REQUEST",
+          amount: withdrawAmount,
+          balanceBefore,
+          balanceAfter,
+          description: `Withdrawal Request Placed - Awaiting Admin Approval`,
+          referenceId: withdrawalDoc[0]._id.toString(),
+        },
+      ],
+      { session }
+    );
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return res.status(200).json({
+      success: true,
+      message: `Withdrawal request for ₹${withdrawAmount} submitted successfully.`,
+      withdrawal: withdrawalDoc[0],
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * @desc    Cancel Pending Withdrawal Request (Refunds Funds Back to Wallet)
+ * @route   POST /api/v1/franchise/financials/withdraw/cancel
+ * @access  Private (Franchise)
+ */
+export const cancelWithdrawal = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const franchiseId = req.user.id;
+    const { withdrawalId } = req.body;
+
+    // Fetch Target Request
+    const withdrawal = await WithdrawalRequest.findOne({
+      _id: withdrawalId,
+      franchiseId,
+      status: "PENDING",
+    }).session(session);
+
+    if (!withdrawal) {
+      await session.abortTransaction();
+      return res.status(404).json({
+        success: false,
+        message: "No active PENDING withdrawal request found with this ID.",
+      });
+    }
+
+    // Fetch Franchise Profile
+    const franchise = await franchiseModel.findById(franchiseId).session(session);
+    const balanceBefore = franchise.wallet?.balance || 0;
+    const balanceAfter = balanceBefore + withdrawal.amount;
+
+    // Refund Funds to Wallet
+    franchise.wallet.balance = balanceAfter;
+    await franchise.save({ session });
+
+    // Update Withdrawal Request Status
+    withdrawal.status = "CANCELLED";
+    withdrawal.cancelledAt = new Date();
+    await withdrawal.save({ session });
+
+    // Passbook Credit Entry
+    await WalletTransaction.create(
+      [
+        {
+          franchiseId,
+          type: "WITHDRAWAL_REFUND",
+          amount: withdrawal.amount,
+          balanceBefore,
+          balanceAfter,
+          description: `Withdrawal Request Cancelled by Franchise - Funds Refunded`,
+          referenceId: withdrawal._id.toString(),
+        },
+      ],
+      { session }
+    );
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return res.status(200).json({
+      success: true,
+      message: `Withdrawal request cancelled. ₹${withdrawal.amount} refunded to your wallet balance.`,
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * @desc    Get Dynamic Earnings & Supply Throughput Analytics for Bar Chart Visualizer
+ * @route   GET /api/v1/franchise/financials/analytics
+ * @access  Private (Franchise)
+ */
+export const getFranchiseAnalytics = async (req, res) => {
+  try {
+    const franchiseId = new mongoose.Types.ObjectId(req.user.id);
+    const { filter = "monthly" } = req.query; // 'daily' | 'weekly' | 'monthly' | 'yearly'
+
+    const currentYear = new Date().getFullYear();
+
+    // Aggregate Earnings Grouped by Month / Day / Week
+    const rawEarnings = await WalletTransaction.aggregate([
+      {
+        $match: {
+          franchiseId,
+          type: { $in: ["RENT", "ROI", "COMMISSION", "CREDIT"] },
+          createdAt: {
+            $gte: new Date(`${currentYear}-01-01`),
+            $lte: new Date(`${currentYear}-12-31`),
+          },
+        },
+      },
+      {
+        $group: {
+          _id: { $month: "$createdAt" },
+          totalAmount: { $sum: "$amount" },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    const monthLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const maxAmount = Math.max(...rawEarnings.map((item) => item.totalAmount), 1);
+
+    const analytics = monthLabels.map((month, index) => {
+      const found = rawEarnings.find((item) => item._id === index + 1);
+      const amount = found ? found.totalAmount : 0;
+      const heightPercent = amount > 0 ? Math.round((amount / maxAmount) * 100) : 5;
+
+      return {
+        label: month,
+        amount,
+        heightPercentage: `${heightPercent}%`,
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      filter,
+      analytics,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+
+
 
 
 // 4. Create Supply Request (Hierarchy-based Visibility)

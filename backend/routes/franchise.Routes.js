@@ -2,9 +2,12 @@ import Router from "express"
 import { getFinancialOverview, getFranchiseProfile, getInventory,
      getSupplyRequestsForHierarchy, registerFranchise, 
      sellFromInventory,createSupplyRequest, 
-     loginFranchise} from "../controllers/franchise.controller.js";
+     loginFranchise,
+     getDashboardAnalytics} from "../controllers/franchise.controller.js";
 import { authenticateUser } from "../middlewares/agent.middleware.js";
-
+import { getFranchiseFinancialOverview ,getFranchisePassbook,getFranchiseAnalytics,
+     requestWithdrawal,cancelWithdrawal
+ } from "../controllers/franchise.controller.js";
 
  const router = Router()
 
@@ -18,10 +21,21 @@ router.use(authenticateUser);
 // Profile & Dashboard Financial Details
 router.get("/profile", getFranchiseProfile);
 router.get("/financials", getFinancialOverview);
-
+router.get("/analytics",getDashboardAnalytics)
 // Supply Requests (Hierarchy Flow)
 router.post("/create-supply-request",createSupplyRequest);
 router.get("/get-supply-requests", getSupplyRequestsForHierarchy);
+
+
+// finance 
+
+router.get("/financials/overview", getFranchiseFinancialOverview)
+router.get("/financials/passbook", getFranchisePassbook);
+router.get("/financials/analytics", getFranchiseAnalytics);
+router.post("/financials/withdraw", requestWithdrawal);
+router.post("/financials/withdraw/cancel", cancelWithdrawal);
+
+
 
 // Inventory & Direct Sales Operations
 router.get("/inventory",getInventory);

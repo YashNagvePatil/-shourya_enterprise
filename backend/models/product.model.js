@@ -116,6 +116,17 @@ const productSchema = new mongoose.Schema(
         message: "{VALUE} is not a valid product category", // Custom error message
       },
     },
+   
+    isAvailableForFranchiseSupply: {
+  type: Boolean,
+  default: true, // Kya Franchise iska supply request daal sakti hai?
+},
+supplyCategory: {
+  type: String,
+  enum: ["RESELL_PRODUCT", "PACKAGING", "EQUIPMENT", "MARKETING"],
+  default: "RESELL_PRODUCT",
+}
+
   },
   {
     timestamps: true, // Automatically manages createdAt and updatedAt
@@ -130,7 +141,7 @@ productSchema.pre("save", function () {
       .replace(/[^a-zA-Z0-9 ]/g, "")
       .replace(/\s+/g, "-");
   }
-  ;
+  
 });
 
 const productModel = mongoose.models.product || mongoose.model("Product", productSchema);

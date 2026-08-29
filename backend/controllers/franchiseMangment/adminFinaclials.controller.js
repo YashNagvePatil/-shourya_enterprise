@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import franchiseModel from "../../models/franchise.model.js";
 import FinancialPayout from "../../models/financialPayout.model.js";
-import WalletTransaction from "../../models/mangeFranchiseWalletTrans.model.js"; 
+import WalletTransaction from "../../models/walletTransactionModel.js";
 import WithdrawalRequest from "../../models/withdrawalRequest.model.js";
 
 /**
