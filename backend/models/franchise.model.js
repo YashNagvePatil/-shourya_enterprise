@@ -1,8 +1,10 @@
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 
+// 1. Updated FRANCHISE_TYPES with 'CITY' tier benefits
 export const FRANCHISE_TYPES = {
   VILLAGE: { type: "VILLAGE", price: 150000, roi: 5000, rent: 0, commPerProduct: 500 },
+  CITY: { type: "CITY", price: 400000, roi: 12000, rent: 5000, commPercent: 1.8, commPerProduct: 500 }, 
   DISTRICT: { type: "DISTRICT", price: 750000, roi: 22500, rent: 10000, commPercent: 2, commPerProduct: 500 },
   STATE: { type: "STATE", price: 15000000, roiPercent: 0, rent: 450000, commPercent: 1.5 }
 };
@@ -15,12 +17,20 @@ const franchiseSchema = new mongoose.Schema(
     mobile: { type: String, required: true, unique: true, trim: true },
     franchiseType: {
       type: String,
-      enum: ["VILLAGE", "DISTRICT", "STATE"],
+      enum: ["VILLAGE", "CITY", "DISTRICT", "STATE"], // 👈 Added "CITY" in enum validation
       required: true
+    },
+    // Relational Parent Link for Hierarchy (Village/City belongs to District, District to State)
+    parentFranchiseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Franchise",
+      default: null,
+      index: true
     },
     address: {
       state: { type: String, required: true },
       district: { type: String, required: true },
+      city: { type: String }, // 👈 Optional field added for city name
       taluka: { type: String },
       village: { type: String }
     },
@@ -42,13 +52,14 @@ const franchiseSchema = new mongoose.Schema(
       ifscCode: { type: String, required: true, uppercase: true, trim: true }
     },
 
-    // Status & Financial Metrics
+    // Status & Complete Wallet Metrics
     status: {
       type: String,
       enum: ["Pending", "Active", "Blocked", "Rejected"],
       default: "Pending"
     },
     wallet: {
+      balance: { type: Number, default: 0, min: 0 },
       totalEarnings: { type: Number, default: 0 },
       pendingRent: { type: Number, default: 0 },
       pendingRoi: { type: Number, default: 0 },
@@ -60,16 +71,14 @@ const franchiseSchema = new mongoose.Schema(
 
 // Hash password before saving
 franchiseSchema.pre("save", async function () {
-  if (!this.isModified("password")) return ;
+  if (!this.isModified("password")) return;
   this.password = await bcrypt.hash(this.password, 10);
-  ;
 });
 
-// Compare password method (FIXED: added return)
+// Compare password method
 franchiseSchema.methods.comparePassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// Supporting both Named and Default Exports
 export const franchiseModel = mongoose.models.Franchise || mongoose.model("Franchise", franchiseSchema);
 export default franchiseModel;

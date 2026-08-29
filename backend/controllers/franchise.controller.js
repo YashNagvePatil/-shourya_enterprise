@@ -3,7 +3,7 @@ import supplyRequestModel from "../models/supplyRequest.model.js";
 import franchiseInventoryModel from "../models/franchiseInventory.model.js";
 import { uploadToCloudinary } from "../services/storage.service.js";
 import { sendTokenResponse } from "../controllers/auth.controller.js"; // Adjust import path to your token file
-
+import { FRANCHISE_TYPES } from "../models/franchise.model.js";
 // 1. Specialized Franchise Registration
 export const registerFranchise = async (req, res) => {
   try {

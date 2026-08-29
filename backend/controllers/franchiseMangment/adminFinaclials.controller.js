@@ -1,4 +1,9 @@
+import franchiseModel from "../../models/franchise.model";
+
 // Controls payouts, commissions, rent liabilities, and ROI allocations
+
+
+
 export const getFinancialSummary = async (req, res) => {
   try {
     const payouts = await FinancialPayout.aggregate([

@@ -68,7 +68,6 @@ async function genrateUniqueDistributerId() {
 // --- Register Controller ---
 
 
-
 export const register = async (req, res) => {
   const {
     email,
