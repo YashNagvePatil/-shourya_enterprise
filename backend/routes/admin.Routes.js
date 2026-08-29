@@ -5,7 +5,7 @@ import { createProduct} from "../controllers/product.controller.js";
 import {getDashboardOverview,getNetworkAnalytics} from "../controllers/franchiseMangment/franchiseMangeDashboard.controller.js"
 import {getPendingApplications,reviewApplication,getFranchiseHierarchy,updateFranchiseStatus} from "../controllers/franchiseMangment/franchiseMangement.controller.js"
 import {getGlobalSupplyRequests,updateSupplyDispatchStatus} from "../controllers/franchiseMangment/adminSupply.Controller.js"
-import {getFinancialSummary, processSettlement} from "../controllers/franchiseMangment/adminFinaclials.controller.js"
+import {getFinancialSummary, processSettlement,reviewWithdrawalRequest,getFranchiseFinancialLedger} from "../controllers/franchiseMangment/adminFinaclials.controller.js"
 
 const router = Router()
 
@@ -15,9 +15,9 @@ const router = Router()
  * @route   GET /api/admin/dashboard
  * @access  Private (Admin Only)
  */
+   router.use(authenticateUser)
 
-
-  router.get("/dashboard",authenticateUser,getAdminDashboardData)
+  router.get("/dashboard",getAdminDashboardData)
 
 /**
  * @desc    Get all agents with search, filters & pagination
@@ -25,7 +25,7 @@ const router = Router()
  * @access  Private (Admin Only)
  */
 
-  router.get("/agent/management",authenticateUser,getAgentsList)
+  router.get("/agent/management",getAgentsList)
 
 
   /**
@@ -34,11 +34,11 @@ const router = Router()
    */
 
 
-  router.get("/agent/:id",authenticateUser,getAgentById)
+  router.get("/agent/:id",getAgentById)
  
-  router.patch("/agent/status/:id",authenticateUser,toggleAgentStatus)
+  router.patch("/agent/status/:id",toggleAgentStatus)
 
-  router.post("/createProduct",authenticateUser,createProduct)
+  router.post("/createProduct",createProduct)
 
 
  /**
@@ -47,7 +47,7 @@ const router = Router()
  * @access  Private/Admin
  */
 
-  router.post("/inventory/purchase",authenticateUser,purchaseItem)
+  router.post("/inventory/purchase",purchaseItem)
 
   /**
    * @desc    Sell / Deduct Item Stock from Inventory
@@ -55,7 +55,7 @@ const router = Router()
    * @access  Private/Admin
    */
 
-  router.post("/inventory/deduct",authenticateUser,deductItemStock)
+  router.post("/inventory/deduct",deductItemStock)
 
    /**
     * @desc    Get Current Inventory Details by ID
@@ -64,7 +64,7 @@ const router = Router()
     */
 
 
-  router.get("/inventory/:itemId",authenticateUser,getInventoryItem)
+  router.get("/inventory/:itemId",getInventoryItem)
 
 
   // franchise management controllers 
@@ -87,6 +87,8 @@ router.patch("/supplies/:requestId/status", updateSupplyDispatchStatus);
 router.get("/financials/summary", getFinancialSummary);
 router.post("/financials/settle", processSettlement);
 
+router.patch("/financials/withdrawal/:requestId", reviewWithdrawalRequest);
+router.get("/financials/ledger/:franchiseId", getFranchiseFinancialLedger);
 
 
 
