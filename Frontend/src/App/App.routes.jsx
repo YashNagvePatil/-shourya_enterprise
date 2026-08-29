@@ -26,6 +26,8 @@ import ManageFranchiseSupplyUI from "../features/admin/franchiseMangement/pages/
 import ManageFranchiseFinancials from "../features/admin/franchiseMangement/pages/ManageFranchiseFinance";
 import FranchiseDashboard from "../features/franchise/pages/FranchiseDashboard";
 import Franchiselogin from "../features/franchise/pages/franchiseLogin";
+import FranchiseInventory from "../features/franchise/pages/Inventory";
+import FranchiseSupply from "../features/franchise/pages/Supplyrequest";
 // Root Layout Component with Persistent Navbar & Footer
 const RootLayout = () => {
   return (
@@ -109,7 +111,9 @@ export const routes = createBrowserRouter([
       {
         path:"franchise",
         children:[
-         { path:"dashboard",element:<FranchiseDashboard/>}
+         { path:"dashboard",element:<FranchiseDashboard/>},
+         {path:"inventory",element:<FranchiseInventory/>},
+         {path:"supply",element:<FranchiseSupply/>}
         ]
       }
      

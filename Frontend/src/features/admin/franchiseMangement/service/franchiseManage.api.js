@@ -72,12 +72,28 @@ export const updateSupplyDispatchStatus = async (requestId, dispatchData) => {
 
 // ---------------------- Financials & Settlements ----------------------
 
+// 1. Fetch Dashboard Analytics & Pending Withdrawals
 export const getFinancialSummary = async () => {
-  return await api.get("/financials/summary");
+  const response = await api.get("/financials/summary");
+  return response.data;
 };
 
+// 2. Process Manual Payout Settlement (Rent, ROI, Commission)
 export const processSettlement = async (settlementData) => {
-  return await api.post("/financials/settle", settlementData);
+  const response = await api.post("/financials/settle", settlementData);
+  return response.data;
+};
+
+// 3. Review (Approve/Reject) Withdrawal Request (FIXED: Added reviewData payload)
+export const reviewWithdrawalRequest = async (requestId, reviewData) => {
+  const response = await api.patch(`/financials/withdrawal/${requestId}`, reviewData);
+  return response.data;
+};
+
+// 4. Fetch Franchise Specific Passbook / Ledger History
+export const getFranchiseFinancialLedger = async (franchiseId) => {
+  const response = await api.get(`/financials/ledger/${franchiseId}`);
+  return response.data;
 };
 
 export default api;
