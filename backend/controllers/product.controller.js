@@ -220,7 +220,7 @@ export const createProduct = async (req, res) => {
 
 export const getAllProducts = async (req, res) => {
   try {
-    const { category, search, page = 1, limit = 12 ,forFranchiseSupplyr} = req.query;
+    const { category, search, page = 1, limit = 12 ,forFranchiseSupply} = req.query;
 
     const query = {};
 

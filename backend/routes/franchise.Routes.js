@@ -23,6 +23,8 @@ router.get("/profile", getFranchiseProfile);
 router.get("/financials", getFinancialOverview);
 router.get("/analytics",getDashboardAnalytics)
 // Supply Requests (Hierarchy Flow)
+
+
 router.post("/create-supply-request",createSupplyRequest);
 router.get("/get-supply-requests", getSupplyRequestsForHierarchy);
 

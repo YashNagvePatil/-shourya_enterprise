@@ -8,7 +8,9 @@ import { FRANCHISE_TYPES } from "../models/franchise.model.js";
 import withdrawalModel from "../models/withdrawalModel.js";
 import WalletTransaction from "../models/walletTransactionModel.js";
 import WithdrawalRequest from "../models/withdrawalRequest.model.js";
-import FinancialPayout from "../models/financialPayout.model.js";
+import productModel from "../models/product.model.js"
+import FranchiseInventory from "../models/FranchiseInventory.js";
+
 
 // 1. Specialized Franchise Registration
 export const registerFranchise = async (req, res) => {
@@ -625,19 +627,76 @@ export const getFranchiseAnalytics = async (req, res) => {
   }
 };
 
-
-
-
-
-
-// 4. Create Supply Request (Hierarchy-based Visibility)
+/**
+ * =================================================================
+ * 1. Create Supply Request (With Validation, Price Calculation & Hold)
+ * =================================================================
+ */
 export const createSupplyRequest = async (req, res) => {
   try {
-    const { items } = req.body;
+    const { items } = req.body; // Expected format: [{ productId: "id", quantity: 2 }]
+
+    // --- Validation 1: Check Items Array ---
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Please select at least one item to place a supply order.",
+      });
+    }
+
+    // --- Fetch Requester Franchise Details ---
     const franchise = await franchiseModel.findById(req.user.id);
+    if (!franchise) {
+      return res.status(404).json({ success: false, message: "Franchise account not found." });
+    }
 
+    // --- Fetch Real Product Details from Database ---
+    const productIds = items.map((i) => i.productId);
+    const dbProducts = await productModel.find({
+      _id: { $in: productIds },
+      isActive: true,
+      isAvailableForFranchiseSupply: true, // Ensured only allowed items are ordered
+    });
+
+    // Verify all requested items exist and are available for supply
+    if (dbProducts.length !== productIds.length) {
+      return res.status(400).json({
+        success: false,
+        message: "One or more selected items are invalid, inactive, or unavailable for supply.",
+      });
+    }
+
+    // Map products for fast lookup & Calculate Total Supply Cost
+    const productMap = new Map(dbProducts.map((p) => [p._id.toString(), p]));
+    let calculatedTotalAmount = 0;
+
+    const validatedItems = items.map((item) => {
+      const product = productMap.get(item.productId.toString());
+      const qty = Math.max(1, Number(item.quantity) || 1);
+      const itemPrice = product.price; // Distributor/Supply Price
+      const itemSubtotal = itemPrice * qty;
+
+      calculatedTotalAmount += itemSubtotal;
+
+      return {
+        productId: product._id,
+        quantity: qty,
+        unitPrice: itemPrice,
+        subtotal: itemSubtotal,
+      };
+    });
+
+    // --- Validation 2: Wallet Balance Verification ---
+    const currentWalletBalance = franchise.walletBalance || 0;
+    if (currentWalletBalance < calculatedTotalAmount) {
+      return res.status(400).json({
+        success: false,
+        message: `Insufficient Wallet Balance. Total Order Cost: ₹${calculatedTotalAmount}, Available Balance: ₹${currentWalletBalance}`,
+      });
+    }
+
+    // --- Set Hierarchy Visibility ---
     let visibility = { district: false, state: false, admin: true };
-
     if (franchise.franchiseType === "VILLAGE") {
       visibility.district = true;
       visibility.state = true;
@@ -645,108 +704,244 @@ export const createSupplyRequest = async (req, res) => {
       visibility.state = true;
     }
 
+    // --- Build & Save Supply Request ---
     const supplyRequest = new supplyRequestModel({
       requestNumber: `REQ-${Date.now()}`,
       requesterFranchise: franchise._id,
       requesterType: franchise.franchiseType,
       requesterLocation: franchise.address,
-      items,
+      items: validatedItems,
+      totalAmount: calculatedTotalAmount,
+      status: "PENDING",
       visibleTo: visibility,
     });
 
     await supplyRequest.save();
 
-    res.status(201).json({ success: true, message: "Supply request submitted", supplyRequest });
+    // Populate Product details for clean Instant Frontend Response
+    const populatedRequest = await supplyRequestModel
+      .findById(supplyRequest._id)
+      .populate("items.productId", "name sku category price images imageUrl");
+
+    return res.status(201).json({
+      success: true,
+      message: "Supply request submitted successfully! Funds are held pending fulfillment.",
+      supplyRequest: populatedRequest,
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// 5. Fetch Supply Requests based on Hierarchy Role
+/**
+ * =================================================================
+ * 2. Fetch Supply Requests based on Hierarchy Role + Own Requests
+ * =================================================================
+ */
 export const getSupplyRequestsForHierarchy = async (req, res) => {
   try {
     const franchise = await franchiseModel.findById(req.user.id);
+    if (!franchise) {
+      return res.status(404).json({ success: false, message: "Franchise not found." });
+    }
+
     let filter = {};
 
     if (franchise.franchiseType === "DISTRICT") {
+      // Sees subordinate village requests IN THEIR DISTRICT + THEIR OWN REQUESTS
       filter = {
-        "visibleTo.district": true,
-        "requesterLocation.district": franchise.address.district,
+        $or: [
+          { requesterFranchise: franchise._id },
+          {
+            "visibleTo.district": true,
+            "requesterLocation.district": franchise.address?.district,
+          },
+        ],
       };
     } else if (franchise.franchiseType === "STATE") {
+      // Sees district/village requests IN THEIR STATE + THEIR OWN REQUESTS
       filter = {
-        "visibleTo.state": true,
-        "requesterLocation.state": franchise.address.state,
+        $or: [
+          { requesterFranchise: franchise._id },
+          {
+            "visibleTo.state": true,
+            "requesterLocation.state": franchise.address?.state,
+          },
+        ],
       };
     } else {
       // Village level views own requests only
       filter = { requesterFranchise: franchise._id };
     }
 
-    const requests = await supplyRequestModel.find(filter)
-      .populate("requesterFranchise", "fullName mobile franchiseType address")
-      .populate("items.productId", "name category price");
+    const requests = await supplyRequestModel
+      .find(filter)
+      .populate("requesterFranchise", "fullName mobile franchiseType address email")
+      .populate("items.productId", "name sku category price images imageUrl unit")
+      .sort({ createdAt: -1 }); // Latest orders first
 
-    res.status(200).json({ success: true, count: requests.length, requests });
+    return res.status(200).json({
+      success: true,
+      count: requests.length,
+      requests,
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
 // 6. Inventory Management (Sell from inventory / update stock)
+
+
+// 1. GET INVENTORY (Optimized with lean & populate fallback)
 export const getInventory = async (req, res) => {
   try {
-    const inventory = await franchiseInventoryModel.find({ franchiseId: req.user.id })
-      .populate("productId");
-    res.status(200).json({ success: true, inventory });
+    const franchiseId = req.user.id;
+
+    // lean() query performance boost karti hai read operations ke liye
+    const inventory = await franchiseInventoryModel
+      .find({ franchiseId })
+      .populate({
+        path: "productId",
+        select: "name sku price category image status",
+      })
+      .lean();
+
+    // Filters out invalid or deleted product references automatically
+    const validInventory = inventory.filter((item) => item.productId != null);
+
+    res.status(200).json({
+      success: true,
+      count: validInventory.length,
+      inventory: validInventory,
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Error in getInventory:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch inventory",
+      error: error.message,
+    });
   }
 };
 
+
+// 2. SELL FROM INVENTORY (Atomic Transaction + Race-Condition Safe)
 export const sellFromInventory = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const { productId, quantity } = req.body;
-    const inventoryItem = await franchiseInventoryModel.findOne({
-      franchiseId: req.user.id,
-      productId,
-    });
+    const franchiseId = req.user.id;
 
-    if (!inventoryItem || inventoryItem.stock < quantity) {
-      return res.status(400).json({ success: false, message: "Insufficient stock in inventory" });
+    // Input Validation
+    const parsedQty = Number(quantity);
+    if (!productId || isNaN(parsedQty) || parsedQty <= 0) {
+      await session.abortTransaction();
+      return res.status(400).json({
+        success: false,
+        message: "Please provide a valid product ID and positive quantity",
+      });
     }
 
-    inventoryItem.stock -= quantity;
-    await inventoryItem.save();
+    // Atomic Stock Update: Stock check DB level par hota hai concurrency avoid karne ke liye
+    const inventoryItem = await franchiseInventoryModel
+      .findOneAndUpdate(
+        {
+          franchiseId,
+          productId,
+          stock: { $gte: parsedQty }, // Guarantees no negative stock
+        },
+        { $inc: { stock: -parsedQty } },
+        { new: true, session }
+      )
+      .populate("productId", "price name");
 
-    // Trigger Commission Updates to Franchise Wallet
-    const franchise = await franchiseModel.findById(req.user.id);
-    const benefits = FRANCHISE_TYPES[franchise.franchiseType];
+    if (!inventoryItem) {
+      await session.abortTransaction();
+      return res.status(400).json({
+        success: false,
+        message: "Insufficient stock or item not found in inventory",
+      });
+    }
 
+    // Fetch Franchise Details
+    const franchise = await franchiseModel
+      .findById(franchiseId)
+      .session(session);
+
+    if (!franchise) {
+      await session.abortTransaction();
+      return res.status(404).json({
+        success: false,
+        message: "Franchise partner account not found",
+      });
+    }
+
+    // Benefits Strategy Check
+    const benefits = FRANCHISE_TYPES[franchise.franchiseType] || {
+      commPerProduct: 0,
+      commPercent: 0,
+    };
+
+    // Price Fallback (inventory selling price -> populated product price -> 0)
+    const unitPrice =
+      inventoryItem.sellingPrice ||
+      (inventoryItem.productId && inventoryItem.productId.price) ||
+      0;
+
+    // Calculate Commission
     let commissionEarned = 0;
     if (benefits.commPerProduct) {
-      commissionEarned += benefits.commPerProduct * quantity;
+      commissionEarned += benefits.commPerProduct * parsedQty;
     }
     if (benefits.commPercent) {
-      commissionEarned += ((inventoryItem.sellingPrice * quantity) * benefits.commPercent) / 100;
+      commissionEarned += ((unitPrice * parsedQty) * benefits.commPercent) / 100;
     }
 
-    franchise.wallet.totalCommission += commissionEarned;
-    franchise.wallet.totalEarnings += commissionEarned;
-    await franchise.save();
+    commissionEarned = Number(commissionEarned.toFixed(2));
+
+    // Wallet Atomic Update
+    if (!franchise.wallet) {
+      franchise.wallet = { balance: 0, totalCommission: 0, totalEarnings: 0 };
+    }
+
+    franchise.wallet.balance = (franchise.wallet.balance || 0) + commissionEarned;
+    franchise.wallet.totalCommission = (franchise.wallet.totalCommission || 0) + commissionEarned;
+    franchise.wallet.totalEarnings = (franchise.wallet.totalEarnings || 0) + commissionEarned;
+
+    await franchise.save({ session });
+
+    // Commit Transaction
+    await session.commitTransaction();
 
     res.status(200).json({
       success: true,
       message: "Sale processed successfully",
-      remainingStock: inventoryItem.stock,
-      commissionEarned,
+      data: {
+        productId,
+        productName: inventoryItem.productId?.name || "Product",
+        quantitySold: parsedQty,
+        remainingStock: inventoryItem.stock,
+        commissionEarned,
+        currentWalletBalance: franchise.wallet.balance,
+      },
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    await session.abortTransaction();
+    console.error("Error in sellFromInventory:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error processing sale",
+      error: error.message,
+    });
+  } finally {
+    session.endSession();
   }
 };
-
 // 7. Financial Overview (ROI, Rent, & Commissions)
+
 export const getFinancialOverview = async (req, res) => {
   try {
     const franchiseId = req.user.id;
