@@ -29,16 +29,12 @@ router.get("/analytics",getDashboardAnalytics)
 // dedicated profile page 
 
 router.put("/profile/update",updateFranchiseProfile)
-
 router.put("/profile/change-password",changeFranchisePassword)
-
 
 router.post("/create-supply-request",createSupplyRequest);
 router.get("/get-supply-requests", getSupplyRequestsForHierarchy);
 
-
 // finance 
-
 router.get("/financials/overview", getFranchiseFinancialOverview)
 router.get("/financials/passbook", getFranchisePassbook);
 router.get("/financials/analytics", getFranchiseAnalytics);
