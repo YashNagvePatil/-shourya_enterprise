@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from "react";
-import useFranchiseSupply from "../hook/useFranchiseSupply"; // Adjust import path as needed
+import useFranchiseSupply from "../hook/useFranchiseSupply"; // Path according to your setup
 
 const ManageFranchiseSupplyUI = () => {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [selectedReqForUpdate, setSelectedReqForUpdate] = useState(null);
   const [dispatchForm, setDispatchForm] = useState({
-    status: "APPROVED",
-    trackingNumber: "",
+    status: "FULFILLED",
     notes: "",
   });
 
@@ -33,15 +32,14 @@ const ManageFranchiseSupplyUI = () => {
   const openUpdateModal = (req) => {
     setSelectedReqForUpdate(req);
     setDispatchForm({
-      status: req.status || "APPROVED",
-      trackingNumber: req.trackingNumber || "",
+      status: req.status === "PENDING" ? "FULFILLED" : req.status,
       notes: req.adminNotes || "",
     });
   };
 
   const closeUpdateModal = () => {
     setSelectedReqForUpdate(null);
-    setDispatchForm({ status: "APPROVED", trackingNumber: "", notes: "" });
+    setDispatchForm({ status: "FULFILLED", notes: "" });
   };
 
   const submitDispatchUpdate = async (e) => {
@@ -52,7 +50,7 @@ const ManageFranchiseSupplyUI = () => {
       await handleUpdateDispatchStatus(selectedReqForUpdate._id, dispatchForm);
       closeUpdateModal();
     } catch (err) {
-      // Error is caught and set in redux state by hook
+      // Handled by Redux/Hook error state
     }
   };
 
@@ -66,16 +64,14 @@ const ManageFranchiseSupplyUI = () => {
 
   const getStatusBadgeStyle = (status) => {
     switch (status) {
-      case "APPROVED":
-        return "bg-[#E2C275]/20 text-[#8A6A1C] border-[#E2C275]/50";
-      case "DISPATCHED":
-        return "bg-[#F99834]/15 text-[#C46808] border-[#F99834]/40";
+      case "FULFILLED":
       case "DELIVERED":
         return "bg-[#4A7C59]/15 text-[#2D5A3A] border-[#4A7C59]/30";
       case "CANCELLED":
         return "bg-[#D82348]/10 text-[#D82348] border-[#D82348]/30";
+      case "PENDING":
       default:
-        return "bg-[#FAF6EE] text-[#9A827A] border-[#F0E6D8]";
+        return "bg-[#E2C275]/20 text-[#8A6A1C] border-[#E2C275]/50";
     }
   };
 
@@ -89,7 +85,7 @@ const ManageFranchiseSupplyUI = () => {
             Supply Chain & Stock Fulfillment
           </h1>
           <p className="text-xs font-light text-[#9A827A] mt-1">
-            Manage global inventory requests and dispatch fulfillment for active outlets
+            Manage store stock fulfillment requests and passbook balance updates
           </p>
         </div>
 
@@ -118,20 +114,26 @@ const ManageFranchiseSupplyUI = () => {
       {/* Notifications */}
       {error && (
         <div className="mb-6 flex items-center justify-between rounded-xl border border-[#D82348]/30 bg-[#D82348]/5 p-4 text-xs font-light text-[#D82348]">
-          <span><strong className="font-normal">Error:</strong> {error}</span>
-          <button onClick={resetMessages} className="text-[#9A1B32] underline">Dismiss</button>
+          <span>
+            <strong className="font-normal">Error:</strong> {error}
+          </span>
+          <button onClick={resetMessages} className="text-[#9A1B32] underline">
+            Dismiss
+          </button>
         </div>
       )}
       {successMessage && (
         <div className="mb-6 flex items-center justify-between rounded-xl border border-[#E2C275]/60 bg-[#FAF6EE] p-4 text-xs font-light text-[#2C1E21]">
           <span>{successMessage}</span>
-          <button onClick={resetMessages} className="text-[#9A827A] underline">Dismiss</button>
+          <button onClick={resetMessages} className="text-[#9A827A] underline">
+            Dismiss
+          </button>
         </div>
       )}
 
-      {/* Status Filter Tabs */}
+      {/* Status Filter Tabs (Simplified States) */}
       <div className="mb-6 flex flex-wrap gap-2 border-b border-[#F0E6D8] pb-4">
-        {["ALL", "PENDING", "APPROVED", "DISPATCHED", "DELIVERED", "CANCELLED"].map((filter) => (
+        {["ALL", "PENDING", "FULFILLED", "CANCELLED"].map((filter) => (
           <button
             key={filter}
             onClick={() => handleFilterChange(filter)}
@@ -150,7 +152,7 @@ const ManageFranchiseSupplyUI = () => {
       <main className="rounded-2xl border border-[#F0E6D8] bg-white p-6 shadow-sm">
         <div className="mb-6 flex items-center justify-between border-b border-[#FAF6EE] pb-4">
           <h2 className="text-sm font-normal text-[#2C1E21]">
-            Global Orders ({count})
+            Global Supply Orders ({count})
           </h2>
           <span className="text-xs font-light text-[#9A827A]">
             Showing filter: <strong className="font-normal text-[#2C1E21]">{statusFilter}</strong>
@@ -170,10 +172,15 @@ const ManageFranchiseSupplyUI = () => {
         ) : (
           <div className="space-y-4">
             {requests.map((req) => {
-              const totalCost = req.items?.reduce(
-                (sum, i) => sum + (i.productId?.price || 0) * (i.quantity || 1),
-                0
-              );
+              // Priority to saved supply order totalAmount, fallback to calculated sum
+              const totalCost =
+                req.totalAmount ||
+                req.items?.reduce(
+                  (sum, i) => sum + (i.productId?.price || 0) * (i.quantity || 1),
+                  0
+                );
+
+              const isCompleted = ["FULFILLED", "DELIVERED", "CANCELLED"].includes(req.status);
 
               return (
                 <div
@@ -199,14 +206,10 @@ const ManageFranchiseSupplyUI = () => {
                         </span>
                       </div>
                       <p className="text-xs font-light text-[#9A827A]">
-                        {req.franchiseId?.email} • {req.franchiseId?.address?.district},{" "}
-                        {req.franchiseId?.address?.state}
+                        {req.franchiseId?.email} • {req.franchiseId?.mobile || "N/A"} •{" "}
+                        {req.franchiseId?.address?.district || ""},{" "}
+                        {req.franchiseId?.address?.state || ""}
                       </p>
-                      {req.trackingNumber && (
-                        <p className="text-xs font-light text-[#F99834]">
-                          Tracking Number: <span className="font-normal text-[#2C1E21]">{req.trackingNumber}</span>
-                        </p>
-                      )}
                     </div>
 
                     {/* Cost & Action */}
@@ -222,9 +225,14 @@ const ManageFranchiseSupplyUI = () => {
 
                       <button
                         onClick={() => openUpdateModal(req)}
-                        className="rounded-xl border border-[#E2C275] bg-[#FAF6EE] px-4 py-2 text-xs font-light text-[#9A1B32] transition hover:bg-[#F99834]/15 hover:border-[#F99834] active:bg-[#F99834]/25"
+                        disabled={isCompleted}
+                        className={`rounded-xl border px-4 py-2 text-xs font-light transition ${
+                          isCompleted
+                            ? "border-[#F0E6D8] bg-[#FAF8F7] text-[#9A827A] cursor-not-allowed opacity-60"
+                            : "border-[#E2C275] bg-[#FAF6EE] text-[#9A1B32] hover:bg-[#F99834]/15 hover:border-[#F99834] active:bg-[#F99834]/25"
+                        }`}
                       >
-                        Update Status
+                        {isCompleted ? "Fulfilled / Closed" : "Update Status"}
                       </button>
                     </div>
                   </div>
@@ -246,9 +254,11 @@ const ManageFranchiseSupplyUI = () => {
                           <span className="text-[#9A827A]">
                             × {item.quantity}
                           </span>
-                          <span className="text-[10px] text-[#E2C275] font-normal">
-                            ({formatCurrency(item.productId?.price)})
-                          </span>
+                          {item.productId?.price && (
+                            <span className="text-[10px] text-[#E2C275] font-normal">
+                              ({formatCurrency(item.productId.price)})
+                            </span>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -267,13 +277,13 @@ const ManageFranchiseSupplyUI = () => {
         )}
       </main>
 
-      {/* Dispatch Status Overlay Modal */}
+      {/* Simplified Status Modal */}
       {selectedReqForUpdate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#2C1E21]/40 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-[#F0E6D8] bg-white p-6 shadow-xl">
+          <div className="w-full max-w-md rounded-2xl border border-[#F0E6D8] bg-white p-6 shadow-xl">
             <div className="flex items-center justify-between border-b border-[#F5EFE6] pb-4 mb-4">
               <h3 className="text-base font-normal text-[#2C1E21]">
-                Update Dispatch Details
+                Fulfill or Cancel Request
               </h3>
               <button
                 onClick={closeUpdateModal}
@@ -285,7 +295,7 @@ const ManageFranchiseSupplyUI = () => {
 
             <form onSubmit={submitDispatchUpdate} className="space-y-4 text-xs font-light">
               <div>
-                <label className="block text-[#9A827A] mb-1">Status</label>
+                <label className="block text-[#9A827A] mb-1.5">Action Status</label>
                 <select
                   value={dispatchForm.status}
                   onChange={(e) =>
@@ -293,37 +303,23 @@ const ManageFranchiseSupplyUI = () => {
                   }
                   className="w-full rounded-xl border border-[#F0E6D8] bg-[#FAF6EE] p-2.5 text-[#2C1E21] outline-none focus:border-[#E2C275]"
                 >
-                  <option value="APPROVED">Approved</option>
-                  <option value="DISPATCHED">Dispatched</option>
-                  <option value="DELIVERED">Delivered</option>
-                  <option value="CANCELLED">Cancelled</option>
+                  <option value="FULFILLED">FULFILLED (Order Completed)</option>
+                  <option value="CANCELLED">CANCELLED (Refund to Wallet)</option>
                 </select>
+                <p className="mt-1 text-[10px] text-[#9A827A]">
+                  *CANCELLED selects will un-hold money back into Franchise wallet passbook.
+                </p>
               </div>
 
               <div>
-                <label className="block text-[#9A827A] mb-1">
-                  Courier / Tracking Number
-                </label>
-                <input
-                  type="text"
-                  value={dispatchForm.trackingNumber}
-                  onChange={(e) =>
-                    setDispatchForm({ ...dispatchForm, trackingNumber: e.target.value })
-                  }
-                  placeholder="e.g. AWB-982347102"
-                  className="w-full rounded-xl border border-[#F0E6D8] bg-[#FAF6EE] p-2.5 text-[#2C1E21] outline-none focus:border-[#E2C275]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[#9A827A] mb-1">Internal Notes</label>
+                <label className="block text-[#9A827A] mb-1.5">Internal Admin Notes</label>
                 <textarea
                   rows="3"
                   value={dispatchForm.notes}
                   onChange={(e) =>
                     setDispatchForm({ ...dispatchForm, notes: e.target.value })
                   }
-                  placeholder="Dispatch center details, logistics carrier..."
+                  placeholder="e.g. Stock handed over locally / Goods dispatched via internal vehicle..."
                   className="w-full rounded-xl border border-[#F0E6D8] bg-[#FAF6EE] p-2.5 text-[#2C1E21] outline-none focus:border-[#E2C275]"
                 />
               </div>
@@ -341,7 +337,7 @@ const ManageFranchiseSupplyUI = () => {
                   disabled={loading.update}
                   className="rounded-xl bg-[#D82348] px-5 py-2 text-white hover:bg-[#9A1B32] disabled:opacity-50"
                 >
-                  {loading.update ? "Saving..." : "Save Status"}
+                  {loading.update ? "Saving..." : "Confirm Status"}
                 </button>
               </div>
             </form>

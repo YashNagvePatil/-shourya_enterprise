@@ -17,22 +17,40 @@ const franchiseInventorySlice = createSlice({
     setInventory: (state, action) => {
       state.items = action.payload;
     },
+
     addInventoryItem: (state, action) => {
       state.items.push(action.payload);
     },
+
     updateInventoryStock: (state, action) => {
       const { productId, quantitySold } = action.payload;
-      const item = state.items.find((i) => i._id === productId || i.id === productId);
-      if (item && item.stock >= quantitySold) {
-        item.stock -= quantitySold;
+
+      // Safe identification of items whether productId is populated or raw ObjectId string
+      const item = state.items.find((i) => {
+        const prodId = i.productId?._id || i.productId || i.product?._id || i.product || i._id;
+        return prodId.toString() === productId.toString();
+      });
+
+      if (item) {
+        const currentStock = item.stock ?? item.quantity ?? 0;
+        const newStock = Math.max(0, currentStock - Number(quantitySold));
+        
+        if (item.stock !== undefined) {
+          item.stock = newStock;
+        } else {
+          item.quantity = newStock;
+        }
       }
     },
+
     setSelectedItem: (state, action) => {
       state.selectedItem = action.payload;
     },
+
     setInventoryFilters: (state, action) => {
       state.filters = { ...state.filters, ...action.payload };
     },
+
     clearInventoryState: () => initialState,
   },
 });

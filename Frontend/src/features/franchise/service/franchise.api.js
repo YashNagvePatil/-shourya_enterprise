@@ -5,31 +5,36 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: true, // Enables cookies for authenticated routes
+  withCredentials: true,
 });
 
-// Request Interceptor: Automatically appends a unique timestamp (_t) to all GET requests to bypass browser caching (304 responses)
+// Request Interceptor: Disable browser disk cache via Standard Headers
 api.interceptors.request.use(
   (config) => {
     if (config.method?.toLowerCase() === "get") {
-      config.params = {
-        ...config.params,
-        _t: Date.now(),
-      };
+      // 1. HTTP Standard No-Cache Headers (Browser 304 response bypassed)
+      config.headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+      config.headers["Pragma"] = "no-cache";
+      config.headers["Expires"] = "0";
+
+      // 2. Query Params CLEAN rakho (Redis ke liye)
+      // _t timestamp param yahan se HATA DIYA GAYA HAI!
     }
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// Response Interceptor: Unwraps data and standardizes error responses
+// Response Interceptor
 api.interceptors.response.use(
   (response) => response.data,
   (error) => {
-    const message = error.response?.data?.message || error.message || "Something went wrong";
+    const message =
+      error.response?.data?.message || error.message || "Something went wrong";
     return Promise.reject(new Error(message));
   }
 );
+
 
 // ---------------------- Public APIs ----------------------
 
@@ -56,14 +61,18 @@ export const getFinancialOverview = async () => {
   return await api.get("/financials");
 };
 
+export const getDashboardAnalytics = async () =>{
+  return await api.get("/analytics");
+}
+
 // ---------------------- Supply Requests ----------------------
 
 export const createSupplyRequest = async (requestData) => {
   return await api.post("/create-supply-request", requestData);
 };
 
-export const getSupplyRequestsForHierarchy = async () => {
-  return await api.get("/get-supply-requests");
+export const getSupplyRequestsForHierarchy = async (params) => {
+  return await api.get("/get-supply-requests",{params});
 };
 
 // ---------------------- Inventory & Sales ----------------------
@@ -76,4 +85,30 @@ export const sellFromInventory = async (saleData) => {
   return await api.post("/inventory/sell", saleData);
 };
 
+
+// finance 
+
+export const  getFranchiseFinancialOverview = async () =>{
+  return await api.get("/financials/overview")
+}
+
+export const getFranchisePassbook = async () =>{
+  return await api.get("/financials/passbook")
+}
+
+export const  getFranchiseAnalytics = async (filter = "monthly") =>{
+  return await api.get("/financials/analytics",{
+   params: { filter },
+  })
+}
+
+export const requestWithdrawal = async (amount, notes) =>{
+  return await api.post("/financials/withdraw",{
+     amount,notes
+  })
+}
+
+export const  cancelWithdrawal = async (withdrawalId) =>{
+  return await api.post("/financials/withdraw/cancel",{withdrawalId})
+}
 export default api;

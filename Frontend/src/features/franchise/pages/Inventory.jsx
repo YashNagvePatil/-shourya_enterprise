@@ -7,7 +7,7 @@ const FranchiseInventory = () => {
   const { currentFranchise } = useFranchise();
   const location = useLocation();
 
-  // Connect state & methods from inventory custom hook
+  // Connect updated hook methods & state
   const {
     filteredItems,
     filters,
@@ -15,12 +15,12 @@ const FranchiseInventory = () => {
     sellingLoading,
     error,
     fetchInventory,
-    sellItem,
+    processSale, // Updated from sellItem
     setFilters,
   } = useFranchiseInventory();
 
   // Modal / Action State for selling item
-  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [selectedInventoryItem, setSelectedInventoryItem] = useState(null);
   const [sellQty, setSellQty] = useState(1);
   const [activeTab, setActiveTab] = useState("inventory");
 
@@ -30,16 +30,26 @@ const FranchiseInventory = () => {
 
   // Handle unit sale trigger
   const handleConfirmSale = async () => {
-    if (!selectedProduct) return;
+    if (!selectedInventoryItem) return;
+
+    // Standardized product ID extraction (Populated or Raw Object ID)
+    const targetProductId =
+      selectedInventoryItem.productId?._id ||
+      selectedInventoryItem.productId ||
+      selectedInventoryItem.product?._id ||
+      selectedInventoryItem.product;
+
     try {
-      await sellItem({
-        productId: selectedProduct._id || selectedProduct.id,
-        quantitySold: Number(sellQty),
+      await processSale({
+        productId: targetProductId,
+        quantity: Number(sellQty),
       });
-      setSelectedProduct(null);
+
+      // Clear Modal after successful transaction
+      setSelectedInventoryItem(null);
       setSellQty(1);
     } catch (err) {
-      console.error("Sale error:", err);
+      console.error("Sale transaction failed:", err);
     }
   };
 
@@ -176,7 +186,7 @@ const FranchiseInventory = () => {
             <input
               type="text"
               placeholder="Search by product name or SKU..."
-              value={filters.searchQuery}
+              value={filters.searchQuery || ""}
               onChange={(e) => setFilters({ searchQuery: e.target.value })}
               className="w-full bg-[#FFFDF9] border border-[#EADBCE] text-[#3B2820] placeholder-[#8C6247]/60 text-xs rounded-lg px-3.5 py-2.5 outline-none focus:border-[#C68A53] transition-colors"
             />
@@ -246,8 +256,16 @@ const FranchiseInventory = () => {
                 </thead>
                 <tbody className="divide-y divide-[#F2E7DC] text-xs">
                   {filteredItems.map((item) => {
-                    const isLowStock = item.stock > 0 && item.stock <= 5;
-                    const isOutOfStock = item.stock === 0;
+                    // Safe property extraction (Handles populated object & raw fallback)
+                    const product = item.productId || item.product || {};
+                    const productName = product.name || item.name || "Unknown Product";
+                    const productSku = product.sku || item.sku || "N/A";
+                    const productCategory = product.category || item.category || "General";
+                    const unitPrice = item.sellingPrice || product.price || item.price || 0;
+                    const stock = item.stock ?? item.quantity ?? 0;
+
+                    const isLowStock = stock > 0 && stock <= 5;
+                    const isOutOfStock = stock === 0;
 
                     return (
                       <tr
@@ -255,19 +273,19 @@ const FranchiseInventory = () => {
                         className="hover:bg-[#FFFDF9] transition-colors"
                       >
                         <td className="p-4 font-normal text-[#3B2820]">
-                          {item.name}
+                          {productName}
                         </td>
                         <td className="p-4 text-[#8C6247] font-mono text-[11px]">
-                          {item.sku || "N/A"}
+                          {productSku}
                         </td>
                         <td className="p-4 text-[#8C6247]">
-                          {item.category || "General"}
+                          {productCategory}
                         </td>
                         <td className="p-4 text-[#3B2820] font-normal">
-                          ₹{item.price?.toLocaleString() || 0}
+                          ₹{unitPrice.toLocaleString()}
                         </td>
                         <td className="p-4 font-normal text-[#3B2820]">
-                          {item.stock} units
+                          {stock} units
                         </td>
                         <td className="p-4">
                           {isOutOfStock ? (
@@ -287,7 +305,7 @@ const FranchiseInventory = () => {
                         <td className="p-4 text-right">
                           <button
                             disabled={isOutOfStock}
-                            onClick={() => setSelectedProduct(item)}
+                            onClick={() => setSelectedInventoryItem(item)}
                             className="px-3.5 py-1.5 bg-[#C68A53] text-white text-xs rounded-lg hover:bg-[#8C6247] disabled:bg-[#EADBCE] disabled:text-[#8C6247] transition-colors"
                           >
                             Sell Stock
@@ -304,58 +322,72 @@ const FranchiseInventory = () => {
       </main>
 
       {/* Direct Sale Modal */}
-      {selectedProduct && (
-        <div className="fixed inset-0 bg-[#3B2820]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-[#EADBCE] rounded-xl max-w-md w-full p-6 space-y-5 shadow-lg">
-            <div>
-              <h3 className="text-lg font-light text-[#3B2820]">
-                Process Sale: {selectedProduct.name}
-              </h3>
-              <p className="text-xs text-[#8C6247] mt-0.5">
-                Current Stock: {selectedProduct.stock} units | Price: ₹
-                {selectedProduct.price}
-              </p>
-            </div>
+      {selectedInventoryItem && (() => {
+        const prod = selectedInventoryItem.productId || selectedInventoryItem.product || {};
+        const name = prod.name || selectedInventoryItem.name || "Product";
+        const price = selectedInventoryItem.sellingPrice || prod.price || selectedInventoryItem.price || 0;
+        const currentStock = selectedInventoryItem.stock ?? selectedInventoryItem.quantity ?? 0;
 
-            <div className="space-y-2">
-              <label className="text-xs text-[#8C6247] font-normal">
-                Quantity to Sell
-              </label>
-              <input
-                type="number"
-                min="1"
-                max={selectedProduct.stock}
-                value={sellQty}
-                onChange={(e) => setSellQty(e.target.value)}
-                className="w-full bg-[#FFFDF9] border border-[#EADBCE] text-[#3B2820] text-sm rounded-lg p-2.5 outline-none focus:border-[#C68A53]"
-              />
-            </div>
+        return (
+          <div className="fixed inset-0 bg-[#3B2820]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white border border-[#EADBCE] rounded-xl max-w-md w-full p-6 space-y-5 shadow-lg">
+              <div>
+                <h3 className="text-lg font-light text-[#3B2820]">
+                  Process Sale: {name}
+                </h3>
+                <p className="text-xs text-[#8C6247] mt-0.5">
+                  Current Stock: {currentStock} units | Price: ₹{price.toLocaleString()}
+                </p>
+              </div>
 
-            <div className="p-3 bg-[#FDF9F3] rounded-lg border border-[#EADBCE] flex justify-between items-center text-xs text-[#3B2820]">
-              <span>Total Price:</span>
-              <span className="font-normal text-sm text-[#C68A53]">
-                ₹{(selectedProduct.price * sellQty).toLocaleString()}
-              </span>
-            </div>
+              <div className="space-y-2">
+                <label className="text-xs text-[#8C6247] font-normal">
+                  Quantity to Sell
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max={currentStock}
+                  value={sellQty}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    if (val > currentStock) setSellQty(currentStock);
+                    else if (val < 1) setSellQty(1);
+                    else setSellQty(val);
+                  }}
+                  className="w-full bg-[#FFFDF9] border border-[#EADBCE] text-[#3B2820] text-sm rounded-lg p-2.5 outline-none focus:border-[#C68A53]"
+                />
+              </div>
 
-            <div className="flex gap-3 justify-end pt-2">
-              <button
-                onClick={() => setSelectedProduct(null)}
-                className="px-4 py-2 border border-[#D9C4B1] text-[#8C6247] text-xs rounded-lg hover:bg-[#FDF9F3]"
-              >
-                Cancel
-              </button>
-              <button
-                disabled={sellingLoading}
-                onClick={handleConfirmSale}
-                className="px-4 py-2 bg-[#C68A53] text-white text-xs rounded-lg hover:bg-[#8C6247] disabled:opacity-50"
-              >
-                {sellingLoading ? "Processing..." : "Confirm Sale"}
-              </button>
+              <div className="p-3 bg-[#FDF9F3] rounded-lg border border-[#EADBCE] flex justify-between items-center text-xs text-[#3B2820]">
+                <span>Total Amount:</span>
+                <span className="font-normal text-sm text-[#C68A53]">
+                  ₹{(price * sellQty).toLocaleString()}
+                </span>
+              </div>
+
+              <div className="flex gap-3 justify-end pt-2">
+                <button
+                  onClick={() => {
+                    setSelectedInventoryItem(null);
+                    setSellQty(1);
+                  }}
+                  className="px-4 py-2 border border-[#D9C4B1] text-[#8C6247] text-xs rounded-lg hover:bg-[#FDF9F3]"
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={sellingLoading || currentStock <= 0}
+                  onClick={handleConfirmSale}
+                  className="px-4 py-2 bg-[#C68A53] text-white text-xs rounded-lg hover:bg-[#8C6247] disabled:opacity-50"
+                >
+                  {sellingLoading ? "Processing..." : "Confirm Sale"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

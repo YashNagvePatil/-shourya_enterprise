@@ -7,34 +7,41 @@ import {
   clearMessages,
   setSupplyRequests,
   updateSupplyRequest,
-} from "../state/managefranchiseSupplySlice"; // Adjust path to your slice
+} from "../state/managefranchiseSupplySlice"; 
 import {
   getGlobalSupplyRequests,
   updateSupplyDispatchStatus,
-} from "../service/franchiseManage.api"; // Adjust path to your API file
+} from "../service/franchiseManage.api"; 
 
 const useFranchiseSupply = () => {
   const dispatch = useDispatch();
   const state = useSelector((state) => state.ManagefranchiseSupply);
+
+  // Helper to extract data seamlessly (handles both raw axios response & formatted response)
+  const extractResponseData = (res) => (res && res.data ? res.data : res);
 
   const fetchSupplyRequests = useCallback(
     async (params = {}) => {
       dispatch(clearMessages());
       dispatch(setLoading({ key: "fetch", value: true }));
       try {
-        const response = await getGlobalSupplyRequests(params);
-        if (response.data?.success) {
+        const rawRes = await getGlobalSupplyRequests(params);
+        const resData = extractResponseData(rawRes);
+
+        if (resData?.success) {
           dispatch(
             setSupplyRequests({
-              requests: response.data.requests,
-              count: response.data.count,
+              requests: resData.requests || resData.data?.requests || [],
+              count: resData.count || resData.data?.count || 0,
             })
           );
         }
-        return response.data;
+        return resData;
       } catch (error) {
         const msg =
-          error.response?.data?.message || "Failed to fetch supply requests";
+          error?.response?.data?.message ||
+          error?.message ||
+          "Failed to fetch supply requests";
         dispatch(setError(msg));
         throw error;
       } finally {
@@ -49,18 +56,30 @@ const useFranchiseSupply = () => {
       dispatch(clearMessages());
       dispatch(setLoading({ key: "update", value: true }));
       try {
-        const response = await updateSupplyDispatchStatus(
+        const rawRes = await updateSupplyDispatchStatus(
           requestId,
           dispatchData
         );
-        if (response.data?.success) {
-          dispatch(updateSupplyRequest(response.data.supplyReq));
-          dispatch(setSuccessMessage(response.data.message || "Dispatch status updated successfully"));
+        const resData = extractResponseData(rawRes);
+
+        if (resData?.success) {
+          // Robust checking for updated object
+          const updatedObject = resData.supplyReq || resData.data;
+          if (updatedObject) {
+            dispatch(updateSupplyRequest(updatedObject));
+          }
+
+          dispatch(
+            setSuccessMessage(
+              resData.message || "Dispatch status updated successfully"
+            )
+          );
         }
-        return response.data;
+        return resData;
       } catch (error) {
         const msg =
-          error.response?.data?.message ||
+          error?.response?.data?.message ||
+          error?.message ||
           "Failed to update supply dispatch status";
         dispatch(setError(msg));
         throw error;

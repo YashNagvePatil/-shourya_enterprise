@@ -1,77 +1,73 @@
-import axios from "axios"
-
+import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:3000/api", 
+  baseURL: "http://localhost:3000/api",
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: true, 
+  withCredentials: true,
 });
 
-export const getAgentsdata = async () =>{
-    const response = await api.get("/admin/dashboard")
-     return response.data;
-}
-// 1. API Function Mein Fix
-export const getAgentList = async (queryParams = {}) => {
-  // Direct timestamp append kar do
-  const response = await api.get(`/admin/agent/management`, { 
-    params: {
-      ...queryParams,
-      _t: new Date().getTime(), 
-    } 
-  });
-  return response.data;
+// Request Interceptor: Disable browser disk cache via Standard Headers
+api.interceptors.request.use(
+  (config) => {
+    if (config.method?.toLowerCase() === "get") {
+      config.headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+      config.headers["Pragma"] = "no-cache";
+      config.headers["Expires"] = "0";
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Response Interceptor: Unwraps data and standardizes error responses
+api.interceptors.response.use(
+  (response) => response.data,
+  (error) => {
+    const message =
+      error.response?.data?.message || error.message || "Something went wrong";
+    return Promise.reject(new Error(message));
+  }
+);
+
+// ---------------------- Admin Agent & Management APIs ----------------------
+
+export const getAgentsdata = async () => {
+  return await api.get("/admin/dashboard");
 };
 
-export const getAgentDetails = async (agentId,queryParams = {}) => {
-  console.log("Fetching details for agentId:", agentId); // Check is this undefined?
-  
+export const getAgentList = async (queryParams = {}) => {
+  return await api.get("/admin/agent/management", {
+    params: queryParams,
+  });
+};
+
+export const getAgentDetails = async (agentId, queryParams = {}) => {
   if (!agentId) {
     console.error("Agent ID is missing!");
-    return;
+    throw new Error("Agent ID missing for fetching details.");
   }
-  
-  const response = await api.get(`/admin/agent/${agentId}`,{
-           params: {
-      ...queryParams,
-      _t: new Date().getTime(), 
-    } 
+
+  return await api.get(`/admin/agent/${agentId}`, {
+    params: queryParams,
   });
-  return response.data;
-}
+};
 
 export const changeAgentStatus = async (agentId, status, reason = "") => {
-  console.log(">>> [API CALL] changeAgentStatus initialized:");
-  console.log("   -> Agent ID:", agentId);
-  console.log("   -> Status Target:", status);
-  console.log("   -> Reason:", reason);
-
   if (!agentId) {
     console.error(">>> [API ERROR] agentId passed to changeAgentStatus is invalid/undefined!");
     throw new Error("Agent ID missing for status change API call.");
   }
 
-  try {
-    const response = await api.patch(`/admin/agent/status/${agentId}`, {
-      status, // "Active" or "Blocked"
-      reason: status === "Blocked" ? reason : "",
-    });
-    
-    console.log(">>> [API SUCCESS] Status updated successfully:", response.data);
-    return response.data;
-  } catch (error) {
-    console.error(">>> [API ERROR] changeAgentStatus failed:", error.response || error);
-    throw error.response?.data || { message: "Something went wrong!" };
-  }
+  return await api.patch(`/admin/agent/status/${agentId}`, {
+    status, // "Active" or "Blocked"
+    reason: status === "Blocked" ? reason : "",
+  });
 };
 
 export const createProduct = async (productData) => {
-  const response = await api.post("/admin/createProduct", productData, {
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-  return response.data;
+  return await api.post("/admin/createProduct", productData);
 };
+
+export default api;

@@ -3,14 +3,18 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   setInventory,
   updateInventoryStock,
-  setSelectedItem as setSelectedItemAction,
-  setInventoryFilters as setInventoryFiltersAction,
+  setSelectedItem as setSelectedAction,
+  setInventoryFilters as setFiltersAction,
   clearInventoryState,
   selectInventoryItems,
   selectSelectedItem,
   selectInventoryFilters,
 } from "../state/franchiseInventory.slice"; // Adjust path as needed
-import { getInventory, sellFromInventory } from "../service/franchise.api"; // Adjust path as needed
+
+import {
+  getInventory as getInventoryApi,
+  sellFromInventory as sellFromInventoryApi,
+} from "../service/franchise.api"; // Adjust path as needed
 
 export const useFranchiseInventory = () => {
   const dispatch = useDispatch();
@@ -20,57 +24,56 @@ export const useFranchiseInventory = () => {
   const selectedItem = useSelector(selectSelectedItem);
   const filters = useSelector(selectInventoryFilters);
 
-  // Local UI States for async status
+  // Local Loading & Error States
   const [loading, setLoading] = useState(false);
   const [sellingLoading, setSellingLoading] = useState(false);
   const [error, setError] = useState(null);
 
   /**
-   * Fetches full inventory data from the backend and updates Redux state
+   * 1. Fetch Inventory from Backend
    */
   const fetchInventory = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await getInventory();
-      // Handle array vs object response structures safely
-      const inventoryItems = Array.isArray(response)
-        ? response
-        : response.inventory || response.items || [];
-
-      dispatch(setInventory(inventoryItems));
-      return inventoryItems;
+      const response = await getInventoryApi();
+      const inventoryList = response.inventory || response.data || [];
+      dispatch(setInventory(inventoryList));
+      return inventoryList;
     } catch (err) {
-      const errMsg = err.message || "Failed to fetch inventory";
+      const errMsg = err.response?.data?.message || err.message || "Failed to fetch inventory";
       setError(errMsg);
-      throw err;
-    } 
+      throw new Error(errMsg);
+    } finally {
+      setLoading(false);
+    }
   }, [dispatch]);
 
   /**
-   * Sells item from inventory, updates backend, and updates Redux state locally
-   * @param {Object} saleData - { productId, quantitySold, ... }
+   * 2. Process POS Direct Sale (Customer Billing)
+   * @param {Object} payload - { productId, quantity }
    */
-  const handleSellItem = useCallback(
-    async (saleData) => {
+  const processSale = useCallback(
+    async (payload) => {
       setSellingLoading(true);
       setError(null);
       try {
-        const response = await sellFromInventory(saleData);
+        const response = await sellFromInventoryApi(payload);
 
-        // Optimistically update stock in Redux slice
-        dispatch(
-          updateInventoryStock({
-            productId: saleData.productId,
-            quantitySold: Number(saleData.quantitySold),
-          })
-        );
-
+        if (response.success) {
+          // Optimistic/Confirmed Redux State Update
+          dispatch(
+            updateInventoryStock({
+              productId: payload.productId,
+              quantitySold: Number(payload.quantity),
+            })
+          );
+        }
         return response;
       } catch (err) {
-        const errMsg = err.message || "Failed to complete sale";
+        const errMsg = err.response?.data?.message || err.message || "Failed to process sale";
         setError(errMsg);
-        throw err;
+        throw new Error(errMsg);
       } finally {
         setSellingLoading(false);
       }
@@ -79,81 +82,87 @@ export const useFranchiseInventory = () => {
   );
 
   /**
-   * Sets the currently selected item in Redux
+   * 3. Set Active Selected Item (For UI Modals / POS Cart)
    */
   const setSelectedItem = useCallback(
     (item) => {
-      dispatch(setSelectedItemAction(item));
+      dispatch(setSelectedAction(item));
     },
     [dispatch]
   );
 
   /**
-   * Updates filter state in Redux (category, stockStatus, searchQuery)
+   * 4. Update Inventory Filters
    */
   const setFilters = useCallback(
     (newFilters) => {
-      dispatch(setInventoryFiltersAction(newFilters));
+      dispatch(setFiltersAction(newFilters));
     },
     [dispatch]
   );
 
   /**
-   * Resets inventory Redux state to initial state
+   * 5. Reset Inventory State
    */
-  const resetInventory = useCallback(() => {
+  const resetInventoryState = useCallback(() => {
     dispatch(clearInventoryState());
     setError(null);
   }, [dispatch]);
 
   /**
-   * Derived/Filtered items computed on client side based on slice state filters
+   * 6. Optimized Client-Side Filtered Items Computation
    */
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
-      // 1. Search Query Filter (Matches Name or SKU)
-      const matchesSearch =
-        !filters.searchQuery ||
-        item.name?.toLowerCase().includes(filters.searchQuery.toLowerCase()) ||
-        item.sku?.toLowerCase().includes(filters.searchQuery.toLowerCase());
+      const product = item.productId || item.product || {};
 
-      // 2. Category Filter
+      // Category Matching
       const matchesCategory =
         filters.category === "ALL" ||
-        item.category?.toUpperCase() === filters.category.toUpperCase();
+        product.category?.toLowerCase() === filters.category?.toLowerCase();
 
-      // 3. Stock Status Filter
+      // Search Matching (Name, SKU)
+      const query = filters.searchQuery?.toLowerCase().trim();
+      const matchesSearch =
+        !query ||
+        product.name?.toLowerCase().includes(query) ||
+        product.sku?.toLowerCase().includes(query) ||
+        item.sku?.toLowerCase().includes(query);
+
+      // Stock Status Logic
+      const currentStock = item.stock ?? item.quantity ?? 0;
       let matchesStock = true;
+
       if (filters.stockStatus === "IN_STOCK") {
-        matchesStock = item.stock > 5;
+        matchesStock = currentStock > 5;
       } else if (filters.stockStatus === "LOW_STOCK") {
-        matchesStock = item.stock > 0 && item.stock <= 5;
+        matchesStock = currentStock > 0 && currentStock <= 5;
       } else if (filters.stockStatus === "OUT_OF_STOCK") {
-        matchesStock = item.stock === 0;
+        matchesStock = currentStock === 0;
       }
 
-      return matchesSearch && matchesCategory && matchesStock;
+      return matchesCategory && matchesSearch && matchesStock;
     });
   }, [items, filters]);
 
   return {
-    // Redux State Values
+    // Redux State
     items,
     filteredItems,
     selectedItem,
     filters,
 
-    // Local UI Status
+    // Status
     loading,
     sellingLoading,
     error,
 
-    // Actions & Handlers
+    // Methods & Actions
     fetchInventory,
-    sellItem: handleSellItem,
+    processSale,
     setSelectedItem,
     setFilters,
-    resetInventory,
+    resetInventoryState,
   };
 };
 

@@ -11,10 +11,11 @@ const FranchiseDashboard = () => {
   // Active navigation tab highlight tracking
   const [activeTab, setActiveTab] = useState("dashboard");
 
-  // Extract dashboard state and actions from updated useFranchiseDashboard hook
+  // Extract upgraded dashboard state and actions
   const {
     financials,
     metrics,
+    analytics, //  1. Dynamic chart data from hook
     dateFilter,
     loading,
     error,
@@ -22,13 +23,13 @@ const FranchiseDashboard = () => {
     setDateFilter,
   } = useFranchiseDashboard();
 
-  // Fetch all dashboard data when component mounts OR dateFilter changes
+  // 👈 2. Clean initial load on component mount
   useEffect(() => {
     loadDashboardData();
     // eslint-disable-next-line react-hooks-exhaustive-deps
-  }, [dateFilter]); // Refetch analytics on filter toggle
+  }, []); // Hook handles filter-triggered refetches automatically!
 
-  // Navigation Items Configuration (Added Profile Link)
+  // Navigation Items Configuration
   const navItems = [
     {
       name: "Dashboard",
@@ -52,7 +53,7 @@ const FranchiseDashboard = () => {
     },
     {
       name: "Supply Requests",
-      path: "/supply",
+      path: "/franchise/supply",
       id: "supply",
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -62,7 +63,7 @@ const FranchiseDashboard = () => {
     },
     {
       name: "Financials & Payouts",
-      path: "/finance",
+      path: "/franchise/finance",
       id: "finance",
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -177,7 +178,7 @@ const FranchiseDashboard = () => {
           </div>
         </div>
 
-        {/* 🟡 NEW FEATURE: Active Pending Withdrawal Alert Banner */}
+        {/* Active Pending Withdrawal Alert Banner */}
         {financials?.activePendingWithdrawal && (
           <div className="p-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
@@ -199,7 +200,7 @@ const FranchiseDashboard = () => {
           </div>
         )}
 
-        {/* 🟢 HIGHLIGHT FEATURE: Wallet & Payout Cards */}
+        {/* Wallet & Payout Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
           {/* Main Wallet Balance Highlight */}
           <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-5 rounded-xl border border-slate-700 shadow-md col-span-1 sm:col-span-2 lg:col-span-1 flex flex-col justify-between">
@@ -290,37 +291,45 @@ const FranchiseDashboard = () => {
         <div className="bg-white p-6 rounded-xl border border-stone-200/80 shadow-sm space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-sm font-normal text-slate-700">
-              Monthly Earnings & Supply Throughput
+              Earnings & Throughput Analytics
             </h2>
             <span className="text-xs text-amber-600 bg-amber-50 px-2.5 py-1 rounded border border-amber-200 capitalize">
               {dateFilter} View
             </span>
           </div>
 
-          {/* Bar Chart Visualizer */}
-          <div className="h-64 flex items-end justify-between gap-4 pt-8 px-4 border-b border-slate-100">
-            {[
-              { month: "Jan", height: "40%" },
-              { month: "Feb", height: "55%" },
-              { month: "Mar", height: "35%" },
-              { month: "Apr", height: "70%" },
-              { month: "May", height: "85%" },
-              { month: "Jun", height: "60%" },
-              { month: "Jul", height: "90%" },
-            ].map((bar, idx) => (
-              <div
-                key={idx}
-                className="flex-1 flex flex-col items-center gap-2 h-full justify-end group cursor-pointer"
-              >
-                <div
-                  style={{ height: bar.height }}
-                  className="w-full max-w-[36px] bg-gradient-to-t from-amber-500 to-yellow-400 rounded-t transition-all group-hover:brightness-110"
-                />
-                <span className="text-xs text-slate-400 font-light">
-                  {bar.month}
-                </span>
+          {/* 👈 3. Dynamic Bar Chart Visualizer */}
+          <div className="h-64 flex items-end justify-between gap-4 pt-8 px-4 border-b border-slate-100 relative">
+            {loading ? (
+              <div className="w-full flex justify-center items-center h-full text-xs text-slate-400">
+                Loading analytics...
               </div>
-            ))}
+            ) : analytics && analytics.length > 0 ? (
+              analytics.map((bar, idx) => (
+                <div
+                  key={idx}
+                  className="flex-1 flex flex-col items-center gap-2 h-full justify-end group cursor-pointer relative"
+                >
+                  {/* Tooltip on Hover */}
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 bg-slate-800 text-white text-[10px] py-1 px-2 rounded shadow pointer-events-none z-10 whitespace-nowrap">
+                    ₹{bar.amount?.toLocaleString() || 0}
+                  </div>
+
+                  {/* Dynamic Height Bar */}
+                  <div
+                    style={{ height: bar.heightPercentage || "5%" }}
+                    className="w-full max-w-[36px] bg-gradient-to-t from-amber-500 to-yellow-400 rounded-t transition-all group-hover:brightness-110"
+                  />
+                  <span className="text-xs text-slate-400 font-light">
+                    {bar.label}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <div className="w-full flex justify-center items-center h-full text-xs text-slate-400">
+                No analytics data available for selected filter.
+              </div>
+            )}
           </div>
         </div>
       </main>

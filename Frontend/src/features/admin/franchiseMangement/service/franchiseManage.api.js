@@ -8,14 +8,13 @@ const api = axios.create({
   withCredentials: true, // Enables cookies for authenticated admin routes
 });
 
-// Request Interceptor: Automatically appends a unique timestamp (_t) to all GET requests to bypass browser caching (304 responses)
+// Request Interceptor: Standard HTTP No-Cache Headers (Bypasses 304 disk cache for GET requests)
 api.interceptors.request.use(
   (config) => {
     if (config.method?.toLowerCase() === "get") {
-      config.params = {
-        ...config.params,
-        _t: Date.now(),
-      };
+      config.headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+      config.headers["Pragma"] = "no-cache";
+      config.headers["Expires"] = "0";
     }
     return config;
   },
@@ -74,26 +73,22 @@ export const updateSupplyDispatchStatus = async (requestId, dispatchData) => {
 
 // 1. Fetch Dashboard Analytics & Pending Withdrawals
 export const getFinancialSummary = async () => {
-  const response = await api.get("/financials/summary");
-  return response.data;
+  return await api.get("/financials/summary");
 };
 
 // 2. Process Manual Payout Settlement (Rent, ROI, Commission)
 export const processSettlement = async (settlementData) => {
-  const response = await api.post("/financials/settle", settlementData);
-  return response.data;
+  return await api.post("/financials/settle", settlementData);
 };
 
-// 3. Review (Approve/Reject) Withdrawal Request (FIXED: Added reviewData payload)
+// 3. Review (Approve/Reject) Withdrawal Request
 export const reviewWithdrawalRequest = async (requestId, reviewData) => {
-  const response = await api.patch(`/financials/withdrawal/${requestId}`, reviewData);
-  return response.data;
+  return await api.patch(`/financials/withdrawal/${requestId}`, reviewData);
 };
 
 // 4. Fetch Franchise Specific Passbook / Ledger History
 export const getFranchiseFinancialLedger = async (franchiseId) => {
-  const response = await api.get(`/financials/ledger/${franchiseId}`);
-  return response.data;
+  return await api.get(`/financials/ledger/${franchiseId}`);
 };
 
 export default api;

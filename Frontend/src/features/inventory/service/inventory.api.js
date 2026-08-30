@@ -9,49 +9,51 @@ const inventoryApi = axios.create({
   withCredentials: true,
 });
 
+// Request Interceptor: Standard HTTP No-Cache Headers (304 Bypass for GET)
+inventoryApi.interceptors.request.use(
+  (config) => {
+    if (config.method?.toLowerCase() === "get") {
+      config.headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+      config.headers["Pragma"] = "no-cache";
+      config.headers["Expires"] = "0";
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Response Interceptor: Unwrap data & Standardize Errors
+inventoryApi.interceptors.response.use(
+  (response) => response.data,
+  (error) => {
+    const message =
+      error.response?.data?.message || error.message || "Something went wrong";
+    return Promise.reject(new Error(message));
+  }
+);
+
 /**
  * Purchase / Add stock to an inventory item
- * @param {Object} payload - Object containing { itemId, quantity, purchasePrice, supplierName }
- * @returns {Promise<Object>} API response data
+ * @param {Object} payload - { itemId, quantity, purchasePrice, supplierName }
  */
 export const purchaseItem = async (payload) => {
-  try {
-    const response = await inventoryApi.post("/admin/inventory/purchase", payload);
-    return response.data;
-  } catch (error) {
-    // Return backend error message or general network error
-    throw error.response?.data || error;
-  }
+  return await inventoryApi.post("/admin/inventory/purchase", payload);
 };
 
 /**
  * Sell / Deduct stock from an inventory item
- * @param {Object} payload - Object containing { itemId, quantity }
- * @returns {Promise<Object>} API response data
+ * @param {Object} payload - { itemId, quantity }
  */
 export const deductItemStock = async (payload) => {
-  try {
-    const response = await inventoryApi.post("/admin/inventory/deduct", payload);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || error;
-  }
+  return await inventoryApi.post("/admin/inventory/deduct", payload);
 };
 
 /**
  * Fetch inventory details by item ID
  * @param {string} itemId - The ID of the inventory item
- * @returns {Promise<Object>} API response data
  */
 export const getInventoryItem = async (itemId) => {
-  try {
-    const response = await inventoryApi.get(`/admin/inventory/${itemId}`, {
-      params: {
-        _t: Date.now(), // Cache-busting parameter
-      },
-    });
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || error;
-  }
+  return await inventoryApi.get(`/admin/inventory/${itemId}`);
 };
+
+export default inventoryApi;

@@ -59,6 +59,19 @@ const FranchiseSupply = () => {
     }
   };
 
+  // Status mapping for visual styling & Badges
+  const getStatusBadge = (status) => {
+    switch (status?.toUpperCase()) {
+      case "FULFILLED":
+        return "bg-emerald-50 text-emerald-700 border-emerald-200";
+      case "CANCELLED":
+        return "bg-rose-50 text-rose-700 border-rose-200";
+      case "PENDING":
+      default:
+        return "bg-amber-50 text-amber-700 border-amber-200";
+    }
+  };
+
   // Sidebar Navigation Links
   const navItems = [
     {
@@ -186,7 +199,7 @@ const FranchiseSupply = () => {
 
         {/* Error Notification */}
         {error && (
-          <div className="p-4 text-sm text-[#8C6247] bg-[#FDF9F3] border border-[#D9C4B1] rounded-xl">
+          <div className="p-4 text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-xl">
             {error}
           </div>
         )}
@@ -204,13 +217,13 @@ const FranchiseSupply = () => {
             />
           </div>
 
-          {/* Status Filter Tabs */}
+          {/* Status Filter Tabs (SYNCED WITH BACKEND STATES) */}
           <div className="flex flex-wrap bg-[#FDF9F3] p-1 rounded-lg border border-[#EADBCE] text-xs">
-            {["ALL", "Pending", "Approved", "Dispatched", "Delivered", "Rejected"].map((status) => (
+            {["ALL", "PENDING", "FULFILLED", "CANCELLED"].map((status) => (
               <button
                 key={status}
                 onClick={() => setFilters({ status })}
-                className={`px-3 py-1.5 rounded-md transition-all ${
+                className={`px-3.5 py-1.5 rounded-md transition-all uppercase text-[11px] ${
                   filters.status === status
                     ? "bg-white text-[#3B2820] shadow-sm font-normal"
                     : "text-[#8C6247] hover:text-[#3B2820]"
@@ -239,9 +252,10 @@ const FranchiseSupply = () => {
                   <tr className="bg-[#FDF9F3] border-b border-[#EADBCE] text-[11px] uppercase tracking-wider text-[#8C6247] font-normal">
                     <th className="p-4">Request #</th>
                     <th className="p-4">Requester</th>
-                    <th className="p-4">Franchise Tier</th>
+                    <th className="p-4">Tier</th>
                     <th className="p-4">Location</th>
-                    <th className="p-4">Total Items</th>
+                    <th className="p-4">Items</th>
+                    <th className="p-4">Total Amount</th>
                     <th className="p-4">Status</th>
                     <th className="p-4 text-right">Action</th>
                   </tr>
@@ -259,7 +273,7 @@ const FranchiseSupply = () => {
                         {req.requesterFranchise?.fullName || "Self"}
                       </td>
                       <td className="p-4 text-[#8C6247]">
-                        <span className="px-2 py-0.5 bg-[#FDF9F3] border border-[#EADBCE] rounded text-[10px]">
+                        <span className="px-2 py-0.5 bg-[#FDF9F3] border border-[#EADBCE] rounded text-[10px] uppercase">
                           {req.requesterType || "VILLAGE"}
                         </span>
                       </td>
@@ -271,17 +285,16 @@ const FranchiseSupply = () => {
                       <td className="p-4 text-[#3B2820] font-normal">
                         {req.items?.length || 0} Line Items
                       </td>
+                      <td className="p-4 font-normal text-[#3B2820]">
+                        ₹{req.totalAmount ? req.totalAmount.toLocaleString() : "0"}
+                      </td>
                       <td className="p-4">
                         <span
-                          className={`px-2.5 py-1 text-[10px] rounded-full border ${
-                            req.status === "Approved" || req.status === "Delivered"
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : req.status === "Rejected"
-                              ? "bg-rose-50 text-rose-700 border-rose-200"
-                              : "bg-[#FDF9F3] text-[#C68A53] border-[#D9C4B1]"
-                          }`}
+                          className={`px-2.5 py-1 text-[10px] rounded-full border uppercase font-medium ${getStatusBadge(
+                            req.status
+                          )}`}
                         >
-                          {req.status || "Pending"}
+                          {req.status || "PENDING"}
                         </span>
                       </td>
                       <td className="p-4 text-right">
@@ -320,14 +333,14 @@ const FranchiseSupply = () => {
             <form onSubmit={handleSubmitRequest} className="space-y-4">
               <div className="space-y-3">
                 <label className="text-xs text-[#8C6247] font-normal block">
-                  Requested Items
+                  Requested Items (Product IDs & Quantities)
                 </label>
                 {items.map((item, index) => (
                   <div key={index} className="flex items-center gap-2">
                     <input
                       type="text"
                       required
-                      placeholder="Product ID / MongoDB ObjectId"
+                      placeholder="Product ID (e.g. 64b8f...)"
                       value={item.productId}
                       onChange={(e) =>
                         handleItemChange(index, "productId", e.target.value)
@@ -390,14 +403,17 @@ const FranchiseSupply = () => {
       {/* View Request Details Modal */}
       {selectedRequest && (
         <div className="fixed inset-0 bg-[#3B2820]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-[#EADBCE] rounded-xl max-w-md w-full p-6 space-y-4 shadow-lg">
+          <div className="bg-white border border-[#EADBCE] rounded-xl max-w-lg w-full p-6 space-y-4 shadow-lg">
             <div className="flex justify-between items-center border-b border-[#F2E7DC] pb-3">
               <div>
                 <h3 className="text-base font-light text-[#3B2820]">
-                  Request: {selectedRequest.requestNumber}
+                  Request #{selectedRequest.requestNumber}
                 </h3>
                 <p className="text-[11px] text-[#8C6247]">
-                  Status: {selectedRequest.status || "Pending"}
+                  Status:{" "}
+                  <span className="font-semibold uppercase">
+                    {selectedRequest.status || "PENDING"}
+                  </span>
                 </p>
               </div>
               <button
@@ -409,27 +425,49 @@ const FranchiseSupply = () => {
             </div>
 
             <div className="space-y-3">
+              <div className="flex justify-between text-xs text-[#8C6247]">
+                <span>Total Amount:</span>
+                <span className="font-semibold text-[#3B2820]">
+                  ₹{selectedRequest.totalAmount ? selectedRequest.totalAmount.toLocaleString() : "0"}
+                </span>
+              </div>
+
               <h4 className="text-xs font-normal text-[#3B2820]">
-                Items Included:
+                Items Breakdown:
               </h4>
-              <div className="divide-y divide-[#F2E7DC] bg-[#FFFDF9] border border-[#EADBCE] rounded-lg p-3 max-h-48 overflow-y-auto">
+
+              <div className="divide-y divide-[#F2E7DC] bg-[#FFFDF9] border border-[#EADBCE] rounded-lg p-3 max-h-56 overflow-y-auto">
                 {selectedRequest.items?.map((item, idx) => (
                   <div
                     key={idx}
-                    className="py-2 flex justify-between text-xs text-[#3B2820]"
+                    className="py-2.5 flex justify-between items-center text-xs text-[#3B2820]"
                   >
-                    <span>
-                      {item.productId?.name || item.productId || "Product ID: " + item.productId}
-                    </span>
-                    <span className="text-[#8C6247] font-normal">
-                      Qty: {item.quantity}
-                    </span>
+                    <div>
+                      <p className="font-normal">
+                        {item.productId?.name || `Product ID: ${item.productId}`}
+                      </p>
+                      {item.unitPrice && (
+                        <p className="text-[10px] text-[#8C6247]">
+                          ₹{item.unitPrice} / unit
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[#8C6247] font-normal">
+                        Qty: {item.quantity}
+                      </p>
+                      {item.subtotal && (
+                        <p className="font-medium text-[#3B2820]">
+                          ₹{item.subtotal.toLocaleString()}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-end pt-2 border-t border-[#F2E7DC]">
               <button
                 onClick={() => setSelectedRequest(null)}
                 className="px-4 py-2 bg-[#FDF9F3] border border-[#D9C4B1] text-[#8C6247] text-xs rounded-lg hover:bg-[#F8EFE4]"

@@ -3,16 +3,20 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   setFinancialOverview,
   setDashboardMetrics,
+  setAnalyticsData, //  New Action
   setDateFilter as setReduxDateFilter,
   resetDashboardState,
   selectFinancials,
   selectDashboardMetrics,
+  selectAnalyticsData, //  New Selector
   selectDashboardDateFilter,
 } from "../state/franchiseDashboard.slice"; // Adjust path
+
 import {
   getFinancialOverview,
   getSupplyRequestsForHierarchy,
   getInventory,
+  getDashboardAnalytics, //  New API Endpoint
 } from "../service/franchise.api"; // Adjust path
 
 export const useFranchiseDashboard = () => {
@@ -21,6 +25,7 @@ export const useFranchiseDashboard = () => {
   // Redux States
   const financials = useSelector(selectFinancials);
   const metrics = useSelector(selectDashboardMetrics);
+  const analytics = useSelector(selectAnalyticsData); //  Access dynamic analytics state
   const dateFilter = useSelector(selectDashboardDateFilter);
 
   // Local UI States for async status
@@ -28,12 +33,39 @@ export const useFranchiseDashboard = () => {
   const [error, setError] = useState(null);
 
   /**
+   * 📊 NEW: Fetches dynamic monthly/weekly chart analytics data
+   */
+  const fetchAnalytics = useCallback(
+    async (filter = dateFilter) => {
+      try {
+        const res = await getDashboardAnalytics(filter);
+
+        // Safe extraction for Axios interceptor or plain response
+        const data = res?.data || res;
+
+        if (data?.success && Array.isArray(data?.analytics)) {
+          dispatch(setAnalyticsData(data.analytics));
+        }
+        return data;
+      } catch (err) {
+        const errMsg =
+          err.response?.data?.message ||
+          err.message ||
+          "Failed to fetch analytics data";
+        setError(errMsg);
+        throw err;
+      }
+    },
+    [dispatch, dateFilter]
+  );
+
+  /**
    * Fetches financial overview data and syncs with Redux slice
    */
   const fetchFinancials = useCallback(async () => {
     try {
       const res = await getFinancialOverview();
-      
+
       // Handle response safely (Axios wrapper fallback)
       const data = res?.data || res;
 
@@ -54,7 +86,10 @@ export const useFranchiseDashboard = () => {
       }
       return data;
     } catch (err) {
-      const errMsg = err.response?.data?.message || err.message || "Failed to fetch financial overview";
+      const errMsg =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to fetch financial overview";
       setError(errMsg);
       throw err;
     }
@@ -74,7 +109,7 @@ export const useFranchiseDashboard = () => {
       const inventoryData = inventoryRes?.data || inventoryRes;
 
       const activeRequests = requestsData?.requests?.length || 0;
-      
+
       // Count items with stock less than threshold (e.g., stock <= 5)
       const lowStockCount =
         inventoryData?.inventory?.filter((item) => item.stock <= 5).length || 0;
@@ -86,7 +121,10 @@ export const useFranchiseDashboard = () => {
         })
       );
     } catch (err) {
-      const errMsg = err.response?.data?.message || err.message || "Failed to load dashboard metrics";
+      const errMsg =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to load dashboard metrics";
       setError(errMsg);
     }
   }, [dispatch]);
@@ -98,23 +136,29 @@ export const useFranchiseDashboard = () => {
     setLoading(true);
     setError(null);
     try {
-      // Promise.allSettled guarantees all APIs run even if one fails
-      await Promise.allSettled([fetchFinancials(), fetchMetrics()]);
+      // Promise.allSettled guarantees financials, metrics, AND analytics run simultaneously
+      await Promise.allSettled([
+        fetchFinancials(),
+        fetchMetrics(),
+        fetchAnalytics(dateFilter),
+      ]);
     } catch (err) {
       setError(err.message || "Failed to load dashboard data");
     } finally {
       setLoading(false);
     }
-  }, [fetchFinancials, fetchMetrics]);
+  }, [fetchFinancials, fetchMetrics, fetchAnalytics, dateFilter]);
 
   /**
-   * Updates the date filter setting in Redux ('daily' | 'weekly' | 'monthly' | 'yearly')
+   * Updates the date filter setting in Redux & re-fetches chart analytics
    */
   const setFilter = useCallback(
     (filter) => {
       dispatch(setReduxDateFilter(filter));
+      // Filter switch hote hi analytics chart refresh karein
+      fetchAnalytics(filter);
     },
-    [dispatch]
+    [dispatch, fetchAnalytics]
   );
 
   /**
@@ -129,6 +173,7 @@ export const useFranchiseDashboard = () => {
     // Redux State Values
     financials,
     metrics,
+    analytics, //  Returned to UI component
     dateFilter,
 
     // Local UI Status
@@ -138,6 +183,7 @@ export const useFranchiseDashboard = () => {
     // Actions & Methods
     fetchFinancials,
     fetchMetrics,
+    fetchAnalytics, //  Exposed for manual refresh if needed
     loadDashboardData,
     setDateFilter: setFilter,
     clearDashboard,

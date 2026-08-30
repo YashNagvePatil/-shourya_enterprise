@@ -3,6 +3,12 @@ import { createSlice } from "@reduxjs/toolkit";
 const initialState = {
   requests: [],
   count: 0,
+  selectedRequest: null, // Specific request view karne ke liye
+  filters: {
+    status: "ALL",
+    search: "",
+    page: 1,
+  },
   loading: {
     fetch: false,
     update: false,
@@ -30,8 +36,9 @@ const franchiseSupplySlice = createSlice({
       state.successMessage = null;
     },
     setSupplyRequests: (state, action) => {
-      state.requests = action.payload.requests;
-      state.count = action.payload.count;
+      // Backend structured response array & count sync
+      state.requests = action.payload.requests || action.payload.data?.requests || [];
+      state.count = action.payload.count || action.payload.data?.count || 0;
     },
     updateSupplyRequest: (state, action) => {
       const updatedReq = action.payload;
@@ -41,7 +48,17 @@ const franchiseSupplySlice = createSlice({
       if (index !== -1) {
         state.requests[index] = { ...state.requests[index], ...updatedReq };
       }
+      if (state.selectedRequest?._id === updatedReq._id) {
+        state.selectedRequest = { ...state.selectedRequest, ...updatedReq };
+      }
     },
+    setSelectedRequest: (state, action) => {
+      state.selectedRequest = action.payload;
+    },
+    setSupplyFilters: (state, action) => {
+      state.filters = { ...state.filters, ...action.payload };
+    },
+    resetSupplyState: () => initialState,
   },
 });
 
@@ -52,6 +69,9 @@ export const {
   clearMessages,
   setSupplyRequests,
   updateSupplyRequest,
+  setSelectedRequest,
+  setSupplyFilters,
+  resetSupplyState,
 } = franchiseSupplySlice.actions;
 
 export default franchiseSupplySlice.reducer;
