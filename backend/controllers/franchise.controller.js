@@ -1,4 +1,5 @@
 import mongoose from "mongoose"
+import bcrypt from "bcryptjs";
 import franchiseModel from "../models/franchise.model.js";
 import supplyRequestModel from "../models/supplyRequest.model.js";
 import franchiseInventoryModel from "../models/franchiseInventory.model.js";
@@ -9,7 +10,7 @@ import withdrawalModel from "../models/withdrawalModel.js";
 import WalletTransaction from "../models/walletTransactionModel.js";
 import WithdrawalRequest from "../models/withdrawalRequest.model.js";
 import productModel from "../models/product.model.js"
-import FranchiseInventory from "../models/FranchiseInventory.js";
+
 
 
 // 1. Specialized Franchise Registration
@@ -134,14 +135,22 @@ export const loginFranchise = async (req, res) => {
 // 3. Fetch Franchise Profile & Overview
 export const getFranchiseProfile = async (req, res) => {
   try {
-    const franchiseId = req.user.id;
+    const franchiseId = req.user?.id || req.user?._id;
+
+    if (!franchiseId || !mongoose.Types.ObjectId.isValid(franchiseId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or missing Franchise ID session.",
+      });
+    }
 
     // 1. Fetch relevant fields explicitly (Data Protection & Performance)
     const franchise = await franchiseModel
       .findById(franchiseId)
       .select(
         "fullName email phone outletName outletAddress franchiseType status bankDetails createdAt avatar"
-      );
+      )
+      .lean();
 
     if (!franchise) {
       return res.status(404).json({
@@ -151,7 +160,7 @@ export const getFranchiseProfile = async (req, res) => {
     }
 
     // 2. Safe Fallback for Franchise Plan/Type Config
-    const planConfig = FRANCHISE_TYPES[franchise.franchiseType] || {
+    const planConfig = (typeof FRANCHISE_TYPES !== "undefined" && FRANCHISE_TYPES[franchise.franchiseType]) || {
       name: franchise.franchiseType || "Standard",
       roi: 0,
       rent: 0,
@@ -167,7 +176,7 @@ export const getFranchiseProfile = async (req, res) => {
     );
 
     // 4. Return Clean & Structured Response
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       data: {
         personalInfo: {
@@ -182,7 +191,7 @@ export const getFranchiseProfile = async (req, res) => {
           outletName: franchise.outletName,
           outletAddress: franchise.outletAddress,
           franchiseType: franchise.franchiseType,
-          status: franchise.status || "ACTIVE", // e.g., ACTIVE, PENDING, SUSPENDED
+          status: franchise.status || "ACTIVE",
         },
         planBenefits: {
           typeName: planConfig.name || franchise.franchiseType,
@@ -202,7 +211,7 @@ export const getFranchiseProfile = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in getFranchiseProfile:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Internal server error fetching franchise profile",
       error: error.message,
@@ -793,7 +802,6 @@ export const getSupplyRequestsForHierarchy = async (req, res) => {
 // 6. Inventory Management (Sell from inventory / update stock)
 
 
-// 1. GET INVENTORY (Optimized with lean & populate fallback)
 export const getInventory = async (req, res) => {
   try {
     const franchiseId = req.user.id;
@@ -1010,6 +1018,136 @@ export const getFinancialOverview = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Internal server error fetching financial overview",
+      error: error.message,
+    });
+  }
+};
+
+
+// profile page 
+
+
+
+/**
+
+/**
+ * @desc    Update Franchise Personal, Store & Banking Info
+ * @route   PUT /api/v1/franchise/profile/update
+ * @access  Private (Franchise Auth)
+ */
+export const updateFranchiseProfile = async (req, res) => {
+  try {
+    const franchiseId = req.user?.id || req.user?._id;
+    const { fullName, phone, storeName, address, bankDetails } = req.body;
+
+    if (!franchiseId || !mongoose.Types.ObjectId.isValid(franchiseId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Franchise session.",
+      });
+    }
+
+    // Whitelisted non-critical fields
+    const updateData = {};
+
+    if (fullName) updateData.fullName = fullName.trim();
+    if (phone) updateData.phone = phone.trim();
+    if (storeName) updateData.storeName = storeName.trim();
+    if (address) updateData.address = address;
+
+    // Banking Details Nested Field Whitelisting
+    if (bankDetails) {
+      const { accountNumber, ifscCode, bankName, accountHolderName } = bankDetails;
+      updateData.bankDetails = {
+        ...(accountNumber && { accountNumber: accountNumber.trim() }),
+        ...(ifscCode && { ifscCode: ifscCode.toUpperCase().trim() }),
+        ...(bankName && { bankName: bankName.trim() }),
+        ...(accountHolderName && { accountHolderName: accountHolderName.trim() }),
+      };
+    }
+
+    const updatedFranchise = await Franchise.findByIdAndUpdate(
+      franchiseId,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    ).select("-password -resetPasswordToken -resetPasswordExpire");
+
+    if (!updatedFranchise) {
+      return res.status(404).json({
+        success: false,
+        message: "Franchise account not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile updated successfully.",
+      data: updatedFranchise,
+    });
+  } catch (error) {
+    console.error("Error in updateFranchiseProfile:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update profile details.",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Change Password Securely
+ * @route   PUT /api/v1/franchise/profile/change-password
+ * @access  Private (Franchise Auth)
+ */
+export const changeFranchisePassword = async (req, res) => {
+  try {
+    const franchiseId = req.user?.id || req.user?._id;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide both current and new passwords.",
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: "New password must be at least 8 characters long.",
+      });
+    }
+
+    const franchise = await franchiseModel.findById(franchiseId).select("+password");
+
+    if (!franchise) {
+      return res.status(404).json({
+        success: false,
+        message: "Franchise account not found.",
+      });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, franchise.password);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: "Incorrect current password.",
+      });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    franchise.password = await bcrypt.hash(newPassword, salt);
+    await franchise.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Password changed successfully.",
+    });
+  } catch (error) {
+    console.error("Error in changeFranchisePassword:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to change password.",
       error: error.message,
     });
   }

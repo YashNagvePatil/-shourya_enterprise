@@ -3,7 +3,9 @@ import { getFinancialOverview, getFranchiseProfile, getInventory,
      getSupplyRequestsForHierarchy, registerFranchise, 
      sellFromInventory,createSupplyRequest, 
      loginFranchise,
-     getDashboardAnalytics} from "../controllers/franchise.controller.js";
+     getDashboardAnalytics,
+     updateFranchiseProfile,
+     changeFranchisePassword} from "../controllers/franchise.controller.js";
 import { authenticateUser } from "../middlewares/agent.middleware.js";
 import { getFranchiseFinancialOverview ,getFranchisePassbook,getFranchiseAnalytics,
      requestWithdrawal,cancelWithdrawal
@@ -23,6 +25,12 @@ router.get("/profile", getFranchiseProfile);
 router.get("/financials", getFinancialOverview);
 router.get("/analytics",getDashboardAnalytics)
 // Supply Requests (Hierarchy Flow)
+
+// dedicated profile page 
+
+router.put("/profile/update",updateFranchiseProfile)
+
+router.put("/profile/change-password",changeFranchisePassword)
 
 
 router.post("/create-supply-request",createSupplyRequest);
