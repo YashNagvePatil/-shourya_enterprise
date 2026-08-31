@@ -2,7 +2,8 @@ import userModel from "../models/user.models.js";
 import { FRANCHISE_TYPES } from "../models/franchise.model.js";
 import { config } from "../config/config.js";
 import jwt from "jsonwebtoken";
-import { uploadMultipleToCloudinary } from "../services/storage.service.js";
+import { uploadToCloudinary } from "../services/storage.service.js";
+import franchiseModel from "../models/franchise.model.js";
 import * as authDao from "../dao/auth.dao.js"
 
  export async function sendTokenResponse(user, res, message, statusCode = 200) {
@@ -81,37 +82,56 @@ async function genrateUniqueDistributerId() {
  * Spillover BFS Algorithm to find the deepest vacant slot
  */
 const findDeepestVacantSlot = async (startAgentId, targetLeg) => {
-  let queue = [{ agentId: startAgentId, leg: targetLeg }];
+  if (!startAgentId) return null;
+
+  // Queue stores agent identifiers (distributerId or Mongo _id)
+  let queue = [startAgentId];
+  let visited = new Set();
 
   while (queue.length > 0) {
-    const current = queue.shift();
-    if (!current?.agentId) continue;
+    const currentAgentId = queue.shift();
+    if (!currentAgentId || visited.has(String(currentAgentId))) continue;
+    visited.add(String(currentAgentId));
 
-    const currentAgent = await authDao.findParentByDistributorId(current.agentId);
+    // DAO Call: Checks distributerId or _id
+    const currentAgent = await authDao.findParentByDistributorId(currentAgentId);
     if (!currentAgent) continue;
 
-    // Check Left Leg Slot
-    if (current.leg === "left") {
+    // Safe Child ID Extraction Helper
+    const getChildDistId = (child) => {
+      if (!child) return null;
+      if (typeof child === "string") return child.trim();
+      return child.distributerId || child.distributorId || child._id?.toString() || String(child);
+    };
+
+    const leftChildId = getChildDistId(currentAgent.leftChild);
+    const rightChildId = getChildDistId(currentAgent.rightChild);
+
+    if (targetLeg === "left") {
+      // 1. Check if Direct Left is empty
       if (!currentAgent.leftChild) {
         return { parent: currentAgent, position: "left" };
       }
-      const leftDistId = currentAgent.leftChild?.distributerId || currentAgent.leftChild?.distributorId;
-      if (leftDistId) {
-        queue.push({ agentId: leftDistId, leg: "left" });
-        queue.push({ agentId: leftDistId, leg: "right" });
-      }
-    }
-
-    // Check Right Leg Slot
-    if (current.leg === "right") {
+      // 2. Check if Direct Right is empty
       if (!currentAgent.rightChild) {
         return { parent: currentAgent, position: "right" };
       }
-      const rightDistId = currentAgent.rightChild?.distributerId || currentAgent.rightChild?.distributorId;
-      if (rightDistId) {
-        queue.push({ agentId: rightDistId, leg: "left" });
-        queue.push({ agentId: rightDistId, leg: "right" });
+      // 3. Both slots full -> Push children to BFS queue for deeper levels
+      if (leftChildId) queue.push(leftChildId);
+      if (rightChildId) queue.push(rightChildId);
+    } 
+    else if (targetLeg === "right") {
+      // 1. Check if Direct Right is empty
+      if (!currentAgent.rightChild) {
+        return { parent: currentAgent, position: "right" };
       }
+      // 2. Check if Direct Left is empty
+      if (!currentAgent.leftChild) {
+        return { parent: currentAgent, position: "left" };
+      }
+      // 3. Both slots full -> Push children to BFS queue for deeper levels
+      if (rightChildId) queue.push(rightChildId);
+      if (leftChildId) queue.push(leftChildId);
     }
   }
 
@@ -174,13 +194,12 @@ export const register = async (req, res) => {
     }
 
     // 4. Cloudinary Concurrent Uploads
-    const uploadResults = await uploadMultipleToCloudinary(
-      [panCardImage, adharCardImage],
-      "kyc_documents"
-    );
+   const panUploadResult = await uploadToCloudinary(panCardImage, "kyc_documents");
+   const panCardImageUrl = panUploadResult?.url || panUploadResult?.secure_url || "";
 
-    const panCardImageUrl = uploadResults[0]?.url || uploadResults[0]?.secure_url || "";
-    const adharCardImageUrl = uploadResults[1]?.url || uploadResults[1]?.secure_url || "";
+// 2. Aadhaar Card Upload
+   const adharUploadResult = await uploadToCloudinary(adharCardImage, "kyc_documents");
+   const adharCardImageUrl = adharUploadResult?.url || adharUploadResult?.secure_url || "";
 
     let parentUser = null;
     let sponsorUser = null;
@@ -217,9 +236,13 @@ export const register = async (req, res) => {
           });
         }
 
-        const requestedLeg = position === "right" ? "right" : "left";
+       const requestedLeg = position === "right" ? "right" : "left";
 
+        // Sponsor Distributor ID safely get karein (handles spelling typos)
+          const sponsorDistributorId =
+          sponsorUser.distributerId || sponsorUser.distributorId;
         // Check direct slot occupation
+      
         const isDirectSlotOccupied = await authDao.checkSlotOccupation(
           sponsorUser._id,
           requestedLeg
@@ -229,19 +252,21 @@ export const register = async (req, res) => {
           parentUser = sponsorUser;
           finalPlacementPosition = requestedLeg;
           console.log(
-            `[PLACEMENT DIRECT] Placed directly under Sponsor ${sponsorUser.distributerId || sponsorUser.distributorId} on ${finalPlacementPosition}`
+            `[PLACEMENT DIRECT] Placed directly under Sponsor ${sponsorDistributorId} on ${finalPlacementPosition}`
           );
         } else {
           console.log(
-            `[PLACEMENT SPILLOVER] ${requestedLeg.toUpperCase()} leg occupied under ${sponsorUser.distributerId || sponsorUser.distributorId}. Searching for deepest vacant slot...`
+            `[PLACEMENT SPILLOVER] ${requestedLeg.toUpperCase()} leg occupied under ${sponsorDistributorId}. Searching for deepest vacant slot...`
           );
 
-          const vacantSlot = await findDeepestVacantSlot(
-            sponsorUser.distributerId || sponsorUser.distributorId,
+          // ✅ FIX: Sahi parameter passing with spelling fallbacks
+         const vacantSlot = await findDeepestVacantSlot(
+            sponsorDistributorId,
             requestedLeg
           );
 
           if (!vacantSlot || !vacantSlot.parent) {
+            console.error(`[PLACEMENT FAILED] No slot found under ${sponsorDistributorId}`);
             return res.status(400).json({
               success: false,
               message: "Unable to find a vacant slot in the selected leg.",
@@ -251,8 +276,11 @@ export const register = async (req, res) => {
           parentUser = vacantSlot.parent;
           finalPlacementPosition = vacantSlot.position;
 
+          const immediateParentDistId =
+            parentUser.distributerId || parentUser.distributerId;
+
           console.log(
-            `[PLACEMENT SPILLOVER SUCCESS] Sponsor: ${sponsorUser.distributerId || sponsorUser.distributorId} | Auto-placed under Immediate Parent: ${parentUser.distributerId || parentUser.distributorId} (${finalPlacementPosition})`
+            `[PLACEMENT SPILLOVER SUCCESS] Sponsor: ${sponsorDistributorId} | Auto-placed under Immediate Parent: ${immediateParentDistId} (${finalPlacementPosition})`
           );
         }
       }
@@ -275,7 +303,7 @@ export const register = async (req, res) => {
       position: role === "Admin" ? null : finalPlacementPosition,
       parentAgentId: parentUser ? parentUser._id : null,
 
-      sponserId: sponsorUser ? (sponsorUser.distributerId || sponsorUser.distributorId || "DIRECT") : "DIRECT",
+      sponserId: sponsorUser ? (sponsorUser.distributerId || sponsorUser.distributerId || "DIRECT") : "DIRECT",
       sponserName: sponsorUser ? (sponsorUser.fullName || "system") : "system",
       parrentAgentName: parentUser
         ? (parentUser.fullName || "system")
@@ -341,67 +369,80 @@ export const register = async (req, res) => {
 
 // --- Login Controller ---
 
+
+
 export const login = async (req, res) => {
   try {
-    console.log("[DEBUG] Login Payload Received:", req.body);
+    console.log("[DEBUG] Unified Login Payload Received:", req.body);
 
-    // Supporting both single-field identifiers or legacy distributor parameters safely
-    const { identifier, distributerId, password } = req.body;
-    const inputId = (identifier || distributerId || "").trim();
+    // Supporting single-field identifiers (email, agentId, phone) or legacy parameters
+    const { identifier, distributerId, email, password } = req.body;
+    const inputId = (identifier || distributerId || email || "").trim();
 
     // 1. Input Validation Guard
     if (!inputId || !password) {
       return res.status(400).json({
         success: false,
-        message:
-          "Please provide Email / Agent ID / Contact Number and Password",
+        message: "Please provide Email / Agent ID / Contact Number and Password",
       });
     }
 
     const cleanInput = inputId.toLowerCase();
+    let account = null;
 
-    // 2. Fetch User Instance (DAO automatically checks both 'admins' & 'users' collections)
-    const user = await authDao.findUserByIdentifier(cleanInput, inputId);
+    // 2. Step A: Search in Franchises Collection (Checks by email)
+    account = await franchiseModel.findOne({ email: cleanInput });
 
-    if (!user) {
+    // 2. Step B: If not found in Franchises, search in DAO (Users & Admins collections)
+    if (!account) {
+      account = await authDao.findUserByIdentifier(cleanInput, inputId);
+    }
+
+    // 3. User / Account Exist Check
+    if (!account) {
       return res.status(400).json({
         success: false,
         message: "Invalid credentials",
       });
     }
 
-    // 3. Blocked / Inactive Account Enforcement
-    if (user.status === "Blocked" || user.status === "Inactive") {
-      console.warn(`[SECURITY] Blocked user access intercept: ${user.email}`);
+    // 4. Status Check Guard (Covers Active / Inactive / Blocked for both Models)
+    const status = account.status ? account.status.toLowerCase() : "active";
+    if (status === "blocked" || status === "inactive" || status === "pending") {
+      console.warn(`[SECURITY] Suspended/Inactive access attempt: ${account.email || inputId}`);
       return res.status(403).json({
         success: false,
-        message: "Your account is deactivated or blocked. Please contact support.",
+        message: `Account is currently ${account.status || "Inactive"}. Please contact support or admin.`,
       });
     }
 
-    console.log("[DEBUG] Stored Hash DB:", user.password);
-    console.log("[DEBUG] Input Password:", password);
+    // 5. Explicit Role Assignment for Franchise (if missing on doc)
+    if (account.constructor.modelName === "Franchise" && !account.role) {
+      account.role = "FRANCHISE";
+    }
 
-    // 4. Password Evaluation Layer
-    const isMatch = await user.comparePassword(password);
+    // 6. Password Evaluation Layer
+    const isMatch = await account.comparePassword(password);
 
     if (!isMatch) {
-      console.warn(`[DEBUG] Credentials mismatch for target node: ${inputId}`);
+      console.warn(`[DEBUG] Credentials mismatch for: ${inputId}`);
       return res.status(400).json({
         success: false,
         message: "Invalid credentials",
       });
     }
 
-    console.log(`[LOGIN SUCCESS] User: ${user.fullName} | Role: ${user.role}`);
+    console.log(`[LOGIN SUCCESS] Account: ${account.fullName || account.name || account.email} | Role: ${account.role}`);
 
-    // 5. Generate JWT session tokens and commit response stream
-    return await sendTokenResponse(user, res, "Login successful!");
+    // 7. Generate JWT session tokens and return response
+    const successMsg = account.role === "FRANCHISE" 
+      ? "Franchise logged in successfully" 
+      : "Login successful!";
+
+    return await sendTokenResponse(account, res, successMsg, 200);
+
   } catch (error) {
-    console.error(
-      "[CRITICAL ERROR] Exception caught inside Login loop:",
-      error,
-    );
+    console.error("[CRITICAL ERROR] Exception caught inside unified Login controller:", error);
     return res.status(500).json({
       success: false,
       message: "Server error during login",

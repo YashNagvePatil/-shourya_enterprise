@@ -1,5 +1,5 @@
 import{ Router} from "express"
-import { addToCart, dashBoard, getCart, getWalletDetails, netWorkTree, removeFromCart } from "../controllers/agent.controller.js"
+import { addToCart, dashBoard, getAgentProfile, getCart, getWalletDetails, netWorkTree, removeFromCart, submitAgentKYC, updateAgentProfile, updateBankDetails } from "../controllers/agent.controller.js"
 import {authenticateUser} from "../middlewares/agent.middleware.js"
 const router = Router()
 
@@ -40,5 +40,21 @@ router.post("/addCart", authenticateUser, addToCart);
 
 // 3. Remove Item from Cart (productId param zaroori hai)
 router.delete("/:productId", authenticateUser, removeFromCart);
+
+
+// dedicated profile  controllrs
+
+// 1. Get Agent Profile Details
+router.get("/profile", authenticateUser, getAgentProfile);
+
+// 2. Update Personal Info & Address
+router.put("/profile/update", authenticateUser, updateAgentProfile);
+
+// 3. Submit / Update KYC Documents (PAN & Aadhaar)
+router.post("/profile/kyc", authenticateUser, submitAgentKYC);
+
+// 4. Update Bank & UPI Details for Payouts
+router.put("/profile/bank-details", authenticateUser, updateBankDetails);
+
 
 export default router

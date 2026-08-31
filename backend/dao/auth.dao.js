@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import userModel from "../models/user.models.js"; 
 import adminModel from "../models/admin.model.js";
 
@@ -21,7 +22,23 @@ export const getAgentCount = async () => {
  * Finds a parent agent using their public distributor ID string.
  */
 export const findParentByDistributorId = async (distributorId) => {
-  return await userModel.findOne({ distributerId: distributorId.trim() });
+  if (!distributorId) return null;
+
+  // Safe string conversion (ObjectId aur String dono handle karega)
+  const cleanId = String(distributorId).trim();
+
+  // Robust Search Query: distributerId (String) OR _id (ObjectId)
+  return await userModel.findOne({
+    $or: [
+      { distributerId: cleanId },
+      // Check if spelling in some doc is distributorId
+      { distributorId: cleanId }, 
+      // Agar cleanId ek valid MongoDB ObjectId hai toh _id se bhi dhoondo
+      ...(mongoose.Types.ObjectId.isValid(cleanId)
+        ? [{ _id: new mongoose.Types.ObjectId(cleanId) }]
+        : [])
+    ]
+  });
 };
 
 /**
