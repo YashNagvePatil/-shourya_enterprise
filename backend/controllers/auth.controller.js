@@ -67,7 +67,60 @@ async function genrateUniqueDistributerId() {
 
 // --- Register Controller ---
 
+/**
+ 
+ */
+/**
+ * Binary Tree Traversal Helper
+ * Sub-tree me Deepest Vacant Slot Search karne ke liye (Breadth-First Search)
+ */
+/**
+ * Helper: Find Deepest Vacant Slot (BFS Algorithm for Spillover)
 
+/**
+ * Spillover BFS Algorithm to find the deepest vacant slot
+ */
+const findDeepestVacantSlot = async (startAgentId, targetLeg) => {
+  let queue = [{ agentId: startAgentId, leg: targetLeg }];
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current?.agentId) continue;
+
+    const currentAgent = await authDao.findParentByDistributorId(current.agentId);
+    if (!currentAgent) continue;
+
+    // Check Left Leg Slot
+    if (current.leg === "left") {
+      if (!currentAgent.leftChild) {
+        return { parent: currentAgent, position: "left" };
+      }
+      const leftDistId = currentAgent.leftChild?.distributerId || currentAgent.leftChild?.distributorId;
+      if (leftDistId) {
+        queue.push({ agentId: leftDistId, leg: "left" });
+        queue.push({ agentId: leftDistId, leg: "right" });
+      }
+    }
+
+    // Check Right Leg Slot
+    if (current.leg === "right") {
+      if (!currentAgent.rightChild) {
+        return { parent: currentAgent, position: "right" };
+      }
+      const rightDistId = currentAgent.rightChild?.distributerId || currentAgent.rightChild?.distributorId;
+      if (rightDistId) {
+        queue.push({ agentId: rightDistId, leg: "left" });
+        queue.push({ agentId: rightDistId, leg: "right" });
+      }
+    }
+  }
+
+  return null;
+};
+
+/**
+ * Register Controller
+ */
 export const register = async (req, res) => {
   const {
     email,
@@ -76,24 +129,25 @@ export const register = async (req, res) => {
     fullName,
     role,
     parentAgentId,
+    sponsorId,
     parrentAgentName,
     position,
-    panCardImage,   // Base64 string from req.body
-    adharCardImage, // Base64 string from req.body
-  } = req.body;
+    panCardImage,
+    adharCardImage,
+  } = req.body || {};
 
-  console.log(`[DEBUG] Registration Attempt for: ${email} | Role: ${role}`);
+  console.log(`[DEBUG] Registration Attempt for: ${email || "N/A"} | Role: ${role || "N/A"}`);
 
   try {
-    // SAFETY NET 1: Required Text Fields & Base64 Images Validation Block
+    // 1. Mandatory Text Fields Validation
     if (!email || !contact || !password || !fullName) {
       return res.status(400).json({
         success: false,
-        message:
-          "Please fill all mandatory fields (Name, Email, Contact, Password)",
+        message: "Please fill all mandatory fields (Name, Email, Contact, Password)",
       });
     }
 
+    // 2. Mandatory Images Validation
     if (!panCardImage || !adharCardImage) {
       return res.status(400).json({
         success: false,
@@ -101,37 +155,37 @@ export const register = async (req, res) => {
       });
     }
 
-    const cleanEmail = email.toLowerCase().trim();
+    // Safe string operations (Prevents runtime crash if non-string values passed)
+    const cleanEmail = String(email).toLowerCase().trim();
+    const cleanFullName = String(fullName).trim();
 
-    // SAFETY NET 2: Structural Duplicate Check via DAO
+    // 3. Duplicate Account Check
     const existingUser = await authDao.findExistingUserByEmailOrContact(
       cleanEmail,
       contact
     );
 
     if (existingUser) {
-      console.warn(
-        `[DEBUG] Duplicate User Blocked: ${cleanEmail} / ${contact}`
-      );
+      console.warn(`[DEBUG] Duplicate User Blocked: ${cleanEmail} / ${contact}`);
       return res.status(400).json({
         success: false,
         message: "Email or Contact number already registered!",
       });
     }
 
-    // SAFETY NET 3: Direct Base64 Concurrent Cloudinary Upload
-    // Passing Base64 strings directly to your existing function
+    // 4. Cloudinary Concurrent Uploads
     const uploadResults = await uploadMultipleToCloudinary(
       [panCardImage, adharCardImage],
-      "kyc_documents" // Cloudinary folder name
+      "kyc_documents"
     );
 
-    // Extract Cloudinary secure URLs
-    const panCardImageUrl = uploadResults[0]?.url || uploadResults[0]?.secure_url;
-    const adharCardImageUrl = uploadResults[1]?.url || uploadResults[1]?.secure_url;
+    const panCardImageUrl = uploadResults[0]?.url || uploadResults[0]?.secure_url || "";
+    const adharCardImageUrl = uploadResults[1]?.url || uploadResults[1]?.secure_url || "";
 
     let parentUser = null;
-    let finalPosition = null;
+    let sponsorUser = null;
+    let finalPlacementPosition = null;
+
     const isTargetAgent = role !== "Admin";
 
     if (isTargetAgent) {
@@ -140,66 +194,93 @@ export const register = async (req, res) => {
       if (totalAgentCount === 0) {
         console.log("[DEBUG] No agents in DB. Creating First Root Agent...");
         parentUser = null;
-        finalPosition = null;
+        sponsorUser = null;
+        finalPlacementPosition = null;
       } else {
-        finalPosition = position === "left" ? "left" : "right";
+        const targetSponsorId = sponsorId || parentAgentId;
 
-        if (!parentAgentId) {
+        if (!targetSponsorId) {
           return res.status(400).json({
             success: false,
-            message: "Parent Agent ID is required for registration!",
+            message: "Sponsor ID or Parent ID is required for registration!",
           });
         }
 
-        parentUser = await authDao.findParentByDistributorId(parentAgentId);
+        // Fetch Sponsor Node Details
+        sponsorUser = await authDao.findParentByDistributorId(targetSponsorId);
 
-        if (!parentUser) {
-          console.warn(`[DEBUG] Invalid Parent Agent ID: ${parentAgentId}`);
+        if (!sponsorUser) {
+          console.warn(`[DEBUG] Invalid Sponsor ID: ${targetSponsorId}`);
           return res.status(404).json({
             success: false,
-            message: "Invalid Agent ID! Parent Agent does not exist.",
+            message: "Invalid Sponsor ID! Sponsor Agent does not exist.",
           });
         }
 
-        const targetPosition = position === "left" ? "left" : "right";
-        const isSlotOccupied = await authDao.checkSlotOccupation(
-          parentUser._id,
-          targetPosition
+        const requestedLeg = position === "right" ? "right" : "left";
+
+        // Check direct slot occupation
+        const isDirectSlotOccupied = await authDao.checkSlotOccupation(
+          sponsorUser._id,
+          requestedLeg
         );
 
-        if (isSlotOccupied) {
-          console.warn(
-            `[DEBUG] Slot Conflict: ${parentAgentId} -> ${targetPosition} is already taken!`
+        if (!isDirectSlotOccupied) {
+          parentUser = sponsorUser;
+          finalPlacementPosition = requestedLeg;
+          console.log(
+            `[PLACEMENT DIRECT] Placed directly under Sponsor ${sponsorUser.distributerId || sponsorUser.distributorId} on ${finalPlacementPosition}`
           );
-          return res.status(400).json({
-            success: false,
-            message: `The ${targetPosition.toUpperCase()} slot under ${parentAgentId} is already occupied!`,
-          });
+        } else {
+          console.log(
+            `[PLACEMENT SPILLOVER] ${requestedLeg.toUpperCase()} leg occupied under ${sponsorUser.distributerId || sponsorUser.distributorId}. Searching for deepest vacant slot...`
+          );
+
+          const vacantSlot = await findDeepestVacantSlot(
+            sponsorUser.distributerId || sponsorUser.distributorId,
+            requestedLeg
+          );
+
+          if (!vacantSlot || !vacantSlot.parent) {
+            return res.status(400).json({
+              success: false,
+              message: "Unable to find a vacant slot in the selected leg.",
+            });
+          }
+
+          parentUser = vacantSlot.parent;
+          finalPlacementPosition = vacantSlot.position;
+
+          console.log(
+            `[PLACEMENT SPILLOVER SUCCESS] Sponsor: ${sponsorUser.distributerId || sponsorUser.distributorId} | Auto-placed under Immediate Parent: ${parentUser.distributerId || parentUser.distributorId} (${finalPlacementPosition})`
+          );
         }
       }
     }
 
-    // Generate Guaranteed Unique Agent ID Layout Index
+    // 5. Generate Distributor ID
     const newDistributedId = await genrateUniqueDistributerId();
     console.log(`[DEBUG] New Agent ID Generated: ${newDistributedId}`);
 
-    // Build the structural entity payload schema cleanly
+    // 6. Assemble Payload Schema
     const agentPayload = {
       email: cleanEmail,
       contact,
       password,
-      fullName: fullName.trim(),
-      panCardImage: panCardImageUrl,     // Cloudinary URL string
-      adharCardImage: adharCardImageUrl, // Cloudinary URL string
+      fullName: cleanFullName,
+      panCardImage: panCardImageUrl,
+      adharCardImage: adharCardImageUrl,
       distributerId: newDistributedId,
       role: role === "Admin" ? "Admin" : "Agent",
-      position: role === "Admin" ? null : finalPosition,
+      position: role === "Admin" ? null : finalPlacementPosition,
       parentAgentId: parentUser ? parentUser._id : null,
-      sponserId: parentUser ? parentUser.distributerId : "DIRECT",
-      sponserName: parentUser ? parentUser.fullName : "system",
+
+      sponserId: sponsorUser ? (sponsorUser.distributerId || sponsorUser.distributorId || "DIRECT") : "DIRECT",
+      sponserName: sponsorUser ? (sponsorUser.fullName || "system") : "system",
       parrentAgentName: parentUser
-        ? parentUser.fullName
-        : parrentAgentName || "system",
+        ? (parentUser.fullName || "system")
+        : (parrentAgentName || "system"),
+
       leftBV: 0,
       rightBV: 0,
       totalLeftBV: 0,
@@ -219,20 +300,19 @@ export const register = async (req, res) => {
       activeRightAgents: 0,
     };
 
-    // Save entity state using the data access layer
+    // 7. Save to Database
     const user = await authDao.createAgentRecord(agentPayload);
-    console.log(
-      `[DEBUG] Registration Successful! Created User ID: ${user._id}`
-    );
+    console.log(`[DEBUG] Registration Successful! Created User ID: ${user._id}`);
 
+    // 8. Update Tree Relationships and Uplines
     if (role !== "Admin" && parentUser) {
       console.log(
-        `[TREE UPDATE] Processing network updates under parent ID: ${parentUser.distributerId}`
+        `[TREE UPDATE] Processing network updates under immediate parent ID: ${parentUser.distributerId || parentUser.distributorId}`
       );
 
       await authDao.updateParentChildSlot(
         parentUser._id,
-        finalPosition,
+        finalPlacementPosition,
         user._id
       );
 
@@ -240,25 +320,21 @@ export const register = async (req, res) => {
         await authDao.incrementSponsorDirectCount(user.sponserId);
       }
 
-      const initialJoiningBV = 0;
       await authDao.updateAllUplinesCounters(
         parentUser._id,
-        finalPosition,
-        initialJoiningBV
+        finalPlacementPosition,
+        0 // initialJoiningBV
       );
 
-      console.log(`[TREE UPDATE] All uplines sync completely.`);
+      console.log(`[TREE UPDATE] All uplines synced completely.`);
     }
 
     return await sendTokenResponse(user, res, "Registration Successful!");
   } catch (error) {
-    console.error(
-      `[CRITICAL ERROR] Registration Loop Failed: ${error.message}`
-    );
+    console.error(`[CRITICAL ERROR] Registration Failed: ${error.stack || error.message}`);
     return res.status(500).json({
       success: false,
-      message: "Server Error during registration",
-      error: error.message,
+      message: error.message || "Server Error during registration",
     });
   }
 };
