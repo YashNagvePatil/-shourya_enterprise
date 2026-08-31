@@ -106,6 +106,8 @@ export const useAgentWallet = () => {
 
 
 
+
+
 export const useAgentNetwork = () => {
   const dispatch = useDispatch();
   
@@ -114,20 +116,26 @@ export const useAgentNetwork = () => {
     (state) => state.agent
   );
 
-  // Fetch Tree Canvas using your service layer
+  // Fetch Tree Canvas using service layer
   const fetchNetworkTree = useCallback(async () => {
     dispatch(setLoading(true));
     try {
-      // FIX 304 CACHE: Adding a dynamic timestamp token to break browser cache loops
-      const cacheBuster = `?t=${new Date().getTime()}`;
-      const data = await getAgentNetworkData(cacheBuster); 
-      
-      if (data.success) {
-        dispatch(setNetworkTree(data));
+      // Dynamic timestamp token to avoid aggressive browser cache loops when needed
+      const cacheBuster = `?t=${Date.now()}`;
+      const response = await getAgentNetworkData(cacheBuster); 
+
+      if (response?.success) {
+        // Updated: Pass response.data (or full response as expected by your slice)
+        dispatch(setNetworkTree(response.data || response));
+      } else {
+        dispatch(setError(response?.message || "Failed to load network tree"));
       }
     } catch (err) {
-      const errMsg = err.response?.data?.message || "Failed to map genealogy nodes";
+      const errMsg = err.response?.data?.message || err.message || "Failed to map genealogy nodes";
       dispatch(setError(errMsg));
+    } finally {
+      // UX Safety: Always reset loading state regardless of success/failure
+      dispatch(setLoading(false));
     }
   }, [dispatch]);
 

@@ -16,6 +16,9 @@ import franchiseDashboardReducer from "../features/franchise/state/franchiseDash
 import franchiseInventoryReducer from "../features/franchise/state/franchiseInventory.slice"
 import franchiseSuppliesReducer from "../features/franchise/state/franchiseSuplies.slice"
 import franchiseFinanceReducer from "../features/franchise/state/franchiseFinance.slice"
+import franchiseProfileReducer from "../features/franchise/state/franchiseProfile.slice"
+import agentProfileReducer from "../features/agent/state/agentProfile.slice"
+import agentWalletReducer from "../features/agent/state/agentWallet.slice"
 
 const store = configureStore({
     reducer:{
@@ -35,7 +38,10 @@ const store = configureStore({
            franchiseDashboard:franchiseDashboardReducer,
            franchiseInventory:franchiseInventoryReducer,
            franchiseSupplies:franchiseSuppliesReducer,
-           franchiseFinance:franchiseFinanceReducer
+           franchiseFinance:franchiseFinanceReducer,
+           franchiseProfile:franchiseProfileReducer,
+           agentProfile:agentProfileReducer,
+           agentWallet:agentWalletReducer
     }
 })
 

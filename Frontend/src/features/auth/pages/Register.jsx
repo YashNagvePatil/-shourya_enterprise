@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hook/useAuth.js";
 
-// Initial state object for easy reset
 const initialFormData = {
   fullName: "",
   email: "",
@@ -12,11 +11,10 @@ const initialFormData = {
   panCardImage: "",
   adharCardImage: "",
   parentAgentId: "",
-  parrentAgentName: "",
+  parentAgentName: "", // Fixed typo: parrentAgentName -> parentAgentName
 };
 
 export const RegisterPage = () => {
-  // 1. Hook and State Management
   const navigate = useNavigate();
   const { handleRegister, loading, error } = useAuth();
 
@@ -24,7 +22,6 @@ export const RegisterPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState(initialFormData);
 
-  // Helper Function: Convert File to Base64 String
   const convertToBase64 = (file) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -34,7 +31,6 @@ export const RegisterPage = () => {
     });
   };
 
-  // Text Input Handler
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -43,7 +39,6 @@ export const RegisterPage = () => {
     }));
   };
 
-  // File Input Handler
   const handleFileChange = async (e) => {
     const { name, files } = e.target;
     if (files && files[0]) {
@@ -59,7 +54,6 @@ export const RegisterPage = () => {
     }
   };
 
-  // Submit Handler
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -68,332 +62,270 @@ export const RegisterPage = () => {
       return;
     }
 
-    const res = await handleRegister({
+    // Clean payload constructed explicitly
+    const payload = {
       ...formData,
       position,
-    });
+    };
+
+    const res = await handleRegister(payload);
 
     if (res?.success) {
       alert("Registration Successful!");
-
-      // Form State and File Input Fields Clear/Reset
       setFormData(initialFormData);
       setPosition("left");
-      e.target.reset();
-
-      // Navigate to login page on success
       navigate("/login");
     }
   };
 
   return (
-    <div className="h-screen bg-slate-100 text-slate-900 font-sans flex items-center justify-center p-0 sm:p-4 overflow-hidden">
-      {/* Main Container */}
-      <div className="w-full max-w-7xl h-full lg:h-[94vh] grid grid-cols-1 lg:grid-cols-12 bg-white shadow-2xl sm:rounded-2xl border border-slate-200 overflow-hidden">
-        
-        {/* LEFT SIDE: Showcase BG */}
-        <div className="relative hidden lg:flex lg:col-span-5 bg-slate-950 flex-col justify-between p-8 text-white overflow-hidden">
-          <div
-            className="absolute inset-0 bg-cover bg-center opacity-20 mix-blend-luminosity grayscale contrast-125"
-            style={{
-              backgroundImage:
-                "url('https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=1200&auto=format&fit=crop')",
-            }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/70 to-transparent" />
+    <div className="min-h-screen flex bg-stone-50 font-light text-slate-600 antialiased selection:bg-amber-100 selection:text-amber-800">
+      {/* Left Branding Sidebar */}
+      <div className="hidden lg:flex lg:w-5/12 bg-gradient-to-br from-amber-500 via-amber-600 to-yellow-600 p-12 text-white flex-col justify-between relative overflow-hidden">
+        <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-white/5 rounded-full blur-2xl pointer-events-none" />
 
-          {/* Top Branding */}
-          <div className="relative z-10">
-            <div className="inline-flex items-center gap-2 bg-white/5 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 text-xs font-medium tracking-wide">
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-300 animate-pulse"></span>
-              Smart Appliances Network
-            </div>
-            <h1 className="mt-4 text-2xl xl:text-3xl font-light tracking-tight text-white leading-tight">
-              Build Your Business with <br />
-              <span className="font-semibold text-white tracking-normal">
-                Next-Gen Home Appliances
-              </span>
-            </h1>
-          </div>
-
-          {/* Bottom Features List */}
-          <div className="relative z-10 space-y-4 border-t border-white/10 pt-4">
-            <div className="flex items-start gap-3">
-              <div className="p-1.5 bg-white/10 rounded-lg backdrop-blur-sm border border-white/5 mt-0.5 text-xs text-slate-300">
-                ■
-              </div>
-              <div>
-                <h4 className="text-xs font-medium text-white tracking-wide">Premium Quality Products</h4>
-                <p className="text-[11px] text-slate-400 leading-tight mt-0.5">Kitchen & Living Smart Appliances with Extended Warranty.</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <div className="p-1.5 bg-white/10 rounded-lg backdrop-blur-sm border border-white/5 mt-0.5 text-xs text-slate-300">
-                ■
-              </div>
-              <div>
-                <h4 className="text-xs font-medium text-white tracking-wide">Transparent Binary Growth</h4>
-                <p className="text-[11px] text-slate-400 leading-tight mt-0.5">Track BV Points, Matching Bonus, and Direct Commissions in real-time.</p>
-              </div>
-            </div>
-          </div>
+        <div className="relative z-10">
+          <span className="inline-block px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-[10px] tracking-widest uppercase font-light">
+            Distributor Network
+          </span>
+          <h1 className="text-3xl font-extralight tracking-wide mt-4 uppercase">
+            Smart Appliances Network
+          </h1>
         </div>
 
-        {/* RIGHT SIDE: Form UI */}
-        <div className="lg:col-span-7 p-5 sm:p-8 flex flex-col justify-center bg-white overflow-y-auto">
-          <div className="max-w-xl mx-auto w-full">
+        <div className="space-y-4 relative z-10">
+          <h2 className="text-4xl font-extralight leading-tight">
+            Build Your Business with Next-Gen Home Appliances.
+          </h2>
+          <p className="text-amber-100/80 text-xs font-light leading-relaxed max-w-md">
+            Premium kitchen & living appliances with transparent growth tracking and real-time network commissions.
+          </p>
+        </div>
 
-            {/* Header */}
-            <div className="mb-4">
-              <h2 className="text-xl sm:text-2xl font-light text-slate-900 tracking-tight">
-                Create Distributor <span className="font-semibold">Account</span>
-              </h2>
-              <p className="text-xs text-slate-500 font-normal mt-0.5">
-                Fill in your registration details to join the agent network.
-              </p>
+        <div className="text-[11px] text-amber-200/60 font-light tracking-wide relative z-10">
+          Enterprise Logistics v2.4
+        </div>
+      </div>
+
+      {/* Right Form Container */}
+      <div className="w-full lg:w-7/12 p-6 sm:p-10 md:p-14 overflow-y-auto max-h-screen bg-white">
+        <div className="max-w-xl mx-auto space-y-8">
+          
+          {/* Header */}
+          <div>
+            <h2 className="text-2xl font-light text-slate-800 tracking-tight">
+              Create Distributor Account
+            </h2>
+            <p className="text-xs font-light text-slate-400 mt-1">
+              Fill in your registration details to join the agent network.
+            </p>
+          </div>
+
+          {/* Franchise Navigation Card */}
+          <div className="p-4 bg-stone-50/60 border border-slate-200/80 rounded-xl flex items-center justify-between">
+            <div>
+              <p className="text-xs font-normal text-slate-700">Looking to open a Franchise?</p>
+              <p className="text-[11px] font-light text-slate-400">Apply for a regional franchise account instead.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate("/registerFranchise")}
+              className="px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white font-light text-xs rounded-lg shadow-sm transition-all cursor-pointer whitespace-nowrap"
+            >
+              Franchise Registration →
+            </button>
+          </div>
+
+          {/* Error Alert */}
+          {error && (
+            <div className="p-3.5 text-xs font-light bg-red-50/80 text-red-600 border border-red-100 rounded-lg flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {/* 1. Personal Information */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                <h3 className="text-xs font-normal uppercase tracking-wider text-slate-500">
+                  1. Personal Information
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <input
+                  type="text"
+                  name="fullName"
+                  required
+                  placeholder="Full Name *"
+                  value={formData.fullName}
+                  onChange={handleChange}
+                  className="w-full p-3 bg-stone-50/50 border border-slate-200/80 rounded-lg text-xs font-light focus:bg-white focus:outline-none focus:ring-1 focus:ring-amber-500/50 transition-all placeholder:text-slate-400"
+                />
+                <input
+                  type="email"
+                  name="email"
+                  required
+                  placeholder="Email Address *"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="w-full p-3 bg-stone-50/50 border border-slate-200/80 rounded-lg text-xs font-light focus:bg-white focus:outline-none focus:ring-1 focus:ring-amber-500/50 transition-all placeholder:text-slate-400"
+                />
+                <input
+                  type="tel"
+                  name="contact"
+                  required
+                  placeholder="Mobile Number *"
+                  value={formData.contact}
+                  onChange={handleChange}
+                  className="w-full p-3 bg-stone-50/50 border border-slate-200/80 rounded-lg text-xs font-light focus:bg-white focus:outline-none focus:ring-1 focus:ring-amber-500/50 transition-all placeholder:text-slate-400"
+                />
+
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    required
+                    placeholder="Password *"
+                    value={formData.password}
+                    onChange={handleChange}
+                    className="w-full p-3 bg-stone-50/50 border border-slate-200/80 rounded-lg text-xs font-light focus:bg-white focus:outline-none focus:ring-1 focus:ring-amber-500/50 transition-all placeholder:text-slate-400 pr-9"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer p-0.5"
+                  >
+                    {showPassword ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12c1.274 4.057 5.065 7 9.542 7 4.477 0 8.268-2.943 9.542-7-1.274-4.057-5.064-7-9.542-7-4.477 0-8.268 2.943-9.542 7Z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
 
-            {/* NAVIGATION BUTTON TO FRANCHISE PAGE */}
-            <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-slate-800">Looking to open a Franchise?</p>
-                <p className="text-[11px] text-slate-500">Apply for a regional franchise account instead.</p>
+            {/* 2. Placement Details */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                <h3 className="text-xs font-normal uppercase tracking-wider text-slate-500">
+                  2. Placement & Sponsor Details
+                </h3>
               </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <input
+                  type="text"
+                  name="parentAgentId"
+                  placeholder="Parent Agent ID (Optional)"
+                  value={formData.parentAgentId}
+                  onChange={handleChange}
+                  className="p-3 bg-stone-50/50 border border-slate-200/80 rounded-lg text-xs font-light focus:bg-white focus:outline-none focus:ring-1 focus:ring-amber-500/50 transition-all placeholder:text-slate-400"
+                />
+
+                <div className="grid grid-cols-2 gap-1 p-1 bg-stone-50/50 border border-slate-200/80 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => setPosition("left")}
+                    className={`py-2 text-xs font-light rounded transition-all cursor-pointer ${
+                      position === "left"
+                        ? "bg-amber-500 text-white shadow-sm font-normal"
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    Left Slot
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPosition("right")}
+                    className={`py-2 text-xs font-light rounded transition-all cursor-pointer ${
+                      position === "right"
+                        ? "bg-amber-500 text-white shadow-sm font-normal"
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    Right Slot
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. Identity Documents */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                <h3 className="text-xs font-normal uppercase tracking-wider text-slate-500">
+                  3. Identity Verification Documents (KYC)
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="flex flex-col gap-1.5 p-3 bg-stone-50/40 border border-slate-200/70 rounded-lg">
+                  <label className="text-[11px] font-light text-slate-500">PAN Card Photo *</label>
+                  <input
+                    type="file"
+                    name="panCardImage"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    required
+                    className="text-[11px] font-light file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[10px] file:font-light file:bg-amber-100/80 file:text-amber-800 hover:file:bg-amber-200/80 cursor-pointer text-slate-400"
+                  />
+                  {formData.panCardImage && (
+                    <span className="text-[10px] text-emerald-600 font-light">✓ PAN Image Selected</span>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-1.5 p-3 bg-stone-50/40 border border-slate-200/70 rounded-lg">
+                  <label className="text-[11px] font-light text-slate-500">Aadhaar Card Photo *</label>
+                  <input
+                    type="file"
+                    name="adharCardImage"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    required
+                    className="text-[11px] font-light file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[10px] file:font-light file:bg-amber-100/80 file:text-amber-800 hover:file:bg-amber-200/80 cursor-pointer text-slate-400"
+                  />
+                  {formData.adharCardImage && (
+                    <span className="text-[10px] text-emerald-600 font-light">✓ Aadhaar Image Selected</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Action Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white rounded-lg text-xs font-normal tracking-wide shadow-sm hover:shadow transition-all disabled:opacity-50 cursor-pointer"
+            >
+              {loading ? "Uploading & Registering..." : "Complete Registration →"}
+            </button>
+          </form>
+
+          {/* Footer Link */}
+          <div className="text-center pt-2">
+            <p className="text-xs font-light text-slate-400">
+              Already registered?{" "}
               <button
                 type="button"
-                onClick={() => navigate("/registerFranchise")}
-                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs rounded-lg shadow-sm transition-all cursor-pointer whitespace-nowrap"
+                onClick={() => navigate("/login")}
+                className="text-amber-600 hover:underline font-normal inline-block ml-1 cursor-pointer focus:outline-none"
               >
-                Franchise Registration →
+                Sign In to Dashboard
               </button>
-            </div>
-
-            {/* Error Message Box */}
-            {error && (
-              <div className="mb-3 p-2.5 bg-slate-50 border border-slate-400 text-slate-900 text-xs font-medium rounded-lg">
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-3.5">
-
-              {/* SECTION 1: Personal Information */}
-              <div className="space-y-2.5">
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                  Personal Information
-                </h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Full Name *
-                    </label>
-                    <input
-                      type="text"
-                      name="fullName"
-                      value={formData.fullName}
-                      onChange={handleChange}
-                      required
-                      placeholder="Rahul Sharma"
-                      className="w-full px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-slate-600 transition-all"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Email Address *
-                    </label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      required
-                      placeholder="rahul@example.com"
-                      className="w-full px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-slate-600 transition-all"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Mobile Number *
-                    </label>
-                    <input
-                      type="tel"
-                      name="contact"
-                      value={formData.contact}
-                      onChange={handleChange}
-                      required
-                      placeholder="9876543210"
-                      className="w-full px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-slate-600 transition-all"
-                    />
-                  </div>
-
-                  {/* Password Field */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Password *
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        name="password"
-                        value={formData.password}
-                        onChange={handleChange}
-                        required
-                        placeholder="••••••••"
-                        className="w-full px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-slate-600 transition-all pr-9"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-800 focus:outline-none cursor-pointer p-0.5"
-                        title={showPassword ? "Hide password" : "Show password"}
-                      >
-                        {showPassword ? (
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
-                          </svg>
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12c1.274 4.057 5.065 7 9.542 7 4.477 0 8.268-2.943 9.542-7-1.274-4.057-5.064-7-9.542-7-4.477 0-8.268 2.943-9.542 7Z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                          </svg>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* SECTION 2: Binary Placement Info */}
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                  Placement & Sponsor Details
-                </h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Parent Agent ID <span className="text-[10px] text-slate-400 font-normal">(Optional)</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="parentAgentId"
-                      value={formData.parentAgentId}
-                      onChange={handleChange}
-                      placeholder="e.g. AGT1001"
-                      className="w-full px-3 py-1.5 bg-white rounded-lg border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-slate-600 transition-all"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Placement Side
-                    </label>
-                    <div className="grid grid-cols-2 gap-1 p-1 bg-white border border-slate-200 rounded-lg">
-                      <button
-                        type="button"
-                        onClick={() => setPosition("left")}
-                        className={`py-1 text-xs font-medium rounded transition-all cursor-pointer ${
-                          position === "left"
-                            ? "bg-slate-800 text-white shadow-sm"
-                            : "text-slate-600 hover:text-slate-900"
-                        }`}
-                      >
-                        Left Slot
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPosition("right")}
-                        className={`py-1 text-xs font-medium rounded transition-all cursor-pointer ${
-                          position === "right"
-                            ? "bg-slate-800 text-white shadow-sm"
-                            : "text-slate-600 hover:text-slate-900"
-                        }`}
-                      >
-                        Right Slot
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* SECTION 3: Identity Documents */}
-              <div className="space-y-2">
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                  Identity Verification Documents (KYC)
-                </h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* PAN Card Photo Upload */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      PAN Card Photo *
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="file"
-                        name="panCardImage"
-                        accept="image/*"
-                        onChange={handleFileChange}
-                        required
-                        className="w-full px-2 py-1 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-600 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[11px] file:font-semibold file:bg-slate-800 file:text-white hover:file:bg-slate-700 cursor-pointer"
-                      />
-                    </div>
-                    {formData.panCardImage && (
-                      <p className="text-[10px] text-emerald-600 mt-1 font-medium">✓ PAN Image Selected</p>
-                    )}
-                  </div>
-
-                  {/* Aadhaar Card Photo Upload */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Aadhaar Card Photo *
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="file"
-                        name="adharCardImage"
-                        accept="image/*"
-                        onChange={handleFileChange}
-                        required
-                        className="w-full px-2 py-1 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-600 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[11px] file:font-semibold file:bg-slate-800 file:text-white hover:file:bg-slate-700 cursor-pointer"
-                      />
-                    </div>
-                    {formData.adharCardImage && (
-                      <p className="text-[10px] text-emerald-600 mt-1 font-medium">✓ Aadhaar Image Selected</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full mt-4 py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs rounded-xl shadow-md active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40"
-              >
-                {loading ? "Uploading & Registering..." : "Complete Registration →"}
-              </button>
-
-              {/* Navigation Link */}
-              <p className="text-center text-xs text-slate-500 mt-2">
-                Already registered?{" "}
-                <button
-                  type="button"
-                  onClick={() => navigate("/login")}
-                  className="text-slate-800 font-semibold hover:underline bg-transparent border-none p-0 cursor-pointer"
-                >
-                  Sign In to Dashboard
-                </button>
-              </p>
-
-            </form>
+            </p>
           </div>
-        </div>
 
+        </div>
       </div>
     </div>
   );

@@ -65,6 +65,18 @@ export const getDashboardAnalytics = async () =>{
   return await api.get("/analytics");
 }
 
+//-------------------decated profoile-----------------
+
+// 2. Update Profile & Bank Details (PUT Request with payload)
+export const updateFranchiseProfile = async (profileData) => {
+  return await api.put("/profile/update", profileData);
+};
+
+// 3. Change Franchise Password (PUT Request with payload)
+export const changeFranchisePassword = async (passwordData) => {
+  return await api.put("/profile/change-password", passwordData);
+};
+
 // ---------------------- Supply Requests ----------------------
 
 export const createSupplyRequest = async (requestData) => {

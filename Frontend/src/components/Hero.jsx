@@ -41,7 +41,7 @@ const HeroSlider = () => {
   const prevSlide = () => setCurrent((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
 
   return (
-    <section className="relative w-full max-w-full h-[calc(100vh-80px)] min-h-[500px] max-h-[900px] bg-black text-white overflow-x-hidden">
+    <section className="relative w-full max-w-full h-[calc(100vh-80px)] min-h-[500px] max-h-[900px] bg-[#FAF5EE] text-[#2A1815] overflow-x-hidden font-sans border-b border-[#D6B265]/30">
       {/* Slide Items */}
       {slides.map((slide, index) => (
         <div
@@ -50,30 +50,30 @@ const HeroSlider = () => {
             index === current ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
           }`}
         >
-          {/* Background Image Overlay */}
-          <div className="absolute inset-0 bg-black/60 z-10" />
+          {/* Warm Dark Warm Overlay for optimal contrast */}
+          <div className="absolute inset-0 bg-[#2A1815]/60 z-10" />
           
           <div className="w-full h-full overflow-hidden">
             <img
               src={slide.image}
               alt={slide.title}
-              className="w-full h-full object-cover grayscale brightness-75 select-none"
+              className="w-full h-full object-cover select-none"
             />
           </div>
 
           {/* Content Overlay */}
           <div className="absolute inset-0 z-20 flex items-center justify-center text-center px-4 sm:px-6 lg:px-8">
             <div className="max-w-4xl mx-auto space-y-6">
-              <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight uppercase leading-tight">
+              <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight uppercase leading-tight text-[#FAF5EE] drop-shadow-md">
                 {slide.title}
               </h1>
-              <p className="text-zinc-300 text-sm sm:text-base md:text-lg max-w-2xl mx-auto tracking-wider font-light">
+              <p className="text-[#FAF5EE]/90 text-sm sm:text-base md:text-lg max-w-2xl mx-auto tracking-wide font-normal drop-shadow-sm">
                 {slide.subtitle}
               </p>
               <div className="pt-4">
                 <a
                   href={slide.ctaLink}
-                  className="inline-block bg-white text-black hover:bg-zinc-200 transition-colors duration-300 text-xs sm:text-sm font-semibold tracking-widest uppercase px-8 py-3.5 rounded-sm"
+                  className="inline-block bg-[#DC2643] text-[#FAF5EE] hover:bg-[#2A1815] transition-all duration-300 text-xs sm:text-sm font-bold tracking-widest uppercase px-8 py-3.5 rounded-lg shadow-md cursor-pointer"
                 >
                   {slide.ctaText}
                 </a>
@@ -87,10 +87,10 @@ const HeroSlider = () => {
       <button
         onClick={prevSlide}
         aria-label="Previous Slide"
-        className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-black/40 text-white hover:bg-white hover:text-black transition-all duration-300 backdrop-blur-sm border border-white/20"
+        className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-[#2A1815]/40 text-[#FAF5EE] hover:bg-[#DC2643] hover:text-[#FAF5EE] transition-all duration-300 backdrop-blur-sm border border-[#D6B265]/40 cursor-pointer shadow-sm"
       >
         <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
       </button>
 
@@ -98,10 +98,10 @@ const HeroSlider = () => {
       <button
         onClick={nextSlide}
         aria-label="Next Slide"
-        className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-black/40 text-white hover:bg-white hover:text-black transition-all duration-300 backdrop-blur-sm border border-white/20"
+        className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-[#2A1815]/40 text-[#FAF5EE] hover:bg-[#DC2643] hover:text-[#FAF5EE] transition-all duration-300 backdrop-blur-sm border border-[#D6B265]/40 cursor-pointer shadow-sm"
       >
         <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
         </svg>
       </button>
 
@@ -112,8 +112,8 @@ const HeroSlider = () => {
             key={index}
             onClick={() => setCurrent(index)}
             aria-label={`Go to slide ${index + 1}`}
-            className={`h-1 transition-all duration-500 rounded-full ${
-              index === current ? 'w-8 bg-white' : 'w-2 bg-white/40 hover:bg-white/70'
+            className={`h-1.5 transition-all duration-500 rounded-full cursor-pointer ${
+              index === current ? 'w-8 bg-[#F59E35]' : 'w-3 bg-[#FAF5EE]/50 hover:bg-[#FAF5EE]/90'
             }`}
           />
         ))}

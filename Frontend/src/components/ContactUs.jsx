@@ -29,23 +29,24 @@ export const ContactPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white flex items-center justify-center p-4 font-sans">
-      {/* Centered Middle Card */}
-      <div className="w-full max-w-xl bg-zinc-950 border border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-2xl">
+    <div className="min-h-screen bg-stone-50 text-slate-600 flex items-center justify-center p-4 font-light antialiased selection:bg-amber-100 selection:text-amber-800">
+      
+      {/* Centered Middle Card (Original Structure + Warm Theme) */}
+      <div className="w-full max-w-xl bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-8 shadow-xl">
         
         {/* Header */}
-        <div className="mb-6 border-b border-zinc-800 pb-4">
-          <h1 className="text-xl sm:text-2xl font-light tracking-tight text-white">
-            Contact <span className="font-bold text-white">Support Desk</span>
+        <div className="mb-6 border-b border-slate-100 pb-4">
+          <h1 className="text-xl sm:text-2xl font-light tracking-tight text-slate-800">
+            Contact <span className="font-normal text-amber-600">Support Desk</span>
           </h1>
-          <p className="text-xs text-zinc-400 mt-1">
+          <p className="text-xs text-slate-400 mt-1">
             Fill in your query details below for MLM network & distributor assistance.
           </p>
         </div>
 
         {/* Success Alert */}
         {submitted && (
-          <div className="mb-4 p-3 bg-white text-black text-xs font-semibold rounded-lg flex items-center justify-between animate-fadeIn">
+          <div className="mb-4 p-3 bg-emerald-50 text-emerald-700 text-xs font-normal rounded-lg border border-emerald-200 flex items-center justify-between animate-fadeIn">
             <span>✓ Message details printed to console!</span>
           </div>
         )}
@@ -55,7 +56,7 @@ export const ContactPage = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             {/* Full Name */}
             <div>
-              <label className="block text-xs font-medium text-zinc-300 mb-1">
+              <label className="block text-xs font-normal text-slate-600 mb-1">
                 Full Name *
               </label>
               <input
@@ -65,14 +66,14 @@ export const ContactPage = () => {
                 onChange={handleChange}
                 required
                 placeholder="Rahul Sharma"
-                className="w-full px-3 py-2 bg-black border border-zinc-800 rounded-lg text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-all"
+                className="w-full px-3 py-2 bg-stone-50/50 border border-slate-200/80 rounded-lg text-xs font-light text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-amber-500/50 transition-all"
               />
             </div>
 
             {/* Agent ID */}
             <div>
-              <label className="block text-xs font-medium text-zinc-300 mb-1">
-                Agent / Distributor ID <span className="text-zinc-500 text-[10px]">(Optional)</span>
+              <label className="block text-xs font-normal text-slate-600 mb-1">
+                Agent / Distributor ID <span className="text-slate-400 text-[10px]">(Optional)</span>
               </label>
               <input
                 type="text"
@@ -80,13 +81,13 @@ export const ContactPage = () => {
                 value={formData.agentId}
                 onChange={handleChange}
                 placeholder="e.g. AGT1001"
-                className="w-full px-3 py-2 bg-black border border-zinc-800 rounded-lg text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-all uppercase"
+                className="w-full px-3 py-2 bg-stone-50/50 border border-slate-200/80 rounded-lg text-xs font-light text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-amber-500/50 transition-all uppercase"
               />
             </div>
 
             {/* Email Address */}
             <div>
-              <label className="block text-xs font-medium text-zinc-300 mb-1">
+              <label className="block text-xs font-normal text-slate-600 mb-1">
                 Email Address *
               </label>
               <input
@@ -96,13 +97,13 @@ export const ContactPage = () => {
                 onChange={handleChange}
                 required
                 placeholder="rahul@example.com"
-                className="w-full px-3 py-2 bg-black border border-zinc-800 rounded-lg text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-all"
+                className="w-full px-3 py-2 bg-stone-50/50 border border-slate-200/80 rounded-lg text-xs font-light text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-amber-500/50 transition-all"
               />
             </div>
 
             {/* Mobile Contact */}
             <div>
-              <label className="block text-xs font-medium text-zinc-300 mb-1">
+              <label className="block text-xs font-normal text-slate-600 mb-1">
                 Mobile Number *
               </label>
               <input
@@ -112,21 +113,21 @@ export const ContactPage = () => {
                 onChange={handleChange}
                 required
                 placeholder="9876543210"
-                className="w-full px-3 py-2 bg-black border border-zinc-800 rounded-lg text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-all"
+                className="w-full px-3 py-2 bg-stone-50/50 border border-slate-200/80 rounded-lg text-xs font-light text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-amber-500/50 transition-all"
               />
             </div>
           </div>
 
           {/* Category Dropdown */}
           <div>
-            <label className="block text-xs font-medium text-zinc-300 mb-1">
+            <label className="block text-xs font-normal text-slate-600 mb-1">
               Select Department *
             </label>
             <select
               name="category"
               value={formData.category}
               onChange={handleChange}
-              className="w-full px-3 py-2 bg-black border border-zinc-800 rounded-lg text-xs text-white focus:outline-none focus:border-zinc-500 transition-all cursor-pointer"
+              className="w-full px-3 py-2 bg-stone-50/50 border border-slate-200/80 rounded-lg text-xs font-light text-slate-700 focus:bg-white focus:outline-none focus:ring-1 focus:ring-amber-500/50 transition-all cursor-pointer"
             >
               <option value="General Inquiry">General Inquiry</option>
               <option value="Commission & Payout">Commission & Payout Issues</option>
@@ -138,7 +139,7 @@ export const ContactPage = () => {
 
           {/* Subject */}
           <div>
-            <label className="block text-xs font-medium text-zinc-300 mb-1">
+            <label className="block text-xs font-normal text-slate-600 mb-1">
               Subject
             </label>
             <input
@@ -147,13 +148,13 @@ export const ContactPage = () => {
               value={formData.subject}
               onChange={handleChange}
               placeholder="Brief summary of your query"
-              className="w-full px-3 py-2 bg-black border border-zinc-800 rounded-lg text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-all"
+              className="w-full px-3 py-2 bg-stone-50/50 border border-slate-200/80 rounded-lg text-xs font-light text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-amber-500/50 transition-all"
             />
           </div>
 
           {/* Message Textarea */}
           <div>
-            <label className="block text-xs font-medium text-zinc-300 mb-1">
+            <label className="block text-xs font-normal text-slate-600 mb-1">
               Message *
             </label>
             <textarea
@@ -163,14 +164,14 @@ export const ContactPage = () => {
               onChange={handleChange}
               required
               placeholder="Describe your issue or request in detail..."
-              className="w-full px-3 py-2 bg-black border border-zinc-800 rounded-lg text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-all resize-none"
+              className="w-full px-3 py-2 bg-stone-50/50 border border-slate-200/80 rounded-lg text-xs font-light text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-amber-500/50 transition-all resize-none"
             ></textarea>
           </div>
 
           {/* Submit Button */}
           <button
             type="submit"
-            className="w-full py-2.5 px-4 bg-white hover:bg-zinc-200 text-black font-semibold text-xs rounded-lg transition-all active:scale-[0.99] cursor-pointer mt-2"
+            className="w-full py-3 px-4 bg-gradient-to-r from-rose-600 via-amber-500 to-yellow-500 hover:from-rose-700 hover:to-yellow-600 text-white font-normal text-xs rounded-lg transition-all shadow-sm hover:shadow cursor-pointer mt-2"
           >
             Send Message →
           </button>

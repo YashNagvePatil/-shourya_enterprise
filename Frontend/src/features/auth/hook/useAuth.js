@@ -1,59 +1,70 @@
 import { useDispatch, useSelector } from "react-redux";
-import { setError, setLoading, setUser,clearError,logout } from "../state/auth.slice.js";
-import { register,login,logoutApi } from "../service/auth.api.js";
+import {
+  setError,
+  setLoading,
+  setCredentials,
+  clearError,
+  logout,
+} from "../state/auth.slice.js";
+import { register, login, logoutApi } from "../service/auth.api.js";
 
 export const useAuth = () => {
   const dispatch = useDispatch();
 
   // Redux state access
-  const { user, loading, error } = useSelector((state) => state.auth);
+  const { user, token, loading, error } = useSelector((state) => state.auth);
 
+  // 1. Handle Registration
   async function handleRegister(formData) {
     try {
-      // 1. Loading Start
       dispatch(setLoading(true));
-      dispatch(setError(null));
+      dispatch(clearError());
 
-      // 2. API Call
       const data = await register(formData);
 
-      // 3. Save User to Redux State
-      dispatch(setUser(data.user));
+      // Save user & token in Redux + localStorage
+      dispatch(
+        setCredentials({
+          user: data.user,
+          token: data.token,
+        })
+      );
 
-      return { success: true, user: data.user };
+      return { success: true, user: data.user, message: data.message };
     } catch (err) {
-      // 4. Handle Error
-      const errorMessage =
-        err.response?.data?.message || err.message || "Registration failed!";
+      const errorMessage = err.message || "Registration failed!";
       dispatch(setError(errorMessage));
       return { success: false, error: errorMessage };
     } finally {
       dispatch(setLoading(false));
     }
   }
-async function handleLogin(credentials) {
+
+  // 2. Handle Unified Login (Distributor, Franchise, Admin)
+  async function handleLogin(credentials) {
     try {
       dispatch(setLoading(true));
       dispatch(clearError());
 
       const data = await login(credentials);
 
-      // 1. Safe User + Role Object Build
-      // Agar backend `data.user` object bhej rha h ya alag se `data.role` bhej rha h, dono handle ho jayenge
-      const userData = typeof data.user === 'object' 
-        ? { ...data.user, role: data.user.role || data.role }
-        : { name: data.user, role: data.role };
+      // Safe User + Role Object Construction
+      const userData =
+        typeof data.user === "object"
+          ? { ...data.user, role: data.user.role || data.role }
+          : { name: data.user, role: data.role };
 
-      // 2. LocalStorage me save karein (Persistence ke liye)
-      localStorage.setItem("user", JSON.stringify(userData));
-
-      // 3. Redux State me dispatch karein
-      dispatch(setUser(userData));
+      // Single action dispatches user + token to Redux & auto-syncs localStorage
+      dispatch(
+        setCredentials({
+          user: userData,
+          token: data.token,
+        })
+      );
 
       return { success: true, user: userData, message: data.message };
     } catch (err) {
-      const errorMessage =
-        err.response?.data?.message || err.message || "Login failed!";
+      const errorMessage = err.message || "Login failed!";
       dispatch(setError(errorMessage));
       return { success: false, error: errorMessage };
     } finally {
@@ -61,27 +72,30 @@ async function handleLogin(credentials) {
     }
   }
 
- async function handleLogout() {
+  // 3. Handle Logout
+  async function handleLogout() {
     try {
       dispatch(setLoading(true));
-      // 1. Backend API Call (HttpOnly Cookie Delete karega)
+      // Backend HttpOnly Cookie clear request
       await logoutApi();
     } catch (err) {
       console.error("Logout API Error:", err);
     } finally {
-      // 2. Client Side State Clear (Success ho ya Error)
-      dispatch(logout()); // Redux reset + localStorage.removeItem("user")
+      // Client-side state + localStorage reset (runs regardless of API success/failure)
+      dispatch(logout());
       dispatch(setLoading(false));
     }
   }
 
-
   return {
     user,
+    token,
     loading,
     error,
     handleRegister,
     handleLogin,
-     handleLogout
+    handleLogout,
   };
 };
+
+export default useAuth;
