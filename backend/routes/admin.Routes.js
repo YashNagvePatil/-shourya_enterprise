@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { deductItemStock, getAdminDashboardData, getAgentById, getAgentsList, getInventoryItem, purchaseItem, toggleAgentStatus,} from "../controllers/admin.controller.js";
+import { deductItemStock, getAdminAgentAnalytics,getAgentById, getAgentsList, getInventoryItem, purchaseItem, toggleAgentStatus,} from "../controllers/admin.controller.js";
 import { authenticateUser } from "../middlewares/agent.middleware.js";
 import { createProduct} from "../controllers/product.controller.js";
 import {getDashboardOverview,getNetworkAnalytics} from "../controllers/franchiseMangment/franchiseMangeDashboard.controller.js"
@@ -17,7 +17,7 @@ const router = Router()
  */
    router.use(authenticateUser)
 
-  router.get("/dashboard",getAdminDashboardData)
+  router.get("/dashboard",getAdminAgentAnalytics)
 
 /**
  * @desc    Get all agents with search, filters & pagination
