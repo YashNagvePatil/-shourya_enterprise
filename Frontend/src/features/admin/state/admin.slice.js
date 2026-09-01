@@ -1,14 +1,34 @@
 import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {
-  // --- Dashboard State ---
+  // --- Dashboard Overview State ---
   summary: {
     totalAgents: 0,
     activeAgents: 0,
     blockedAgents: 0,
     inactiveAgents: 0,
+    pendingKycCount: 0,
+    totalFranchises: 0,
+    activeFranchises: 0,
   },
+
+  // --- Global Binary Tree & Financial Overview State ---
+  binaryOverview: {
+    totalLeftPV: 0,
+    totalRightPV: 0,
+    matchedPV: 0,
+    pendingPayoutsCount: 0,
+    unmatchedCarryForwardPV: 0,
+  },
+
+  // --- Actionable System Badges ---
+  actionAlerts: {
+    pendingKYCApprovals: 0,
+    pendingFranchiseRequests: 0,
+  },
+
   recentAgents: [],
+  recentFranchises: [],
   monthlyTrend: [],
 
   // --- Agents List State ---
@@ -21,17 +41,25 @@ const initialState = {
     hasNextPage: false,
     hasPrevPage: false,
   },
+  
+  // Dynamic backend filters matrix alignment
   filters: {
     search: "",
     status: "",
     role: "",
+    rank: "",
+    kycStatus: "",
+    startDate: null,
+    endDate: null,
+    sortBy: "createdAt",
+    sortOrder: "desc",
   },
 
-  // --- Single Agent Deep Details State (API 1) ---
+  // --- Single Agent Deep Details State ---
   selectedAgent: null,
   isDetailLoading: false,
 
-  // --- Agent Action States (API 2) ---
+  // --- Agent Action States ---
   isActionLoading: false,
 
   // --- Common UI States ---
@@ -56,10 +84,23 @@ const adminSlice = createSlice({
       state.isLoading = false;
       state.isSuccess = true;
       state.error = null;
-      const data = action.payload?.data || action.payload;
-      state.summary = data?.summary || initialState.summary;
-      state.recentAgents = data?.recentAgents || [];
-      state.monthlyTrend = data?.monthlyTrend || [];
+
+      const payloadData = action.payload?.data || action.payload;
+
+      // Deep mapping aligning with backend controller structure
+      state.summary = {
+        ...state.summary,
+        ...(payloadData?.summary || payloadData?.networkOverview || {}),
+      };
+      state.binaryOverview = {
+        ...state.binaryOverview,
+        ...(payloadData?.binaryOverview || payloadData?.globalBinaryOverview || {}),
+      };
+      state.actionAlerts = payloadData?.actionAlerts || initialState.actionAlerts;
+
+      state.recentAgents = payloadData?.recentAgents || payloadData?.agents || [];
+      state.recentFranchises = payloadData?.recentFranchises || [];
+      state.monthlyTrend = payloadData?.monthlyTrend || [];
     },
     fetchDashboardFailure: (state, action) => {
       state.isLoading = false;
@@ -80,9 +121,28 @@ const adminSlice = createSlice({
       state.error = null;
 
       const response = action.payload;
-      state.agentsList = response?.data || [];
-      if (response?.pagination) {
-        state.pagination = response.pagination;
+      const dataPayload = response?.data;
+
+      // Handle both array response or nested agents list payload
+      if (Array.isArray(dataPayload)) {
+        state.agentsList = dataPayload;
+      } else if (dataPayload?.agents) {
+        state.agentsList = dataPayload.agents;
+      } else {
+        state.agentsList = [];
+      }
+
+      // Automatically sync UI top summary badges if provided in response
+      if (dataPayload?.metricsSummary) {
+        state.summary = {
+          ...state.summary,
+          ...dataPayload.metricsSummary,
+        };
+      }
+
+      // Sync Pagination Metadata
+      if (response?.pagination || dataPayload?.pagination) {
+        state.pagination = response?.pagination || dataPayload?.pagination;
       }
     },
     fetchAgentsListFailure: (state, action) => {
@@ -94,13 +154,15 @@ const adminSlice = createSlice({
     setAgentFilters: (state, action) => {
       state.filters = { ...state.filters, ...action.payload };
     },
+    resetAgentFilters: (state) => {
+      state.filters = initialState.filters;
+    },
     setAgentPage: (state, action) => {
       state.pagination.currentPage = action.payload;
     },
 
     // ==========================================
-    // 1. GET AGENT BY ID REDUCERS
-    // (network, revenue & recentWork ko store karega)
+    // SINGLE AGENT DEEP DETAILS REDUCERS
     // ==========================================
     fetchAgentDetailsStart: (state) => {
       state.isDetailLoading = true;
@@ -109,7 +171,7 @@ const adminSlice = createSlice({
     fetchAgentDetailsSuccess: (state, action) => {
       state.isDetailLoading = false;
       state.error = null;
-      // Controller Response: { success: true, data: { ...agent, network, revenue, recentWork } }
+      // Stores structured data from updated getAgentById controller
       state.selectedAgent = action.payload?.data || action.payload;
     },
     fetchAgentDetailsFailure: (state, action) => {
@@ -117,9 +179,8 @@ const adminSlice = createSlice({
       state.error = action.payload;
     },
 
-    // ==========================================
-    // 2. TOGGLE AGENT STATUS REDUCERS
-    // (Block / Active Change Karega)
+  // ==========================================
+    // TOGGLE AGENT STATUS & KYC REDUCERS
     // ==========================================
     toggleAgentStatusStart: (state) => {
       state.isActionLoading = true;
@@ -132,19 +193,77 @@ const adminSlice = createSlice({
       state.error = null;
 
       const updatedAgent = action.payload?.data || action.payload;
+      const agentId = updatedAgent._id || updatedAgent.agentId;
 
-      // Case A: Agar Single Agent Overview Open hai, toh wahan status update karo
-      if (state.selectedAgent && state.selectedAgent._id === updatedAgent._id) {
-        state.selectedAgent.status = updatedAgent.status;
-        state.selectedAgent.blockReason = updatedAgent.blockReason;
+      // Find existing agent to track previous values for counters
+      const existingAgent = state.agentsList.find(
+        (a) => a._id === agentId || a.agentId === agentId
+      );
+
+      const previousStatus = existingAgent?.status;
+      const previousKycStatus = existingAgent?.kycStatus || state.selectedAgent?.kycStatus;
+
+      // Case A: Update selected detailed view if open
+      if (
+        state.selectedAgent &&
+        (state.selectedAgent._id === agentId || state.selectedAgent.agentId === agentId)
+      ) {
+        if (updatedAgent.status !== undefined) {
+          state.selectedAgent.status = updatedAgent.status;
+          state.selectedAgent.blockReason = updatedAgent.blockReason;
+        }
+        if (updatedAgent.kycStatus !== undefined) {
+          state.selectedAgent.kycStatus = updatedAgent.kycStatus;
+        }
       }
 
-      // Case B: Agents List (Table View) mein bhi status real-time update karo
+      // Case B: Update Agents Table Row
       state.agentsList = state.agentsList.map((agent) =>
-        agent._id === updatedAgent._id
-          ? { ...agent, status: updatedAgent.status, blockReason: updatedAgent.blockReason }
+        agent._id === agentId || agent.agentId === agentId
+          ? {
+              ...agent,
+              ...(updatedAgent.status !== undefined && {
+                status: updatedAgent.status,
+                blockReason: updatedAgent.blockReason,
+              }),
+              ...(updatedAgent.kycStatus !== undefined && {
+                kycStatus: updatedAgent.kycStatus,
+              }),
+            }
           : agent
       );
+
+      // Case C: Live Update Account Status Counters
+      if (
+        updatedAgent.status !== undefined &&
+        previousStatus &&
+        previousStatus !== updatedAgent.status
+      ) {
+        if (updatedAgent.status === "Blocked") {
+          state.summary.activeAgents = Math.max(0, state.summary.activeAgents - 1);
+          state.summary.blockedAgents += 1;
+        } else if (updatedAgent.status === "Active") {
+          state.summary.blockedAgents = Math.max(0, state.summary.blockedAgents - 1);
+          state.summary.activeAgents += 1;
+        }
+      }
+
+      // Case D: Live Update KYC Pending Counters
+      if (
+        updatedAgent.kycStatus !== undefined &&
+        previousKycStatus === "Pending" &&
+        updatedAgent.kycStatus !== "Pending"
+      ) {
+        if (state.summary.pendingKycCount > 0) {
+          state.summary.pendingKycCount = Math.max(0, state.summary.pendingKycCount - 1);
+        }
+        if (state.actionAlerts.pendingKYCApprovals > 0) {
+          state.actionAlerts.pendingKYCApprovals = Math.max(
+            0,
+            state.actionAlerts.pendingKYCApprovals - 1
+          );
+        }
+      }
     },
     toggleAgentStatusFailure: (state, action) => {
       state.isActionLoading = false;
@@ -176,14 +295,15 @@ export const {
   fetchAgentsListSuccess,
   fetchAgentsListFailure,
   setAgentFilters,
+  resetAgentFilters,
   setAgentPage,
 
-  // Single Agent Actions (New)
+  // Single Agent Actions
   fetchAgentDetailsStart,
   fetchAgentDetailsSuccess,
   fetchAgentDetailsFailure,
 
-  // Status Action (New)
+  // Status Action
   toggleAgentStatusStart,
   toggleAgentStatusSuccess,
   toggleAgentStatusFailure,
@@ -192,7 +312,6 @@ export const {
   clearSelectedAgent,
   clearAdminError,
   resetAdminState,
-  
 } = adminSlice.actions;
 
 export default adminSlice.reducer;
