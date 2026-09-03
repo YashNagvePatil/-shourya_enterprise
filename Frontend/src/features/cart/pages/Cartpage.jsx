@@ -1,7 +1,8 @@
 import React, { useEffect } from "react";
 import { Link, useNavigate } from "react-router";
-import { useCart } from "../hook/usecart"; // Path adjust kar lein
-import { getImageUrl } from "../../products/hook/useGetProduct"; // Helper function
+import { useCart } from "../hook/usecart";
+import { getImageUrl } from "../../products/hook/useGetProduct";
+import { ShoppingBag, Trash2, Plus, Minus, ArrowLeft, ShieldCheck, Zap } from "lucide-react";
 
 const CartPage = () => {
   const navigate = useNavigate();
@@ -32,10 +33,10 @@ const CartPage = () => {
   // 1. Loading State
   if (isLoading && (!cart?.items || cart.items.length === 0)) {
     return (
-      <div className="min-h-screen bg-black flex justify-center items-center text-zinc-400">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-          <span className="tracking-widest uppercase text-xs animate-pulse">
+      <div className="min-h-screen bg-[#FAF5EE] flex justify-center items-center text-slate-500 font-light">
+        <div className="flex flex-col items-center space-y-4 bg-white px-8 py-6 rounded-2xl shadow-xs border border-[#E0C475]/40">
+          <div className="w-8 h-8 border-2 border-[#DC2643]/20 border-t-[#DC2643] rounded-full animate-spin" />
+          <span className="tracking-wide text-xs font-light text-slate-700 animate-pulse">
             Retrieving Cart...
           </span>
         </div>
@@ -46,24 +47,25 @@ const CartPage = () => {
   // 2. Empty Cart State
   if (!isLoading && (!cart?.items || cart.items.length === 0)) {
     return (
-      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-4">
-        <div className="text-center space-y-6 max-w-md">
-          <div className="w-16 h-16 border border-white/10 rounded-full flex items-center justify-center mx-auto bg-zinc-950 text-zinc-500">
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-            </svg>
+      <div className="min-h-screen bg-[#FAF5EE] text-slate-800 font-light flex flex-col items-center justify-center px-4">
+        <div className="text-center space-y-6 max-w-md bg-white p-8 rounded-2xl border border-[#E0C475]/40 shadow-xs">
+          <div className="w-16 h-16 border border-[#E0C475]/40 rounded-2xl flex items-center justify-center mx-auto bg-[#FAF5EE] text-[#DC2643]">
+            <ShoppingBag className="w-8 h-8" />
           </div>
-          <h2 className="text-2xl font-bold tracking-widest uppercase">
-            Your Cart is Empty
-          </h2>
-          <p className="text-zinc-400 text-xs tracking-wider leading-relaxed">
-            Looks like you haven't added any luxury formulations to your cart yet.
-          </p>
+          <div className="space-y-2">
+            <h2 className="text-xl font-light text-slate-900 tracking-tight">
+              Your Cart is Empty
+            </h2>
+            <p className="text-slate-500 text-xs font-light leading-relaxed">
+              Looks like you haven't added any formulations to your cart yet.
+            </p>
+          </div>
           <Link
             to="/"
-            className="inline-block px-8 py-3.5 bg-white text-black text-xs font-bold uppercase tracking-widest hover:bg-zinc-200 transition-colors"
+            className="inline-flex items-center space-x-2 px-6 py-3 bg-[#DC2643] hover:bg-[#c41e38] text-white text-xs font-light rounded-xl shadow-xs transition cursor-pointer"
           >
-            Explore Catalog
+            <ArrowLeft className="w-4 h-4" />
+            <span>Explore Catalog</span>
           </Link>
         </div>
       </div>
@@ -71,39 +73,39 @@ const CartPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white pt-8 pb-20">
+    <div className="min-h-screen bg-[#FAF5EE] text-slate-800 font-light pt-8 pb-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Breadcrumb Navigation */}
-        <nav className="flex items-center space-x-2 text-xs text-zinc-500 uppercase tracking-widest mb-8">
-          <Link to="/" className="hover:text-white transition-colors">
+        <nav className="flex items-center space-x-2 text-xs font-light text-slate-500 mb-6">
+          <Link to="/" className="hover:text-[#DC2643] transition">
             Catalog
           </Link>
-          <span>/</span>
-          <span className="text-white">Cart</span>
+          <span className="text-[#E0C475]">/</span>
+          <span className="text-slate-800">Cart</span>
         </nav>
 
         {/* Page Header */}
-        <div className="flex items-baseline justify-between border-b border-white/10 pb-6 mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-widest uppercase">
-            Your Selections
+        <div className="flex items-baseline justify-between border-b border-[#E0C475]/40 pb-5 mb-8">
+          <h1 className="text-xl sm:text-2xl font-light tracking-tight text-slate-900">
+            Your <span className="text-[#DC2643]">Selections</span>
           </h1>
-          <span className="text-xs text-zinc-400 tracking-wider">
+          <span className="text-xs text-slate-500 font-light">
             {cart?.items?.length} {cart?.items?.length === 1 ? "Item" : "Items"}
           </span>
         </div>
 
         {/* Error Alert */}
         {error && (
-          <div className="mb-6 p-4 bg-rose-950/50 border border-rose-500/30 text-rose-400 text-xs rounded">
+          <div className="mb-6 p-4 bg-[#DC2643]/10 border border-[#DC2643]/30 text-[#DC2643] text-xs font-light rounded-xl">
             {error}
           </div>
         )}
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
-          {/* Left Column: Cart Items List (8 Cols) */}
+          {/* Left Column: Cart Items List */}
           <div className="lg:col-span-8 space-y-4">
             {cart.items.map((item) => {
               const product = item.product || {};
@@ -112,11 +114,11 @@ const CartPage = () => {
               return (
                 <div
                   key={item._id || product._id}
-                  className="bg-zinc-950 border border-white/10 rounded-md p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-6 hover:border-white/20 transition-all"
+                  className="bg-white border border-[#E0C475]/40 hover:border-[#DC2643]/30 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-5 transition-all shadow-xs"
                 >
                   {/* Product Details & Image */}
                   <div className="flex items-center space-x-4 w-full sm:w-auto">
-                    <div className="w-20 h-20 sm:w-24 sm:h-24 bg-zinc-900 border border-white/10 rounded overflow-hidden flex-none">
+                    <div className="w-20 h-20 sm:w-22 sm:h-22 bg-[#FAF5EE] border border-[#E0C475]/30 rounded-xl overflow-hidden flex-none">
                       <img
                         src={imgUrl}
                         alt={product.name || "Product"}
@@ -125,19 +127,19 @@ const CartPage = () => {
                     </div>
                     
                     <div className="space-y-1">
-                      <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                      <span className="text-[10px] font-light text-[#F59E35] tracking-wider uppercase">
                         {product.brand || "GENERIC"}
                       </span>
-                      <h3 className="text-sm font-semibold text-white line-clamp-1">
+                      <h3 className="text-xs sm:text-sm font-light text-slate-900 line-clamp-1">
                         {product.name || "Product Name"}
                       </h3>
                       
-                      <div className="flex items-center space-x-3 pt-1">
-                        <span className="text-sm font-bold text-white">
+                      <div className="flex items-center space-x-2.5 pt-0.5">
+                        <span className="text-sm font-light text-slate-900">
                           ₹{item.price?.toLocaleString()}
                         </span>
                         {item.pv > 0 && (
-                          <span className="bg-white/10 text-zinc-300 text-[10px] font-bold px-2 py-0.5 rounded">
+                          <span className="bg-[#FAF5EE] border border-[#E0C475]/40 text-[#F59E35] text-[10px] font-light px-2 py-0.5 rounded-full">
                             {item.pv} PV
                           </span>
                         )}
@@ -146,41 +148,39 @@ const CartPage = () => {
                   </div>
 
                   {/* Quantity & Action Buttons */}
-                  <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto space-x-6 border-t sm:border-t-0 border-white/10 pt-4 sm:pt-0">
+                  <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto space-x-6 border-t sm:border-t-0 border-[#FAF5EE] pt-3 sm:pt-0">
                     
                     {/* Quantity Selector */}
-                    <div className="inline-flex items-center border border-white/20 rounded bg-black">
+                    <div className="inline-flex items-center border border-[#E0C475]/40 rounded-xl bg-[#FAF5EE]/60 overflow-hidden">
                       <button
                         onClick={() => handleDecrease(product._id, item.quantity)}
-                        className="px-3 py-1 text-zinc-400 hover:text-white transition-colors text-sm font-bold"
+                        className="p-1.5 px-2.5 text-slate-600 hover:text-[#DC2643] transition-colors cursor-pointer"
                       >
-                        -
+                        <Minus className="w-3 h-3" />
                       </button>
-                      <span className="px-3 py-1 text-xs font-bold text-white border-x border-white/10">
+                      <span className="px-3 py-1 text-xs font-light text-slate-800 border-x border-[#E0C475]/30 min-w-[32px] text-center">
                         {item.quantity}
                       </span>
                       <button
                         onClick={() => handleIncrease(product._id)}
-                        className="px-3 py-1 text-zinc-400 hover:text-white transition-colors text-sm font-bold"
+                        className="p-1.5 px-2.5 text-slate-600 hover:text-[#DC2643] transition-colors cursor-pointer"
                       >
-                        +
+                        <Plus className="w-3 h-3" />
                       </button>
                     </div>
 
                     {/* Total Item Price */}
-                    <span className="text-sm font-bold text-white min-w-[80px] text-right">
+                    <span className="text-xs sm:text-sm font-light text-slate-900 min-w-[70px] text-right">
                       ₹{(item.price * item.quantity).toLocaleString()}
                     </span>
 
                     {/* Remove Item Button */}
                     <button
                       onClick={() => removeFromCart(product._id)}
-                      className="text-zinc-500 hover:text-rose-400 transition-colors p-1"
+                      className="text-slate-400 hover:text-[#DC2643] p-1.5 rounded-lg hover:bg-[#DC2643]/10 transition cursor-pointer"
                       title="Remove Item"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -188,40 +188,40 @@ const CartPage = () => {
             })}
           </div>
 
-          {/* Right Column: Order Summary Sidebar (4 Cols) */}
+          {/* Right Column: Order Summary Sidebar */}
           <div className="lg:col-span-4">
-            <div className="bg-zinc-950 border border-white/10 rounded-md p-6 space-y-6 sticky top-8">
-              <h2 className="text-lg font-bold tracking-widest uppercase border-b border-white/10 pb-4">
+            <div className="bg-white border border-[#E0C475]/40 rounded-2xl p-6 space-y-5 sticky top-8 shadow-xs">
+              <h2 className="text-sm font-light text-slate-800 tracking-tight border-b border-[#FAF5EE] pb-3">
                 Order Summary
               </h2>
 
-              <div className="space-y-4 text-xs tracking-wider">
-                <div className="flex justify-between text-zinc-400">
+              <div className="space-y-3.5 text-xs font-light">
+                <div className="flex justify-between text-slate-500">
                   <span>Subtotal</span>
-                  <span className="text-white font-semibold">
+                  <span className="text-slate-800">
                     ₹{cart.totalAmount?.toLocaleString()}
                   </span>
                 </div>
 
-                <div className="flex justify-between text-zinc-400">
+                <div className="flex justify-between text-slate-500">
                   <span>Total PV Earned</span>
-                  <span className="text-emerald-400 font-bold">
+                  <span className="text-[#F59E35]">
                     {cart.totalPV || 0} PV
                   </span>
                 </div>
 
-                <div className="flex justify-between text-zinc-400">
+                <div className="flex justify-between text-slate-500">
                   <span>Estimated Shipping</span>
-                  <span className="text-emerald-400 uppercase font-semibold">
+                  <span className="text-[#DC2643]">
                     Complimentary
                   </span>
                 </div>
 
-                <div className="border-t border-white/10 pt-4 flex justify-between items-baseline">
-                  <span className="text-sm font-bold uppercase text-white">
+                <div className="border-t border-[#FAF5EE] pt-3.5 flex justify-between items-baseline">
+                  <span className="text-xs font-light text-slate-900">
                     Total Amount
                   </span>
-                  <span className="text-xl font-extrabold text-white">
+                  <span className="text-lg font-light text-[#DC2643]">
                     ₹{cart.totalAmount?.toLocaleString()}
                   </span>
                 </div>
@@ -230,15 +230,19 @@ const CartPage = () => {
               {/* Checkout Button */}
               <button
                 onClick={() => navigate("/payment")}
-                className="w-full bg-white hover:bg-zinc-200 text-black text-xs font-bold uppercase tracking-widest py-4 rounded-sm transition-colors duration-300 shadow-md"
+                className="w-full bg-[#DC2643] hover:bg-[#c41e38] text-white text-xs font-light py-3.5 rounded-xl transition cursor-pointer shadow-xs active:scale-[0.99]"
               >
                 Proceed To Checkout
               </button>
 
               {/* Assurance Badges */}
-              <div className="pt-2 text-[10px] text-zinc-500 font-light tracking-wider uppercase space-y-2 text-center">
-                <p>✓ Fast & Encrypted Checkout</p>
-                <p>✓ Direct PV Credit to Account</p>
+              <div className="pt-2 text-[10px] text-slate-400 font-light space-y-1.5">
+                <p className="flex items-center justify-center gap-1">
+                  <ShieldCheck className="w-3 h-3 text-[#F59E35]" /> Fast & Encrypted Checkout
+                </p>
+                <p className="flex items-center justify-center gap-1">
+                  <Zap className="w-3 h-3 text-[#E0C475]" /> Direct PV Credit to Account
+                </p>
               </div>
             </div>
           </div>

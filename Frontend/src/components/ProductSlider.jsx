@@ -1,12 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useGetProduct, getImageUrl } from "../features/products/hook/useGetProduct";
-import { useCart } from "../features/cart/hook/usecart"; // Path apne project structure ke hisab se adjust karein
+import { useCart } from "../features/cart/hook/usecart";
 import { usePayment } from "../features/Payment/hook/usePayment";
-import { createPayment } from "../features/Payment/service/payment.api";
 
 const ProductCard = ({ product }) => {
-  // Database Fields Extraction with Fallbacks
   const {
     _id,
     name = "Product Title",
@@ -23,19 +21,15 @@ const ProductCard = ({ product }) => {
   const { addToCart } = useCart();
   const { executePayment } = usePayment();
 
-  // Local Loading States for Buttons
   const [isAdding, setIsAdding] = useState(false);
   const [isBuying, setIsBuying] = useState(false);
 
-  // Discount Calculation
   const discountPercent =
     mrp > price ? Math.round(((mrp - price) / mrp) * 100) : 0;
 
-  // Static Rating Data
   const rating = 4.5;
   const reviewCount = 128;
 
-  // 1. Add To Cart Handler
   const handleAddToCart = async (e) => {
     e.preventDefault();
     if (isAdding) return;
@@ -44,65 +38,74 @@ const ProductCard = ({ product }) => {
       await addToCart(_id, 1);
     } catch (error) {
       console.error("Failed to add product to cart:", error);
-    } 
-  };
-
-  // 2. Buy Now Handler (Add to cart + Navigate to Cart/Checkout)
-  const handleBuyNow = async (e, productId) => {
-    e.preventDefault();
-
-    if (!productId) {
-      alert("Product ID is missing!");
-      return;
-    }
-
-    if (isBuying) return;
-
-    try {
-      setIsBuying(true);
-
-      // STEP 1: Pehle DB me Order create karein
-      const orderResponse = await createPayment({ productId, quantity: 1 });
-
-      if (!orderResponse || !orderResponse.order?._id) {
-        alert("Order creation failed");
-        return;
-      }
-
-      const createdOrderId = orderResponse.order._id;
-
-      // STEP 2: Ab actual Order ID pass karein payment execution me
-      const paymentResponse = await executePayment(createdOrderId);
-
-      if (paymentResponse && paymentResponse.success) {
-        navigate("/payment", { state: { orderId: createdOrderId } });
-      } else {
-        alert(paymentResponse?.message || "Payment Failed");
-      }
-    } catch (error) {
-      console.error("Buy now failed:", error);
-      alert(error.response?.data?.message || "Something went wrong!");
     } finally {
-      setIsBuying(false);
+      setIsAdding(false);
     }
   };
+const handleBuyNow = async (e) => {
+  e.preventDefault();
+
+  if (!_id) {
+    alert("Product ID is missing!");
+    return;
+  }
+
+  if (isBuying) return;
+
+  try {
+    setIsBuying(true);
+
+    // 1. First add product to cart backend state
+    await addToCart(_id, 1);
+
+    // 2. Prepare payload for payment execution
+    const cartPayload = {
+      items: [{ productId: _id, quantity: 1, price }],
+      amount: price,
+      isDirectBuy: true // Flag to distinguish Buy Now from standard Cart
+    };
+
+    const userDetails = { name: "", email: "", phone: "" };
+
+    // 3. Execute Payment
+    const paymentResponse = await executePayment(cartPayload, userDetails);
+
+    if (paymentResponse?.success) {
+      // 4. Force redirect to Receipt / Payment confirmation page
+      const orderId = paymentResponse.data?.dbOrderId 
+        || paymentResponse.data?.orderId 
+        || paymentResponse.data?.razorpay_order_id;
+
+      navigate("/payment", {
+        state: {
+          orderId: orderId,
+          receipt: paymentResponse.data?.receipt || paymentResponse.data?.razorpay_payment_id,
+          paymentData: paymentResponse.data,
+        },
+        replace: true // Prevents back button loop to payment modal
+      });
+    } else if (paymentResponse?.message !== "Payment popup closed by user.") {
+      alert(paymentResponse?.message || "Payment Failed");
+    }
+  } catch (error) {
+    console.error("Buy now execution error:", error);
+    alert(error.response?.data?.message || error.message || "Something went wrong!");
+  } finally {
+    setIsBuying(false);
+  }
+};
 
   return (
     <div className="flex-none w-64 sm:w-72 bg-white border border-[#D6B265]/30 rounded-xl group hover:border-[#DC2643]/50 transition-all duration-300 flex flex-col justify-between overflow-hidden shadow-sm hover:shadow-md">
-      
-      {/* 1. Image Container with Badges */}
       <Link to={`/products/${_id}`} className="relative aspect-square overflow-hidden bg-[#FAF5EE] block">
         <img
           src={imageUrl}
           alt={name}
           className="w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
         />
-        {/* Category Badge */}
         <span className="absolute top-2.5 left-2.5 bg-[#2A1815]/90 backdrop-blur-md text-[10px] font-semibold tracking-widest text-[#FAF5EE] uppercase px-2 py-0.5 rounded-md">
           {category}
         </span>
-        
-        {/* PV Badge */}
         {pv > 0 && (
           <span className="absolute top-2.5 right-2.5 bg-[#DC2643] text-white text-[10px] font-extrabold tracking-wider px-2 py-0.5 rounded-md shadow-sm">
             {pv} PV
@@ -110,22 +113,16 @@ const ProductCard = ({ product }) => {
         )}
       </Link>
 
-      {/* 2. Product Details */}
       <div className="p-4 flex flex-col flex-grow justify-between space-y-3">
         <div className="space-y-1">
-          {/* Brand Name */}
           <span className="text-[10px] font-bold tracking-widest text-[#F59E35] uppercase">
             {brand}
           </span>
-
-          {/* Product Title */}
           <Link to={`/products/${_id}`} className="block">
             <h3 className="text-sm font-bold tracking-wide text-[#2A1815] line-clamp-1 group-hover:text-[#DC2643] transition-colors">
               {name}
             </h3>
           </Link>
-
-          {/* Rating Badge */}
           <div className="flex items-center space-x-2 pt-0.5">
             <span className="inline-flex items-center space-x-1 bg-[#F59E35]/15 border border-[#F59E35]/40 text-[#2A1815] text-[11px] font-bold px-1.5 py-0.5 rounded">
               <span>{rating}</span>
@@ -138,18 +135,15 @@ const ProductCard = ({ product }) => {
             </span>
           </div>
 
-          {/* Price & Discount Section */}
           <div className="flex items-baseline space-x-2 pt-2">
             <span className="text-base font-bold text-[#2A1815]">
               ₹{price.toLocaleString()}
             </span>
-
             {mrp > price && (
               <span className="text-xs text-[#2A1815]/40 line-through font-mono">
                 ₹{mrp.toLocaleString()}
               </span>
             )}
-
             {discountPercent > 0 && (
               <span className="text-xs font-bold text-[#DC2643]">
                 {discountPercent}% OFF
@@ -158,7 +152,6 @@ const ProductCard = ({ product }) => {
           </div>
         </div>
 
-        {/* 3. Action Buttons (Add To Cart + Buy Now) */}
         <div className="pt-2 flex items-center space-x-2">
           <button
             onClick={handleAddToCart}
@@ -173,7 +166,7 @@ const ProductCard = ({ product }) => {
           </button>
           
           <button
-            onClick={(e) => handleBuyNow(e, product._id)}
+            onClick={handleBuyNow}
             disabled={isAdding || isBuying}
             className="flex-1 bg-[#DC2643] hover:bg-[#2A1815] disabled:opacity-50 text-[#FAF5EE] transition-colors duration-300 text-[11px] font-bold uppercase tracking-wider py-2.5 rounded-lg flex items-center justify-center shadow-xs cursor-pointer"
           >
@@ -189,7 +182,6 @@ const ProductCard = ({ product }) => {
   );
 };
 
-// Reusable Product Slider Component
 const SingleProductSlider = ({ title, subtitle, products }) => {
   const scrollRef = useRef(null);
 
@@ -255,7 +247,6 @@ const SingleProductSlider = ({ title, subtitle, products }) => {
   );
 };
 
-// Main Products Page Component
 const ProductsPage = () => {
   const { products, isProductsLoading, productsError, fetchProducts } =
     useGetProduct();

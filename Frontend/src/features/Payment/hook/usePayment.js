@@ -1,5 +1,8 @@
 import { useDispatch, useSelector } from "react-redux";
-import { createPayment as paymentApiCall } from "../service/payment.api";
+import {
+  createRazorpayOrder,
+  verifyAndDistributeMLM,
+} from "../service/payment.api"; 
 import {
   setPaymentStart,
   setPaymentSuccess,
@@ -7,53 +10,104 @@ import {
   resetPaymentState,
 } from "../state/payment.slice";
 
-export const usePayment = () => {
-  // 24-Character Hexadecimal MongoDB ObjectId Validation Regex
-  const isValidObjectId = (id) =>
-    typeof id === "string" && /^[0-9a-fA-F]{24}$/.test(id);
+// Dynamically load Razorpay SDK Script into the DOM
+const loadRazorpaySDK = () => {
+  return new Promise((resolve) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
 
+export const usePayment = () => {
   const dispatch = useDispatch();
   const { loading, success, error, paymentData } = useSelector(
     (state) => state.payment
   );
 
-  const executePayment = async (orderIdInput) => {
-    console.log("🔍 [usePayment Debug] Received input:", orderIdInput);
-
-    let orderId = orderIdInput;
-
-    // 1. Extraction Logic (If object was passed accidentally)
-    if (typeof orderIdInput === "object" && orderIdInput !== null) {
-      orderId = orderIdInput.orderId || orderIdInput._id || orderIdInput.id;
-    } else if (orderIdInput) {
-      orderId = String(orderIdInput).trim();
-    }
-
-    console.log("🔍 [usePayment Debug] Extracted orderId string:", orderId);
-
-    // 2. Dummy Fallback Logic for Testing
-    const DUMMY_TEST_OBJECT_ID = "65f1a2b3c4d5e6f7a8b9c0d1";
-
-    if (!isValidObjectId(orderId)) {
-      console.warn(
-        `⚠️ [usePayment Debug] Invalid or missing Order ID ("${orderId}"). Fallback to testing Dummy ObjectId: ${DUMMY_TEST_OBJECT_ID}`
-      );
-      orderId = DUMMY_TEST_OBJECT_ID;
-    }
+  /**
+   * @param {Object} cartPayload - { productId, quantity, amount }
+   * @param {Object} userDetails - Optional { name, email, phone } for prefilling Checkout modal
+   */
+  const executePayment = async (cartPayload, userDetails = {}) => {
+    dispatch(setPaymentStart());
 
     try {
-      dispatch(setPaymentStart());
-      console.log("🚀 [usePayment Debug] Hitting API with orderId:", orderId);
+      // 1. Check & Load Razorpay SDK
+      const isSDKLoaded = await loadRazorpaySDK();
+      if (!isSDKLoaded) {
+        const sdkErr = "Razorpay SDK failed to load. Check network connection.";
+        dispatch(setPaymentFailure(sdkErr));
+        return { success: false, message: sdkErr };
+      }
 
-      const data = await paymentApiCall(orderId);
+      // 2. Step 1 API Call: Create Order on Backend & Razorpay
+      console.log("🚀 [usePayment] Creating Razorpay Order with:", cartPayload);
+      
+      // Axios response interceptor directly unwraps response.data
+      const orderResponse = await createRazorpayOrder(cartPayload);
+      const { razorpayOrderId, amount, currency, dbOrderId, keyId } = orderResponse;
 
-      dispatch(setPaymentSuccess(data));
-      return { success: true, data };
+      // 3. Open Razorpay Checkout Modal
+      return new Promise((resolve) => {
+        const options = {
+          key: keyId,
+          amount: amount,
+          currency: currency || "INR",
+          name: "Shourya Enterprise",
+          description: "Order Payment & MLM Distribution",
+          order_id: razorpayOrderId,
+          prefill: {
+            name: userDetails.name || "",
+            email: userDetails.email || "",
+            contact: userDetails.phone || "",
+          },
+          handler: async (response) => {
+            try {
+              // 4. Step 2 API Call: Verify Signature & Distribute MLM Points
+              console.log("🔒 [usePayment] Verifying Payment Signature...");
+              
+              const verificationResult = await verifyAndDistributeMLM({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                dbOrderId: dbOrderId,
+              });
+
+              dispatch(setPaymentSuccess(verificationResult));
+              resolve({ success: true, data: verificationResult });
+            } catch (verificationErr) {
+              const verifyErrMsg = verificationErr.message || "Payment verification failed";
+              console.error("❌ [usePayment Verification Error]:", verifyErrMsg);
+              dispatch(setPaymentFailure(verifyErrMsg));
+              resolve({ success: false, message: verifyErrMsg });
+            }
+          },
+          modal: {
+            ondismiss: () => {
+              const dismissMsg = "Payment popup closed by user.";
+              console.warn("⚠️ [usePayment] Modal Dismissed");
+              dispatch(setPaymentFailure(dismissMsg));
+              resolve({ success: false, message: dismissMsg });
+            },
+          },
+          theme: {
+            color: "#DC2643", // Primary theme color matching Cart UI
+          },
+        };
+
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+      });
     } catch (err) {
-      const errorMessage =
-        err.response?.data?.message || err.message || "Payment processing failed";
-      console.error("❌ [usePayment Debug] API Error:", errorMessage);
-
+      const errorMessage = err.message || "Order creation failed";
+      console.error("❌ [usePayment Error]:", errorMessage);
       dispatch(setPaymentFailure(errorMessage));
       return { success: false, message: errorMessage };
     }

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useFetchDashboard } from "../hook/useAgent";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "../../auth/hook/useAuth";
 import { 
   Wallet, 
@@ -22,7 +22,8 @@ import {
 } from "lucide-react";
 
 const Dashboard = () => {
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(location.pathname || "/agent/dashboard");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const { handleLogout } = useAuth();
@@ -43,10 +44,10 @@ const Dashboard = () => {
   };
 
   const navItems = [
-    { id: "dashboard", label: "Dashboard", path: "/agent/dashboard", icon: LayoutDashboard },
-    { id: "network", label: "Network", path: "/agent/network", icon: Network },
-    { id: "profile", label: "Profile", path: "/agent/profile", icon: User },
-    { id: "wallet", label: "Wallet", path: "/agent/wallet", icon: Wallet },
+    { id: "/agent/dashboard", label: "Dashboard", path: "/agent/dashboard", icon: LayoutDashboard },
+    { id: "/agent/network", label: "Network", path: "/agent/network", icon: Network },
+    { id: "/agent/profile", label: "Profile", path: "/agent/profile", icon: User },
+    { id: "/agent/wallet", label: "Wallet", path: "/agent/wallet", icon: Wallet },
   ];
 
   if (loading) {
@@ -87,34 +88,28 @@ const Dashboard = () => {
         />
       )}
 
-      {/* 1. LEFT SIDEBAR (z-40) */}
+      {/* 1. LEFT SIDEBAR */}
       <aside 
         className={`fixed top-0 left-0 bottom-0 w-64 bg-white border-r border-[#E0C475]/40 z-40 flex flex-col justify-between transition-transform duration-300 ease-in-out ${
           isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
-        <div>
-          {/* Brand Logo / Title */}
-          <div className="h-16 flex items-center justify-between px-6 border-b border-[#FAF5EE]">
-            <div className="flex items-center space-x-2.5">
-              <div className="w-8 h-8 rounded-lg bg-[#DC2643] flex items-center justify-center text-white font-light text-sm shadow-sm">
-                A
-              </div>
-              <span className="font-light text-slate-800 tracking-tight text-base">Agent Portal</span>
-            </div>
-            <button 
-              onClick={() => setIsMobileSidebarOpen(false)}
-              className="lg:hidden text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+        {/* Mobile Close Button Container */}
+        <div className="lg:hidden absolute top-4 right-4 z-50">
+          <button 
+            onClick={() => setIsMobileSidebarOpen(false)}
+            className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
-          {/* Nav Links */}
-          <nav className="p-4 space-y-1">
+        {/* Centered Navigation Area */}
+        <div className="flex-1 flex flex-col justify-center px-4 py-8">
+          <nav className="space-y-2">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = activeTab === item.id;
+              const isActive = activeTab === item.id || location.pathname === item.path;
               return (
                 <button
                   key={item.id}
@@ -123,9 +118,9 @@ const Dashboard = () => {
                     setIsMobileSidebarOpen(false);
                     navigate(item.path);
                   }}
-                  className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-light transition cursor-pointer ${
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-xs font-light transition cursor-pointer ${
                     isActive
-                      ? "bg-[#DC2643]/10 text-[#DC2643] border border-[#DC2643]/20 shadow-xs"
+                      ? "bg-[#DC2643]/10 text-[#DC2643] border border-[#DC2643]/20 shadow-xs font-normal"
                       : "text-slate-600 hover:bg-[#FAF5EE] hover:text-slate-900"
                   }`}
                 >
@@ -137,8 +132,8 @@ const Dashboard = () => {
           </nav>
         </div>
 
-        {/* Sidebar Footer: Agent Info + Logout Icon */}
-        <div className="p-3 border-t border-[#FAF5EE] flex items-center justify-between gap-2">
+        {/* Sidebar Footer: Agent Profile + Logout */}
+        <div className="p-4 border-t border-[#FAF5EE] flex items-center justify-between gap-2">
           <div className="flex items-center space-x-2.5 p-2 bg-[#FAF5EE]/60 rounded-xl border border-[#E0C475]/30 flex-1 min-w-0">
             <div className="w-8 h-8 rounded-lg bg-[#DC2643]/10 text-[#DC2643] flex items-center justify-center text-xs font-light shrink-0">
               {profile?.fullName?.charAt(0) || "A"}
@@ -149,7 +144,6 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* 🔴 LOGOUT ICON BUTTON */}
           <button
             onClick={handlelogout}
             title="Logout"

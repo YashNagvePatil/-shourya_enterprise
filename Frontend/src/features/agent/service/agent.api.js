@@ -60,6 +60,11 @@ export const getAgentWalletData = async (cacheBuster = "") => {
   return await Agentapi.get(`/agent/wallet${cacheBuster}`);
 };
 
+
+export const  withdrawalRequests = async (withdrawalData) => {
+  return await Agentapi.post("/agent/wallet/withdrawalRequests", withdrawalData);
+}
+
 // ---------------------- NEW: Agent Profile APIs ----------------------
 
 /**

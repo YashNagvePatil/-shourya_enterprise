@@ -37,7 +37,9 @@ const AgentWallet = () => {
     isWithdrawalDayAllowed,
     actionRequiredMessage,
     allowedWithdrawalDays,
+    minWithdrawalAmount,
     fetchWalletDetails,
+    submitWithdrawalRequest, // Integrated real API handler
     resetWalletToast,
   } = useWallet();
 
@@ -61,18 +63,20 @@ const AgentWallet = () => {
     }
   }, [error, successMessage, resetWalletToast]);
 
-  const handleWithdrawalSubmit = (e) => {
+  // Updated Real API Submission Handler
+  const handleWithdrawalSubmit = async (e) => {
     e.preventDefault();
-    if (!canWithdraw) return;
+    if (!canWithdraw || isSubmitting) return;
 
     setIsSubmitting(true);
-    // Simulate Request Submission Call
-    setTimeout(() => {
-      setIsSubmitting(false);
-      alert(`Withdrawal request of ₹${withdrawAmount} submitted successfully to Admin!`);
+
+    const res = await submitWithdrawalRequest(withdrawAmount);
+
+    setIsSubmitting(false);
+
+    if (res?.success) {
       setWithdrawAmount("");
-      fetchWalletDetails(true);
-    }, 1200);
+    }
   };
 
   if (isLoading) {
@@ -141,7 +145,7 @@ const AgentWallet = () => {
               <p className="text-xs text-[#2A1815]/80 font-normal leading-relaxed">{actionRequiredMessage}</p>
               <div className="flex items-center space-x-2 pt-1">
                 <span className="inline-flex items-center text-[11px] font-medium text-[#F59E35] bg-[#2A1815] px-2.5 py-0.5 rounded-md">
-                  <Calendar className="w-3 h-3 mr-1" /> Allowed Window: 5th & 20th of every month
+                  <Calendar className="w-3 h-3 mr-1" /> Allowed Window: {allowedWithdrawalDays?.join("th & ")}th of every month
                 </span>
               </div>
             </div>
@@ -237,7 +241,7 @@ const AgentWallet = () => {
                     : "bg-[#FAF5EE] text-[#DC2643] border border-[#DC2643]/30"
                 }`}
               >
-                {isWithdrawalDayAllowed ? "Window Open (5th/20th)" : "Window Closed"}
+                {isWithdrawalDayAllowed ? "Window Open" : "Window Closed"}
               </span>
             </div>
 
@@ -251,9 +255,9 @@ const AgentWallet = () => {
                     type="number"
                     value={withdrawAmount}
                     onChange={(e) => setWithdrawAmount(e.target.value)}
-                    placeholder={`Min limit ₹${payoutEligibility?.minWithdrawalAmount || 500}`}
-                    disabled={!canWithdraw}
-                    min={payoutEligibility?.minWithdrawalAmount || 500}
+                    placeholder={`Min limit ₹${minWithdrawalAmount || 500}`}
+                    disabled={!canWithdraw || isSubmitting}
+                    min={minWithdrawalAmount || 500}
                     max={balances?.availableBalance || 0}
                     required
                     className="w-full bg-[#FAF5EE] border border-[#D6B265]/40 rounded-xl px-3.5 py-2.5 text-xs text-[#2A1815] font-mono focus:outline-none focus:border-[#2A1815] disabled:opacity-50 transition-colors"
@@ -315,7 +319,6 @@ const AgentWallet = () => {
               <p className="text-xs text-[#2A1815]/60 font-light mb-4">Income distribution from binary & referrals.</p>
 
               <div className="space-y-3">
-                
                 {/* Category 1 */}
                 <div className="bg-[#FAF5EE] border border-[#D6B265]/30 rounded-xl p-3.5 flex items-center justify-between">
                   <div>
@@ -337,7 +340,6 @@ const AgentWallet = () => {
                     ₹{earningsBreakdown?.directReferralBonus?.toLocaleString("en-IN") || "0"}
                   </strong>
                 </div>
-
               </div>
             </div>
 
@@ -356,7 +358,7 @@ const AgentWallet = () => {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-[#2A1815] uppercase tracking-wider">Recent Wallet Activity Log</h3>
-              <p className="text-xs text-[#2A1815]/60 font-light">Latest 10 transactions recorded in your agent ledger.</p>
+              <p className="text-xs text-[#2A1815]/60 font-light">Latest transactions recorded in your agent ledger.</p>
             </div>
           </div>
 

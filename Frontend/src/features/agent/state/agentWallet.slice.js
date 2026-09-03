@@ -55,6 +55,40 @@ const agentWalletSlice = createSlice({
       state.loading = false;
       state.error = null;
     },
+    // New Action: Immediate Sync after successful Withdrawal Request
+    recordWithdrawalSuccess: (state, action) => {
+      const { amount, remainingWalletBalance, pendingPayout, transaction } =
+        action.payload;
+
+      // Update Balances
+      if (typeof remainingWalletBalance === "number") {
+        state.balances.availableBalance = remainingWalletBalance;
+      } else {
+        state.balances.availableBalance -= amount;
+      }
+
+      if (typeof pendingPayout === "number") {
+        state.balances.pendingPayout = pendingPayout;
+      } else {
+        state.balances.pendingPayout += amount;
+      }
+
+      // Lock Eligibility
+      state.payoutEligibility.hasPendingWithdrawal = true;
+      state.payoutEligibility.canWithdraw = false;
+      state.payoutEligibility.actionRequiredMessage =
+        "You already have a pending withdrawal request in process.";
+
+      // Prepend recent transaction if returned from server
+      if (transaction) {
+        state.recentTransactions.unshift(transaction);
+      }
+
+      state.loading = false;
+      state.error = null;
+      state.successMessage =
+        "Withdrawal request submitted successfully. Admin verification pending.";
+    },
     setWalletError: (state, action) => {
       state.error = action.payload;
       state.loading = false;
@@ -70,6 +104,7 @@ const agentWalletSlice = createSlice({
 export const {
   setWalletLoading,
   setWalletData,
+  recordWithdrawalSuccess,
   setWalletError,
   clearWalletMessages,
   resetWalletState,

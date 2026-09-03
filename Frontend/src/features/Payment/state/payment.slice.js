@@ -4,7 +4,8 @@ const initialState = {
   loading: false,
   success: false,
   error: null,
-  paymentData: null,
+  orderData: null,         // Step 1: Razorpay Order Creation response (orderId, dbOrderId, keyId)
+  verificationData: null,  // Step 2: Signature Verification & MLM distribution response
 };
 
 const paymentSlice = createSlice({
@@ -16,27 +17,29 @@ const paymentSlice = createSlice({
       state.error = null;
       state.success = false;
     },
+    // Step 1 Success (Create Order)
+    setOrderSuccess: (state, action) => {
+      state.loading = false;
+      state.orderData = action.payload;
+    },
+    // Step 2 Success (Verify & Distribute MLM)
     setPaymentSuccess: (state, action) => {
       state.loading = false;
       state.success = true;
-      state.paymentData = action.payload;
+      state.verificationData = action.payload;
     },
     setPaymentFailure: (state, action) => {
       state.loading = false;
       state.error = action.payload;
       state.success = false;
     },
-    resetPaymentState: (state) => {
-      state.loading = false;
-      state.success = false;
-      state.error = null;
-      state.paymentData = null;
-    },
+    resetPaymentState: () => initialState, // Clean reset using initialState
   },
 });
 
 export const {
   setPaymentStart,
+  setOrderSuccess,
   setPaymentSuccess,
   setPaymentFailure,
   resetPaymentState,

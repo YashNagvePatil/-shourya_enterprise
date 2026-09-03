@@ -1,4 +1,5 @@
 import { createBrowserRouter, Outlet } from "react-router";
+import Protected from "../components/Protected";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
@@ -31,6 +32,7 @@ import FranchiseSupply from "../features/franchise/pages/Supplyrequest";
 import FranchiseFinance from "../features/franchise/pages/FranchiseFinance";
 import FranchiseProfile from "../features/franchise/pages/FranchiseProfile";
 import AgentProfile from "../features/agent/pages/AgentProfile";
+import ReceiptPage from "../components/ReceiptPage";
 // Root Layout Component with Persistent Navbar & Footer
 const RootLayout = () => {
   return (
@@ -76,6 +78,14 @@ export const routes = createBrowserRouter([
         path:"payment",
         element:<PaymentPage/>
       },
+      
+      {
+             
+          path:"/receipt/:orderId" ,
+           element:<ReceiptPage /> 
+      }
+       ,
+
        {
         path:"contactUs",
         element:<ContactPage/>
@@ -87,6 +97,7 @@ export const routes = createBrowserRouter([
       // Agent Routes (Relative Paths)
       {
         path: "agent",
+        element:(<Protected allowedRoles={['Agent']}><Outlet/></Protected>),
         children: [
           { path: "dashboard", element: <Dashboard /> },
           { path: "profile", element: <AgentProfile/> },
@@ -98,6 +109,11 @@ export const routes = createBrowserRouter([
       // Admin Routes (Relative Paths)
       {
         path: "admin",
+        element: (
+          <Protected allowedRoles={["Admin"]}>
+            <Outlet />
+          </Protected>
+        ),
         children: [
           { path: "dashboard", element: <AdminDashboard /> },
           { path: "agentList", element: <AgentListPage /> },
@@ -113,6 +129,11 @@ export const routes = createBrowserRouter([
 
       {
         path:"franchise",
+        // element: (
+        //   <Protected allowedRoles={["Franchise"]}>
+        //     <Outlet />
+        //   </Protected>
+        // ),
         children:[
          { path:"dashboard",element:<FranchiseDashboard/>},
          {path:"inventory",element:<FranchiseInventory/>},

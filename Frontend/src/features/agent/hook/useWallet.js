@@ -1,12 +1,13 @@
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { getAgentWalletData } from "../service/agent.api"; // Adjust path as needed
+import { getAgentWalletData, withdrawalRequests } from "../service/agent.api";
 import {
   setWalletLoading,
   setWalletData,
+  recordWithdrawalSuccess,
   setWalletError,
   clearWalletMessages,
-} from "../state/agentWallet.slice"; // Adjust path as needed
+} from "../state/agentWallet.slice";
 
 export const useWallet = () => {
   const dispatch = useDispatch();
@@ -25,30 +26,82 @@ export const useWallet = () => {
 
   /**
    * Fetch latest wallet, balances, eligibility & recent transactions
-   * @param {boolean} forceRefresh - If true, adds cache buster query parameter
    */
-  const fetchWalletDetails = useCallback(
-    async (forceRefresh = false) => {
+  const fetchWalletDetails = useCallback(async () => {
+    dispatch(setWalletLoading(true));
+    try {
+      // Axios interceptor handle timestamp / params automatically
+      const response = await getAgentWalletData();
+
+      if (response?.success && response?.data) {
+        dispatch(setWalletData(response.data));
+        return { success: true, data: response.data };
+      } else {
+        const errMsg = response?.message || "Failed to load wallet details.";
+        dispatch(setWalletError(errMsg));
+        return { success: false, error: errMsg };
+      }
+    } catch (err) {
+      const errMsg = err.message || "Network error fetching wallet.";
+      dispatch(setWalletError(errMsg));
+      return { success: false, error: errMsg };
+    }
+  }, [dispatch]);
+
+  /**
+   * Submit Withdrawal Request
+   * @param {number|string} amount
+   */
+  const submitWithdrawalRequest = useCallback(
+    async (amount) => {
+      const numericAmount = Number(amount);
+
+      // Basic Client Validations
+      if (!numericAmount || numericAmount <= 0) {
+        const errMsg = "Please enter a valid withdrawal amount.";
+        dispatch(setWalletError(errMsg));
+        return { success: false, error: errMsg };
+      }
+
+      const minLimit = payoutEligibility?.minWithdrawalAmount || 500;
+      if (numericAmount < minLimit) {
+        const errMsg = `Minimum withdrawal amount is ₹${minLimit}.`;
+        dispatch(setWalletError(errMsg));
+        return { success: false, error: errMsg };
+      }
+
+      if (numericAmount > balances.availableBalance) {
+        const errMsg = "Insufficient wallet balance.";
+        dispatch(setWalletError(errMsg));
+        return { success: false, error: errMsg };
+      }
+
       dispatch(setWalletLoading(true));
       try {
-        const response = await getAgentWalletData(forceRefresh);
+        const response = await withdrawalRequests({ amount: numericAmount });
 
-        if (response?.success && response?.data) {
-          dispatch(setWalletData(response.data));
-          return { success: true, data: response.data };
+        if (response?.success) {
+          dispatch(
+            recordWithdrawalSuccess({
+              amount: numericAmount,
+              remainingWalletBalance: response.data?.remainingWalletBalance,
+              pendingPayout: response.data?.pendingPayout,
+              transaction: response.data?.transaction,
+            })
+          );
+          return { success: true, message: response.message, data: response.data };
         } else {
-          const errMsg = response?.message || "Failed to load wallet details.";
+          const errMsg = response?.message || "Failed to submit withdrawal request.";
           dispatch(setWalletError(errMsg));
           return { success: false, error: errMsg };
         }
       } catch (err) {
-        const errMsg =
-          err.response?.data?.message || err.message || "Network error fetching wallet.";
+        const errMsg = err.message || "Error processing withdrawal request.";
         dispatch(setWalletError(errMsg));
         return { success: false, error: errMsg };
       }
     },
-    [dispatch]
+    [dispatch, balances.availableBalance, payoutEligibility]
   );
 
   /**
@@ -74,9 +127,11 @@ export const useWallet = () => {
     isWithdrawalDayAllowed: payoutEligibility?.isWithdrawalDayAllowed || false,
     actionRequiredMessage: payoutEligibility?.actionRequiredMessage || null,
     allowedWithdrawalDays: payoutEligibility?.allowedWithdrawalDays || [5, 20],
+    minWithdrawalAmount: payoutEligibility?.minWithdrawalAmount || 500,
 
     // Action Handlers
     fetchWalletDetails,
+    submitWithdrawalRequest,
     resetWalletToast,
   };
 };
