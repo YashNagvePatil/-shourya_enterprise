@@ -3,7 +3,7 @@ import * as adminDao from "../dao/admin.dao.js";
 import userModel from "../models/user.models.js";
 import inventryModel from "../models/inventry.model.js";
 import productModel from "../models/product.model.js";
-
+import AgentTransaction from "../models/agentTransaction.model.js";
 /**
  * @desc    Get complete Agent Analytics & Metrics for Admin Dashboard
  * @route   GET /api/admin/dashboard/agents
@@ -582,3 +582,73 @@ export const getInventoryItem = async (req, res) => {
 };
 
 
+/**
+ * @desc    Approve / Reject Payout (Admin Side)
+ * @route   POST /api/v1/admin/payout/process
+ * @access  Private (Admin)
+ */
+export const processPayoutByAdmin = async (req, res) => {
+  try {
+    const { transactionId, action, rejectionReason } = req.body; // action: "Approve" | "Reject"
+
+    if (!transactionId || !["Approve", "Reject"].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid transactionId and action ('Approve' or 'Reject') are required.",
+      });
+    }
+
+    const transaction = await AgentTransaction.findOne({ transactionId, category: "Withdrawal" });
+
+    if (!transaction || transaction.status !== "Pending") {
+      return res.status(400).json({
+        success: false,
+        message: "Pending withdrawal transaction not found.",
+      });
+    }
+
+    const agent = await userModel.findById(transaction.agentId);
+    if (!agent) {
+      return res.status(404).json({ success: false, message: "Associated agent not found." });
+    }
+
+    if (action === "Approve") {
+      // Approve Flow: Update stats & mark completed
+      transaction.status = "Completed";
+      transaction.description = "Payout successfully transferred by admin.";
+      await transaction.save();
+
+      agent.pendingPayout = Math.max(0, (agent.pendingPayout || 0) - transaction.amount);
+      agent.totalWithdrawn = (agent.totalWithdrawn || 0) + transaction.amount;
+      await agent.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Payout approved and transaction completed.",
+      });
+
+    } else if (action === "Reject") {
+      // Reject Flow: Refund balance back to agent wallet
+      transaction.status = "Failed";
+      transaction.description = `Payout rejected by admin. Reason: ${rejectionReason || "N/A"}`;
+      await transaction.save();
+
+      agent.pendingPayout = Math.max(0, (agent.pendingPayout || 0) - transaction.amount);
+      agent.walletBalance = (agent.walletBalance || 0) + transaction.amount;
+      await agent.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Payout request rejected and funds refunded to agent wallet.",
+      });
+    }
+
+  } catch (error) {
+    console.error("Error in processPayoutByAdmin API:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error while processing payout.",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};

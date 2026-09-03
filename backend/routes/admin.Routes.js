@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { deductItemStock, getAdminAgentAnalytics,getAgentById, getAgentsList, getInventoryItem, purchaseItem, toggleAgentStatus,} from "../controllers/admin.controller.js";
+import { deductItemStock, getAdminAgentAnalytics,getAgentById, getAgentsList, getInventoryItem, purchaseItem, toggleAgentStatus,processPayoutByAdmin} from "../controllers/admin.controller.js";
 import { authenticateUser } from "../middlewares/agent.middleware.js";
 import { createProduct} from "../controllers/product.controller.js";
 import {getDashboardOverview,getNetworkAnalytics} from "../controllers/franchiseMangment/franchiseMangeDashboard.controller.js"
@@ -38,6 +38,9 @@ const router = Router()
  
   router.patch("/agent/status/:id",toggleAgentStatus)
 
+  router.post("/payout/process",processPayoutByAdmin)
+
+
   router.post("/createProduct",createProduct)
 
 
@@ -65,6 +68,10 @@ const router = Router()
 
 
   router.get("/inventory/:itemId",getInventoryItem)
+
+  
+
+
 
 
   // franchise management controllers 

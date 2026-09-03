@@ -1,5 +1,5 @@
 import{ Router} from "express"
-import { addToCart, dashBoard, getAgentProfile, getCart, getWalletDetails, netWorkTree, removeFromCart, submitAgentKYC, updateAgentProfile, updateBankDetails } from "../controllers/agent.controller.js"
+import { addToCart, dashBoard, getAgentProfile, getCart, getWalletDetails, netWorkTree, removeFromCart, requestWithdrawal, submitAgentKYC, updateAgentProfile, updateBankDetails,} from "../controllers/agent.controller.js"
 import {authenticateUser} from "../middlewares/agent.middleware.js"
 const router = Router()
 
@@ -31,7 +31,7 @@ router.get("/networkTree",authenticateUser,netWorkTree)
 
 router.get("/wallet",authenticateUser,getWalletDetails)
 
-
+router.post("/wallet/withdrawalRequests",authenticateUser,requestWithdrawal)
 
 router.get("/getCart", authenticateUser, getCart);
 
@@ -55,6 +55,7 @@ router.post("/profile/kyc", authenticateUser, submitAgentKYC);
 
 // 4. Update Bank & UPI Details for Payouts
 router.put("/profile/bank-details", authenticateUser, updateBankDetails);
+
 
 
 export default router

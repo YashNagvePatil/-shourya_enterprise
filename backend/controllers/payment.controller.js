@@ -3,11 +3,12 @@ import crypto from "crypto";
 import orderModel from "../models/order.model.js";
 import userModel from "../models/user.models.js";
 import productModel from "../models/product.model.js";
-
+import { config } from "../config/config.js";
 // Initialize Razorpay Instance
+
 const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
+  key_id: config.RAZORPAY_TEST_API_KEY,
+  key_secret:config.RAZORPAY_KEY_SECRET,
 });
 
 /**
@@ -44,14 +45,16 @@ export const createRazorpayOrder = async (req, res) => {
     }
 
     // 2. Create Order in MongoDB (Unpaid)
-    const newOrder = await orderModel.create({
-      user: userId,
-      products: productId ? [{ product: productId, quantity }] : [],
-      totalBV,
-      totalPV,
-      amount,
-      isPaid: false,
-    });
+        const receiptNumber = `REC_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
+
+         const newOrder = await orderModel.create({
+            user: userId,
+                 items: productId ? [{ product: productId, quantity, pv: totalPV }] : [],
+                 totalAmount: amount, // 'amount' ko 'totalAmount' assign kiya
+                 earnedPV: totalPV,
+                 receiptNumber: receiptNumber, // Required unique receipt string
+                 paymentStatus: "PENDING",
+          });
 
     // 3. Create Razorpay Order (Amount must be in paise: ₹1 = 100 paise)
     const options = {
@@ -68,11 +71,50 @@ export const createRazorpayOrder = async (req, res) => {
       amount: razorpayOrder.amount,
       currency: razorpayOrder.currency,
       dbOrderId: newOrder._id,
-      keyId: process.env.RAZORPAY_KEY_ID,
+      keyId: config.RAZORPAY_TEST_API_KEY
     });
   } catch (error) {
     console.error("❌ Error creating Razorpay Order:", error);
     return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * Helper: Binary Pair Matching Algorithm
+ * Evaluates leftBV and rightBV, processes 500/1000 step matching,
+ * updates wallet balance, and handles carry forward points.
+ */
+const processBinaryPairMatching = async (userId) => {
+  const user = await userModel.findById(userId);
+  if (!user) return;
+
+  const left = user.leftBV || 0;
+  const right = user.rightBV || 0;
+
+  // Minimum points across both legs
+  const matchedPoints = Math.min(left, right);
+
+  // Matching is valid only if minimum 500 points available on both sides
+  if (matchedPoints >= 500) {
+    // Round down to the nearest multiple of 500
+    const matchedPairsAmount = Math.floor(matchedPoints / 500) * 500;
+
+    // Deduct matched points from active balance (Carry Forward remaining)
+    const newLeftBV = left - matchedPairsAmount;
+    const newRightBV = right - matchedPairsAmount;
+
+    // 1:1 payout ratio (1 Point = ₹1 Bonus)
+    const matchingPayout = matchedPairsAmount;
+
+    await userModel.findByIdAndUpdate(userId, {
+      leftBV: newLeftBV,
+      rightBV: newRightBV,
+      $inc: {
+        walletBalance: matchingPayout,
+        totalMatchingBonus: matchingPayout,
+        totalEarning: matchingPayout,
+      },
+    });
   }
 };
 
@@ -93,7 +135,7 @@ export const verifyAndDistributeMLM = async (req, res) => {
 
     // 1. Signature Verification Check
     const generatedSignature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .createHmac("sha256", config.RAZORPAY_KEY_SECRET || process.env.RAZORPAY_KEY_SECRET)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest("hex");
 
@@ -110,18 +152,23 @@ export const verifyAndDistributeMLM = async (req, res) => {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
 
-    if (existingOrder.isPaid) {
+    if (existingOrder.paymentStatus === "PAID" || existingOrder.isPaid) {
       return res.status(400).json({ success: false, message: "Order is already processed" });
     }
 
-    const totalBV = existingOrder.totalBV || 0;
-    const totalPV = existingOrder.totalPV || 0;
+    // ------------------------------------------------------------------
+    // RULE 1: Fixed Point System based on Amount Threshold
+    // ------------------------------------------------------------------
+    const totalAmount = existingOrder.totalAmount || 0;
+    const generatedBV = totalAmount >= 13000 ? 1000 : 500;
 
     // 3. Mark Order as Paid
     const updatedOrder = await orderModel.findByIdAndUpdate(
       dbOrderId,
       {
         isPaid: true,
+        paymentStatus: "PAID",
+        earnedPV: generatedBV,
         paidAt: Date.now(),
         paymentResult: {
           id: razorpay_payment_id,
@@ -130,38 +177,68 @@ export const verifyAndDistributeMLM = async (req, res) => {
         },
       },
       { new: true }
-    );
+    ).populate("items.product", "name price category");
 
-    // 4. MLM Points Propagation (Parent to Root)
+    // 4. MLM Points & Commission Propagation Engine
     const purchasingAgent = await userModel.findById(userId);
-    let level = 1;
 
-    if (purchasingAgent && purchasingAgent.sponsor) {
-      let currentSponsorId = purchasingAgent.sponsor.toString();
+    if (purchasingAgent) {
+      let currentChildId = purchasingAgent._id;
+      let currentParentId = purchasingAgent.parentAgentId;
+      let childPosition = purchasingAgent.position; // "left" or "right"
 
-      while (currentSponsorId) {
-        const sponsorUser = await userModel.findById(currentSponsorId);
-        if (!sponsorUser) break;
+      // ----------------------------------------------------------------
+      // RULE 2: Upward Propagation with Correct Inc Operations
+      // ----------------------------------------------------------------
+      while (currentParentId) {
+        const parentUser = await userModel.findById(currentParentId);
+        if (!parentUser) break;
 
-        await userModel.findByIdAndUpdate(currentSponsorId, {
-          $inc: {
-            totalBV: totalBV,
-            totalPV: totalPV,
-            walletBalance: (totalBV * getCommissionPercentage(level)) / 100,
-          },
-        });
+        const updateIncFields = {};
 
-        currentSponsorId = sponsorUser.sponsor ? sponsorUser.sponsor.toString() : null;
-        level++;
+        if (childPosition === "left") {
+          updateIncFields.leftBV = generatedBV;
+          updateIncFields.totalLeftBV = generatedBV;
+        } else if (childPosition === "right") {
+          updateIncFields.rightBV = generatedBV;
+          updateIncFields.totalRightBV = generatedBV;
+        }
+
+        if (Object.keys(updateIncFields).length > 0) {
+          await userModel.findByIdAndUpdate(currentParentId, {
+            $inc: updateIncFields,
+          });
+
+          // ------------------------------------------------------------
+          // RULE 3: Process Binary Pair Matching on updated parent
+          // ------------------------------------------------------------
+          await processBinaryPairMatching(currentParentId);
+        }
+
+        // Advance to Next Level up in Binary Tree
+        currentChildId = parentUser._id;
+        currentParentId = parentUser.parentAgentId;
+        childPosition = parentUser.position;
       }
     }
 
     return res.status(200).json({
       success: true,
-      message: "Payment verified & MLM commissions distributed successfully",
-      orderId: updatedOrder._id,
-      totalUplinesRewarded: level - 1,
+      message: "Payment verified & MLM points/commissions updated successfully",
+      dbOrderId: updatedOrder._id,
+      receiptData: {
+        receiptNumber: updatedOrder.receiptNumber,
+        dbOrderId: updatedOrder._id,
+        transactionId: razorpay_payment_id,
+        razorpayOrderId: razorpay_order_id,
+        amount: updatedOrder.totalAmount,
+        earnedPV: generatedBV,
+        paidAt: updatedOrder.paidAt,
+        paymentStatus: updatedOrder.paymentStatus,
+        items: updatedOrder.items,
+      },
     });
+
   } catch (error) {
     console.error("❌ Error in verifyAndDistributeMLM:", error);
     return res.status(500).json({ success: false, message: error.message });

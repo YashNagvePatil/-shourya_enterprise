@@ -1,3 +1,4 @@
+import mongoose from "mongoose"
 import * as agentDao from "../dao/agent.dao.js";
 import productModel from "../models/product.model.js";
 import cartModel from "../models/cart.model.js";
@@ -200,7 +201,7 @@ export const netWorkTree = async (req, res) => {
  */
 export const getWalletDetails = async (req, res) => {
   try {
-    const agentDbId = req.user?.id;
+  const agentDbId = req.user?._id || req.user?.id;
 
     if (!agentDbId) {
       return res.status(401).json({
@@ -394,8 +395,6 @@ export const removeFromCart = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
-
 
 /**
  * @desc    Get complete Agent Profile details
@@ -606,3 +605,181 @@ export const updateBankDetails = async (req, res) => {
     });
   }
 };
+
+/**
+ * @desc    Request Payout / Withdrawal (Agent Side)
+ * @route   POST /api/agent/wallet/withdraw
+ * @access  Private (Agent)
+ */
+
+
+export const requestWithdrawal = async (req, res) => {
+  // 1. Session start karein atomic updates ke liye
+  const session = await mongoose.startSession();
+
+  try {
+    const agentId = req.user?._id || req.user?.id;
+    const { amount } = req.body;
+
+    // 2. Basic Validations
+    if (!amount || Number(amount) <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter a valid withdrawal amount.",
+      });
+    }
+
+    const withdrawAmount = Number(amount);
+    const MIN_WITHDRAWAL_LIMIT = 500;
+
+    if (withdrawAmount < MIN_WITHDRAWAL_LIMIT) {
+      return res.status(400).json({
+        success: false,
+        message: `Minimum withdrawal amount is ₹${MIN_WITHDRAWAL_LIMIT}.`,
+      });
+    }
+
+    // 3. Indian Standard Time (IST) Date Check
+    const todayIST = new Date(
+      new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+    );
+    const currentDayOfMonth = todayIST.getDate();
+    const isWithdrawalDayAllowed =
+      currentDayOfMonth === 5 || currentDayOfMonth === 20;
+
+    if (!isWithdrawalDayAllowed) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Withdrawal requests can only be submitted on the 5th and 20th of every month.",
+      });
+    }
+
+    // --- TRANSACTION START ---
+    session.startTransaction();
+
+    // 4. Fetch Agent Record inside Session
+    const agent = await userModel.findById(agentId).session(session);
+
+    if (!agent) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({
+        success: false,
+        message: "Agent not found.",
+      });
+    }
+
+    // 5. KYC & Bank Account Configuration Check
+    if (agent.kycStatus !== "Approved") {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({
+        success: false,
+        message: "KYC verification is required before making a withdrawal.",
+      });
+    }
+
+    const hasBankConfigured = Boolean(
+      agent.bankDetails?.accountNumber && agent.bankDetails?.ifscCode
+    );
+    if (!hasBankConfigured) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please configure your bank details before requesting a withdrawal.",
+      });
+    }
+
+    // 6. Balance Check
+    const currentWalletBalance = agent.walletBalance || 0;
+    if (currentWalletBalance < withdrawAmount) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({
+        success: false,
+        message: "Insufficient wallet balance.",
+      });
+    }
+
+    // 7. Check for existing pending request
+    const pendingRequest = await AgentTransaction.findOne({
+      agentId,
+      category: "Withdrawal",
+      status: "Pending",
+    }).session(session);
+
+    if (pendingRequest) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({
+        success: false,
+        message:
+          "You already have a pending withdrawal request in process.",
+      });
+    }
+
+    // 8. Balance Snapshots (Audit Trail)
+    const openingBalance = currentWalletBalance;
+    const closingBalance = currentWalletBalance - withdrawAmount;
+
+    // 9. Update Agent Balance
+    agent.walletBalance = closingBalance;
+    agent.pendingPayout = (agent.pendingPayout || 0) + withdrawAmount;
+    await agent.save({ session });
+
+    // 10. Create Transaction Document
+    const transactionId = `TXN${Date.now()}${Math.floor(
+      1000 + Math.random() * 9000
+    )}`;
+
+    const [withdrawalTransaction] = await AgentTransaction.create(
+      [
+        {
+          agentId,
+          transactionId,
+          amount: withdrawAmount,
+          transactionType: "Debit",
+          category: "Withdrawal",
+          status: "Pending",
+          title: "Payout Withdrawal Request",
+          description: `Withdrawal request submitted for ₹${withdrawAmount}`,
+          openingBalance,
+          closingBalance,
+        },
+      ],
+      { session }
+    );
+
+    // 11. Commit Transaction
+    await session.commitTransaction();
+    session.endSession();
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Withdrawal request submitted successfully. Admin verification pending.",
+      data: {
+        transactionId: withdrawalTransaction.transactionId,
+        amount: withdrawAmount,
+        remainingWalletBalance: agent.walletBalance,
+        pendingPayout: agent.pendingPayout,
+      },
+    });
+  } catch (error) {
+    // Failure par Rollback karein
+    await session.abortTransaction();
+    session.endSession();
+
+    console.error("Error in requestWithdrawal API:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error while processing withdrawal request.",
+      error:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+

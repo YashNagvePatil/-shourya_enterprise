@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const agentTransactionSchema = new mongoose.Schema(
   {
-    // Unique Public Transaction Identifier (e.g., TXN1692839210)
+    // Unique Public Transaction Identifier
     transactionId: {
       type: String,
       required: true,
@@ -11,12 +11,11 @@ const agentTransactionSchema = new mongoose.Schema(
       default: () => `TXN${Date.now()}${Math.floor(1000 + Math.random() * 9000)}`,
     },
 
-    // Agent Reference (Indexed for fast query performance)
+    // Agent Reference
     agentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Agent",
       required: [true, "Agent ID is required"],
-      index: true,
     },
 
     // Transaction Amount
@@ -26,7 +25,7 @@ const agentTransactionSchema = new mongoose.Schema(
       min: [0, "Amount cannot be negative"],
     },
 
-    // Transaction Flow Direction (Credit = Money Added, Debit = Payout/Withdrawal)
+    // Transaction Flow Direction
     transactionType: {
       type: String,
       enum: ["Credit", "Debit"],
@@ -45,7 +44,6 @@ const agentTransactionSchema = new mongoose.Schema(
         "Reward",
       ],
       required: [true, "Transaction category is required"],
-      index: true,
     },
 
     // Current Status of Transaction
@@ -53,10 +51,9 @@ const agentTransactionSchema = new mongoose.Schema(
       type: String,
       enum: ["Pending", "Completed", "Failed", "Rejected"],
       default: "Completed",
-      index: true,
     },
 
-    // User-friendly Display Title & Description
+    // Display Title & Description
     title: {
       type: String,
       required: true,
@@ -80,26 +77,32 @@ const agentTransactionSchema = new mongoose.Schema(
       default: 0,
     },
 
-    // Optional Referral Traceability (If earned via another Agent/User)
+    // Optional Referral Traceability
     triggeredByAgentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Agent",
       default: null,
     },
 
-    // Bank Payout Reference (For Withdrawal requests)
+    // Bank Payout Reference
     payoutRefDetails: {
-      utrNumber: { type: String, default: null }, // Bank UTR or Transaction Ref
-      paymentGateway: { type: String, default: null }, // e.g., Razorpay, Manual Bank Transfer
+      utrNumber: { type: String, default: null },
+      paymentGateway: { type: String, default: null },
       failureReason: { type: String, default: null },
     },
   },
   {
-    timestamps: true, // Automatically creates createdAt and updatedAt
+    timestamps: true,
   }
 );
 
-// Compound Index for high-performance agent history pagination
+// 1. Partial Unique Index: Restricts agent from submitting multiple concurrent 'Pending Withdrawal' requests
+agentTransactionSchema.index(
+  { agentId: 1, category: 1, status: 1 },
+  { unique: true, partialFilterExpression: { status: "Pending", category: "Withdrawal" } }
+);
+
+// 2. High-Performance Index: Optimized for fetching agent transaction history sorted by newest first
 agentTransactionSchema.index({ agentId: 1, createdAt: -1 });
 
 const AgentTransaction = mongoose.model("AgentTransaction", agentTransactionSchema);
