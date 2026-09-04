@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { deductItemStock, getAdminAgentAnalytics,getAgentById, getAgentsList, getInventoryItem, purchaseItem, toggleAgentStatus,processPayoutByAdmin} from "../controllers/admin.controller.js";
+import { deductItemStock, getAdminAgentAnalytics,getAgentById, getAgentsList, getInventoryItem, purchaseItem, toggleAgentStatus,processPayoutByAdmin,getAllPayoutRequests} from "../controllers/admin.controller.js";
 import { authenticateUser } from "../middlewares/agent.middleware.js";
 import { createProduct} from "../controllers/product.controller.js";
 import {getDashboardOverview,getNetworkAnalytics} from "../controllers/franchiseMangment/franchiseMangeDashboard.controller.js"
@@ -40,6 +40,7 @@ const router = Router()
 
   router.post("/payout/process",processPayoutByAdmin)
 
+  router.get("/payout-requests", getAllPayoutRequests);
 
   router.post("/createProduct",createProduct)
 

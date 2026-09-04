@@ -10,6 +10,7 @@ if (!process.env.CLOUDYNARY_API_SECRET) throw new Error("CLOUDYNARY_API_SECRET i
 if (!process.env.CLOUDYNARY_CLOUD_NAME) throw new Error("CLOUDYNARY_CLOUD_NAME is not declared");
 if (!process.env.RAZORPAY_KEY_SECRET) throw new Error("RAZORPAY_KEY_SECRET is not declared");
 if (!process.env.RAZORPAY_TEST_API_KEY) throw new Error("RAZORPAY_TEST_API_KEY is not declared");
+if (!process.env.RAZORPAYX_ACCOUNT_NUMBER) throw new Error("RAZORPAYX_ACCOUNT_NUMBER is not declared");
 
 // Cloudinary Configuration
 cloudinary.config({
@@ -26,6 +27,7 @@ export const config = {
   CLOUDYNARY_CLOUD_NAME: process.env.CLOUDYNARY_CLOUD_NAME,
   RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET,
   RAZORPAY_TEST_API_KEY: process.env.RAZORPAY_TEST_API_KEY,
+  RAZORPAYX_ACCOUNT_NUMBER: process.env.RAZORPAYX_ACCOUNT_NUMBER,
 };
 
 export default cloudinary;

@@ -4,6 +4,9 @@ import userModel from "../models/user.models.js";
 import inventryModel from "../models/inventry.model.js";
 import productModel from "../models/product.model.js";
 import AgentTransaction from "../models/agentTransaction.model.js";
+import { getOrCreateFundAccountId,executeRazorpayPayout } from "../utils/razorpayPayoutHelper.js";
+
+
 /**
  * @desc    Get complete Agent Analytics & Metrics for Admin Dashboard
  * @route   GET /api/admin/dashboard/agents
@@ -587,10 +590,17 @@ export const getInventoryItem = async (req, res) => {
  * @route   POST /api/v1/admin/payout/process
  * @access  Private (Admin)
  */
+
+
+
+
 export const processPayoutByAdmin = async (req, res) => {
   try {
-    const { transactionId, action, rejectionReason } = req.body; // action: "Approve" | "Reject"
+    const { transactionId, action, rejectionReason, paymentMode = "Manual" } = req.body; 
+    // action: "Approve" | "Reject"
+    // paymentMode: "Manual" | "Razorpay" (Default: "Manual")
 
+    // 1. Basic Validation
     if (!transactionId || !["Approve", "Reject"].includes(action)) {
       return res.status(400).json({
         success: false,
@@ -598,6 +608,14 @@ export const processPayoutByAdmin = async (req, res) => {
       });
     }
 
+    if (action === "Approve" && !["Manual", "Razorpay"].includes(paymentMode)) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid paymentMode ('Manual' or 'Razorpay') is required for approval.",
+      });
+    }
+
+    // 2. Transaction Check
     const transaction = await AgentTransaction.findOne({ transactionId, category: "Withdrawal" });
 
     if (!transaction || transaction.status !== "Pending") {
@@ -607,28 +625,71 @@ export const processPayoutByAdmin = async (req, res) => {
       });
     }
 
+    // 3. Agent Check
     const agent = await userModel.findById(transaction.agentId);
     if (!agent) {
-      return res.status(404).json({ success: false, message: "Associated agent not found." });
+      return res.status(404).json({ 
+        success: false, 
+        message: "Associated agent not found." 
+      });
     }
 
+    // ==========================================
+    // 🟢 APPROVE FLOW
+    // ==========================================
     if (action === "Approve") {
-      // Approve Flow: Update stats & mark completed
+
+      // Option A: Razorpay Automatic Transfer
+      if (paymentMode === "Razorpay") {
+        try {
+          // Helper 1: Fund Account ID auto-fetch karega ya naya create karega
+          const fundAccountId = await getOrCreateFundAccountId(agent);
+
+          // Helper 2: Direct money transfer execute karega
+          const payoutRes = await executeRazorpayPayout(
+            fundAccountId, 
+            transaction.amount, 
+            transaction.transactionId
+          );
+
+          transaction.razorpayPayoutId = payoutRes.id;
+          transaction.description = `Payout transferred automatically via Razorpay (Payout ID: ${payoutRes.id}).`;
+
+        } catch (razorError) {
+          console.error("Razorpay Payout Error:", razorError);
+          return res.status(400).json({
+            success: false,
+            message: `Razorpay Payout Failed: ${razorError.message}`,
+          });
+        }
+      } else {
+        // Option B: Manual Mode
+        transaction.description = "Payout successfully transferred manually by admin.";
+      }
+
+      // Update Transaction Details
       transaction.status = "Completed";
+      transaction.paymentMode = paymentMode;
       transaction.description = "Payout successfully transferred by admin.";
       await transaction.save();
 
+      // Update Agent Account Stats
       agent.pendingPayout = Math.max(0, (agent.pendingPayout || 0) - transaction.amount);
       agent.totalWithdrawn = (agent.totalWithdrawn || 0) + transaction.amount;
       await agent.save();
 
       return res.status(200).json({
         success: true,
-        message: "Payout approved and transaction completed.",
+        message: `Payout approved successfully via ${paymentMode} mode.`,
       });
 
-    } else if (action === "Reject") {
-      // Reject Flow: Refund balance back to agent wallet
+    } 
+    
+    // ==========================================
+    // 🔴 REJECT FLOW
+    // ==========================================
+    else if (action === "Reject") {
+      // Refund balance back to agent wallet
       transaction.status = "Failed";
       transaction.description = `Payout rejected by admin. Reason: ${rejectionReason || "N/A"}`;
       await transaction.save();
@@ -652,3 +713,78 @@ export const processPayoutByAdmin = async (req, res) => {
     });
   }
 };
+
+/**
+ * Admin ke liye sabhi Payout/Withdrawal Requests ki list fetch karne ka controller
+ */
+export const getAllPayoutRequests = async (req, res) => {
+  try {
+    const { status, page = 1, limit = 10, search } = req.query;
+
+    // 1. Withdrawal category ki query set karein
+    let query = { category: "Withdrawal" };
+
+    // Status filter: Pending, Completed, Failed (agar query me pass ho)
+    if (status && ["Pending", "Completed", "Failed"].includes(status)) {
+      query.status = status;
+    }
+
+    // 2. Pagination calculation
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    // 3. Transactions fetch karein aur Agent ki required details populate karein
+    const transactions = await AgentTransaction.find(query)
+      .populate({
+        model: "user",
+        path: "agentId",
+        select: "fullName email contact distributerId bankDetails razorpayFundAccountId",
+      })
+      .sort({ createdAt: -1 }) // Latest requests sabse upar
+      .skip(skip)
+      .limit(limitNum);
+
+    // Filter by agent name/ID if search query is provided
+    let filteredTransactions = transactions;
+    if (search) {
+      const searchRegex = new RegExp(search, "i");
+      filteredTransactions = transactions.filter((tx) => {
+        const agent = tx.agentId;
+        return (
+          agent &&
+          (searchRegex.test(agent.fullName) ||
+            searchRegex.test(agent.distributerId) ||
+            searchRegex.test(agent.email) ||
+            searchRegex.test(tx.transactionId))
+        );
+      });
+    }
+
+    // 4. Total count for pagination
+    const totalRequests = await AgentTransaction.countDocuments(query);
+
+    return res.status(200).json({
+      success: true,
+      message: "Payout requests fetched successfully.",
+      data: {
+        requests: filteredTransactions,
+        pagination: {
+          totalRequests,
+          currentPage: pageNum,
+          totalPages: Math.ceil(totalRequests / limitNum),
+          pageSize: limitNum,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error in getAllPayoutRequests API:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error while fetching payout requests.",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
+

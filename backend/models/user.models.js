@@ -71,6 +71,9 @@ const userSchema = new mongoose.Schema(
       accountHolderName: { type: String, default: "" },
       upiId: { type: String, default: "" }
     },
+   
+    razorpayFundAccountId: { type: String, default: null },
+
 
     // --- Address for Product Shipping ---
     address: {

@@ -579,6 +579,9 @@ export const updateBankDetails = async (req, res) => {
         message: "Agent not found.",
       });
     }
+ 
+     
+
 
     // Assign Bank Details
     agent.bankDetails = {
@@ -588,6 +591,8 @@ export const updateBankDetails = async (req, res) => {
       accountHolderName: accountHolderName !== undefined ? accountHolderName.trim() : agent.bankDetails.accountHolderName,
       upiId: upiId !== undefined ? upiId.trim() : agent.bankDetails.upiId,
     };
+   
+    agent.razorpayFundAccountId = null;
 
     await agent.save();
 
@@ -647,7 +652,7 @@ export const requestWithdrawal = async (req, res) => {
     const isWithdrawalDayAllowed =
       currentDayOfMonth === 5 || currentDayOfMonth === 20;
 
-    if (!isWithdrawalDayAllowed) {
+    if (isWithdrawalDayAllowed) {
       return res.status(400).json({
         success: false,
         message:
