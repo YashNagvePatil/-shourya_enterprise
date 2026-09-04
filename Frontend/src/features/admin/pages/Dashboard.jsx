@@ -86,6 +86,7 @@ const AdminDashboard = () => {
     { id: "createProduct", label: "Create Product", path: "/admin/createProduct", icon: PackagePlus },
     { id: "inventory", label: "Inventory", path: "/admin/inventory", icon: Boxes },
     { id: "ManageFranchise", label: "ManageFranchise", path: "/admin/franchiseManageDashboard", icon: Boxes },
+    { id: "agentPayout", label: "AgentPayout", path: "/admin/agentPayout", icon: TrendingUp },
   ];
 
   return (

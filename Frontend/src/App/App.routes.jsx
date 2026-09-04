@@ -33,6 +33,8 @@ import FranchiseFinance from "../features/franchise/pages/FranchiseFinance";
 import FranchiseProfile from "../features/franchise/pages/FranchiseProfile";
 import AgentProfile from "../features/agent/pages/AgentProfile";
 import ReceiptPage from "../components/ReceiptPage";
+import AdminPayout from "../features/admin/pages/AdminPayout";
+
 // Root Layout Component with Persistent Navbar & Footer
 const RootLayout = () => {
   return (
@@ -123,7 +125,8 @@ export const routes = createBrowserRouter([
           { path: "franchiseManageDashboard", element:<MangeFranchiseDashboard/>},
           { path: "FranchiseVerifyKyc", element:<FranchiseGovernanceUI/>},
           { path:  "manageFranchiseSupply" ,element:<ManageFranchiseSupplyUI/>},
-          { path:  "manageFranchiseFinancials", element:<ManageFranchiseFinancials/>}
+          { path:  "manageFranchiseFinancials", element:<ManageFranchiseFinancials/>},
+          { path: "agentPayout", element: <AdminPayout /> }
         ],
       },
 

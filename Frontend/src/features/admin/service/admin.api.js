@@ -63,4 +63,16 @@ export const createProduct = async (productData) => {
   return await api.post("/admin/createProduct", productData);
 };
 
+
+export const processPayout = async (payoutData) => {
+  return await api.post("/admin/payout/process", payoutData);
+}
+
+
+export const getPayoutRequests = async (params = {}) => {
+  return await api.get("/admin/payout-requests", { params });
+};
+
+
+
 export default api;
