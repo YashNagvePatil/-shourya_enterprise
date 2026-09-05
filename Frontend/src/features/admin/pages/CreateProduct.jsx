@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useCreateProduct } from "../hook/useAdmin";
 
 const CATEGORIES = [
@@ -123,13 +124,21 @@ const CreateProductPage = () => {
     <div className="min-h-screen bg-white text-gray-900 font-light p-6 md:p-12 border-t-2 border-black">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <header className="mb-10 border-b border-gray-200 pb-6">
-          <h1 className="text-3xl font-light tracking-wide uppercase text-black">
-            Create Product
-          </h1>
-          <p className="text-xs text-gray-500 uppercase tracking-widest mt-1">
-            Inventory & MLM Package Management
-          </p>
+        <header className="mb-10 border-b border-gray-200 pb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-light tracking-wide uppercase text-black">
+              Create Product
+            </h1>
+            <p className="text-xs text-gray-500 uppercase tracking-widest mt-1">
+              Inventory & MLM Package Management
+            </p>
+          </div>
+          <Link
+            to="/admin/dashboard"
+            className="px-4 py-2 border border-black bg-white hover:bg-black hover:text-white text-xs uppercase tracking-wider font-light transition-colors"
+          >
+            ← Back to Dashboard
+          </Link>
         </header>
 
         {/* Success / Error Banners */}

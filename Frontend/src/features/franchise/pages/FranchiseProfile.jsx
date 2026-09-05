@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useFranchiseProfile } from "../hooks/useFranchiseProfile";
 import {
   User,
@@ -165,6 +166,18 @@ const FranchiseProfile = () => {
   return (
     <div className="min-h-screen bg-[#FAF5EF] text-stone-700 font-light p-4 md:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
+        {/* Back to Dashboard Navigation Button */}
+        <div>
+          <Link
+            to="/franchise/dashboard"
+            className="inline-flex items-center gap-2 text-xs font-normal text-stone-600 hover:text-[#D8234A] bg-white border border-stone-200/80 px-3.5 py-2 rounded-xl shadow-xs transition hover:bg-stone-50"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            <span>Back to Dashboard</span>
+          </Link>
+        </div>
         
         {/* Alerts / Banner Notifications */}
         {updateSuccess && (

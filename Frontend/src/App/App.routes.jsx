@@ -21,7 +21,7 @@ import PaymentPage from "../features/Payment/pages/Payment";
 import ContactPage from "../components/ContactUs";
 import InventoryManager from "../features/inventory/pages/Inventory";
 import FranchiseRegister from "../features/franchise/pages/FranchiseRegister";
-import MangeFranchiseDashboard from "../features/admin/franchiseMangement/pages/mangeFranchiseDashboard";
+import MangeFranchiseDashboard from "../features/admin/franchiseMangement/pages/MangeFranchiseDashboard";
 import FranchiseGovernanceUI from "../features/admin/franchiseMangement/pages/FranchiseVerifyKyc";
 import ManageFranchiseSupplyUI from "../features/admin/franchiseMangement/pages/ManageFranchiseSupplyUI";
 import ManageFranchiseFinancials from "../features/admin/franchiseMangement/pages/ManageFranchiseFinance";
@@ -31,6 +31,7 @@ import FranchiseInventory from "../features/franchise/pages/Inventory";
 import FranchiseSupply from "../features/franchise/pages/Supplyrequest";
 import FranchiseFinance from "../features/franchise/pages/FranchiseFinance";
 import FranchiseProfile from "../features/franchise/pages/FranchiseProfile";
+import FranchisePayoutRequest from "../features/franchise/pages/FranchisePayoutRequest";
 import AgentProfile from "../features/agent/pages/AgentProfile";
 import ReceiptPage from "../components/ReceiptPage";
 import AdminPayout from "../features/admin/pages/AdminPayout";
@@ -131,17 +132,18 @@ export const routes = createBrowserRouter([
       },
 
       {
-        path:"franchise",
-        // element: (
-        //   <Protected allowedRoles={["Franchise"]}>
-        //     <Outlet />
-        //   </Protected>
-        // ),
-        children:[
+        path: "franchise",
+        element: (
+          <Protected allowedRoles={["Franchise"]}>
+            <Outlet />
+          </Protected>
+        ),
+        children: [
          { path:"dashboard",element:<FranchiseDashboard/>},
          {path:"inventory",element:<FranchiseInventory/>},
          {path:"supply",element:<FranchiseSupply/>},
          {path:"finance",element:<FranchiseFinance/>},
+         {path:"payoutRequest",element:<FranchisePayoutRequest/>},
          {path:"profile",element:<FranchiseProfile/>}
         ]
       }

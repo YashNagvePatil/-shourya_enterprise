@@ -123,4 +123,23 @@ export const requestWithdrawal = async (amount, notes) =>{
 export const  cancelWithdrawal = async (withdrawalId) =>{
   return await api.post("/financials/withdraw/cancel",{withdrawalId})
 }
-export default api;
+
+// ---------------------- Supply Request Actions ----------------------
+
+// Fetch products available for supply ordering
+export const getSupplyProducts = async () => {
+  const res = await axios.get("http://localhost:3000/api/products", { withCredentials: true });
+  return res.data;
+};
+
+// Franchise confirms they received the dispatched supply
+export const confirmSupplyReceived = async (requestId) => {
+  return await api.patch(`/supplies/${requestId}/received`);
+};
+
+// Higher-tier franchise fulfills a subordinate's supply request
+export const fulfillSubordinateSupply = async (requestId, data = {}) => {
+  return await api.patch(`/supplies/${requestId}/fulfill`, data);
+};
+
+export default api;

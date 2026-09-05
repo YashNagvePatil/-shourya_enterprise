@@ -73,13 +73,14 @@ const handleBuyNow = async (e) => {
     if (paymentResponse?.success) {
       // 4. Force redirect to Receipt / Payment confirmation page
       const orderId = paymentResponse.data?.dbOrderId 
+        || paymentResponse.data?.receiptData?.dbOrderId
         || paymentResponse.data?.orderId 
         || paymentResponse.data?.razorpay_order_id;
 
-      navigate("/payment", {
+      navigate(`/receipt/${orderId}`, {
         state: {
           orderId: orderId,
-          receipt: paymentResponse.data?.receipt || paymentResponse.data?.razorpay_payment_id,
+          receiptData: paymentResponse.data?.receiptData,
           paymentData: paymentResponse.data,
         },
         replace: true // Prevents back button loop to payment modal

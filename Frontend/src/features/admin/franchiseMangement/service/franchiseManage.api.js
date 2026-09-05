@@ -69,6 +69,10 @@ export const updateSupplyDispatchStatus = async (requestId, dispatchData) => {
   return await api.patch(`/supplies/${requestId}/status`, dispatchData);
 };
 
+export const sendDirectSupplyToFranchise = async (supplyData) => {
+  return await api.post("/supplies/send", supplyData);
+};
+
 // ---------------------- Financials & Settlements ----------------------
 
 // 1. Fetch Dashboard Analytics & Pending Withdrawals

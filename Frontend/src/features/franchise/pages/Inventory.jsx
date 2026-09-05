@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useFranchise } from "../hooks/useFranchise";
 import { useFranchiseInventory } from "../hooks/useFranchiseInventory";
 
 const FranchiseInventory = () => {
   const { currentFranchise } = useFranchise();
-  const location = useLocation();
 
   // Connect updated hook methods & state
   const {
@@ -22,7 +21,6 @@ const FranchiseInventory = () => {
   // Modal / Action State for selling item
   const [selectedInventoryItem, setSelectedInventoryItem] = useState(null);
   const [sellQty, setSellQty] = useState(1);
-  const [activeTab, setActiveTab] = useState("inventory");
 
   useEffect(() => {
     fetchInventory();
@@ -53,107 +51,22 @@ const FranchiseInventory = () => {
     }
   };
 
-  // Sidebar Navigation Links
-  const navItems = [
-    {
-      name: "Dashboard",
-      path: "/franchise/dashboard",
-      id: "dashboard",
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-        </svg>
-      ),
-    },
-    {
-      name: "Inventory",
-      path: "/franchise/inventory",
-      id: "inventory",
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-        </svg>
-      ),
-    },
-    {
-      name: "Supply",
-      path: "/franchise/supply",
-      id: "supply",
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-        </svg>
-      ),
-    },
-    {
-      name: "Finance",
-      path: "/franchise/finance",
-      id: "finance",
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
-    },
-  ];
-
   return (
-    <div className="flex min-h-screen bg-[#FFFDF9] font-light text-[#3B2820]">
-      {/* Fixed Left Navigation Sidebar */}
-      <aside className="w-64 bg-white border-r border-[#D9C4B1]/50 fixed h-full flex flex-col justify-between z-20">
-        <div>
-          {/* Brand Header */}
-          <div className="p-6 border-b border-[#F2E7DC]">
-            <h2 className="text-lg font-normal tracking-wide text-[#3B2820] uppercase">
-              Apex Franchise
-            </h2>
-            <p className="text-xs text-[#C68A53] mt-0.5 uppercase tracking-wider font-normal">
-              {currentFranchise?.franchiseType || "DISTRICT"} PORTAL
-            </p>
-          </div>
-
-          {/* Nav Items */}
-          <nav className="p-4 space-y-1.5">
-            {navItems.map((item) => {
-              const isActive =
-                activeTab === item.id || location.pathname === item.path;
-              return (
-                <Link
-                  key={item.id}
-                  to={item.path}
-                  onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm transition-all ${
-                    isActive
-                      ? "bg-[#C68A53] text-white font-normal shadow-sm shadow-[#C68A53]/30"
-                      : "text-[#8C6247] hover:bg-[#FDF9F3] hover:text-[#3B2820]"
-                  }`}
-                >
-                  {item.icon}
-                  <span>{item.name}</span>
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-
-        {/* User Account Footer Summary */}
-        <div className="p-4 m-4 bg-[#FDF9F3] rounded-xl border border-[#EADBCE] flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-[#EADBCE] text-[#8C6247] flex items-center justify-center font-normal text-sm border border-[#D9C4B1]">
-            {currentFranchise?.fullName?.charAt(0) || "F"}
-          </div>
-          <div className="overflow-hidden">
-            <p className="text-xs font-normal text-[#3B2820] truncate">
-              {currentFranchise?.fullName || "Franchise Partner"}
-            </p>
-            <p className="text-[10px] text-[#8C6247] truncate">
-              {currentFranchise?.email || "partner@apex.com"}
-            </p>
-          </div>
-        </div>
-      </aside>
-
+    <div className="min-h-screen bg-[#FFFDF9] font-light text-[#3B2820] p-4 md:p-8">
       {/* Main Content Area */}
-      <main className="flex-1 ml-64 p-8 space-y-6">
+      <main className="max-w-7xl mx-auto space-y-6">
+        {/* Back to Dashboard Navigation Button */}
+        <div>
+          <Link
+            to="/franchise/dashboard"
+            className="inline-flex items-center gap-2 text-xs font-normal text-[#8C6247] hover:text-[#C68A53] bg-white border border-[#EADBCE] px-3.5 py-2 rounded-xl shadow-xs transition hover:bg-[#FDF9F3]"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            <span>Back to Dashboard</span>
+          </Link>
+        </div>
         {/* Header Title Banner */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-xl border border-[#EADBCE] shadow-sm gap-4">
           <div>

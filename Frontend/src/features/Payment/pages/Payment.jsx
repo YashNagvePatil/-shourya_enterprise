@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router";
 import { 
   ShieldCheck, 
   CreditCard, 
@@ -13,6 +14,7 @@ import {
 import { usePayment } from "../hook/usePayment"; // Check hook path
 
 const PaymentPage = ({ orderData }) => {
+  const navigate = useNavigate();
   const { executePayment, loading, error } = usePayment();
   const [selectedMethod, setSelectedMethod] = useState("card");
 
@@ -54,7 +56,14 @@ const PaymentPage = ({ orderData }) => {
     
     if (result.success) {
       // Success hone par receipt/confirmation page par redirect karein
-      window.location.href = `/receipt/${result.data?.dbOrderId || order._id}`;
+      const orderId = result.data?.dbOrderId || result.data?.receiptData?.dbOrderId || order._id;
+      navigate(`/receipt/${orderId}`, {
+        state: {
+          receiptData: result.data?.receiptData,
+          paymentData: result.data,
+        },
+        replace: true,
+      });
     }
   };
 

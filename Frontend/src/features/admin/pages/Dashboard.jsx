@@ -64,10 +64,17 @@ const AdminDashboard = () => {
 
   // 📈 Format Trend Data for Area Chart
   const formattedTrendData = useMemo(() => {
-    return monthlyTrend.map((item) => ({
-      month: `${item._id?.month}/${item._id?.year}`,
-      Agents: item.count || 0
-    }));
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    if (!monthlyTrend || monthlyTrend.length === 0) return [];
+    return monthlyTrend.map((item) => {
+      const monthNum = item._id?.month;
+      const monthLabel = monthNum && monthNum >= 1 && monthNum <= 12 ? monthNames[monthNum - 1] : (item._id?.month || "");
+      const yearLabel = item._id?.year || "";
+      return {
+        month: `${monthLabel} ${yearLabel}`.trim(),
+        Agents: item.count || 0
+      };
+    });
   }, [monthlyTrend]);
 
   // 🥧 Format Distribution Data using Image Color Palette
@@ -85,8 +92,8 @@ const AdminDashboard = () => {
     { id: "agentList", label: "Agent List", path: "/admin/agentList", icon: Users, badge: summary.totalAgents },
     { id: "createProduct", label: "Create Product", path: "/admin/createProduct", icon: PackagePlus },
     { id: "inventory", label: "Inventory", path: "/admin/inventory", icon: Boxes },
-    { id: "ManageFranchise", label: "ManageFranchise", path: "/admin/franchiseManageDashboard", icon: Boxes },
-    { id: "agentPayout", label: "AgentPayout", path: "/admin/agentPayout", icon: TrendingUp },
+    { id: "ManageFranchise", label: "Manage Franchise", path: "/admin/franchiseManageDashboard", icon: Boxes },
+    { id: "agentPayout", label: "Agent Payout", path: "/admin/agentPayout", icon: TrendingUp },
   ];
 
   return (

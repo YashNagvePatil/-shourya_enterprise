@@ -9,6 +9,20 @@ const initialState = {
   loading: false,         // Global loading state for inventory operations
   error: null,            // Global error message string
   lastUpdated: null,      // Timestamp of the last state update
+
+  // --- Recent Updates ke liye naye fields ---
+
+  // Purchase/Deduct operation ka status: null | "purchase_success" | "deduct_success" | "insufficient_stock"
+  // UI toast/notification dikhane ke liye use karo
+  operationStatus: null,
+
+  // Jab getInventoryItem 404 return kare (product hai par inventory nahi)
+  // Backend ab productInfo bhejtaa hai — "Please purchase stock first" wala case
+  notFoundProductInfo: null,
+
+  // Purchase ya Deduct successfully complete hone ka flag
+  // Form reset aur modal close karne ke liye use karo
+  stockOperationSuccess: false,
 };
 
 const inventorySlice = createSlice({
@@ -68,6 +82,32 @@ const inventorySlice = createSlice({
       state.lastUpdated = Date.now();
     },
 
+    // Purchase ya Deduct complete hone par operation type set karo
+    // payload: "purchase_success" | "deduct_success"
+    // UI mein toast/notification dikhane ke liye dispatch karo
+    stockOperationCompleted: (state, action) => {
+      state.operationStatus = action.payload; // "purchase_success" | "deduct_success"
+      state.stockOperationSuccess = true;
+      state.loading = false;
+      state.error = null;
+    },
+
+    // getInventoryItem 404 case: product exist karta hai par inventory nahi
+    // Backend { productInfo: { _id, name, sku, currentProductStock } } bhejtaa hai
+    setNotFoundProductInfo: (state, action) => {
+      state.notFoundProductInfo = action.payload; // productInfo object store karo
+      state.selectedItem = null;
+      state.loading = false;
+    },
+
+    // Success flags reset karo (toast dikhane ke baad call karo)
+    resetStockOperation: (state) => {
+      state.operationStatus = null;
+      state.stockOperationSuccess = false;
+      state.notFoundProductInfo = null;
+      state.error = null;
+    },
+
     // Reset inventory state (useful on logout or component unmount)
     resetInventoryState: () => initialState,
   },
@@ -80,6 +120,9 @@ export const {
   setInventoryItems,
   setSelectedItem,
   updateItemStockSuccess,
+  stockOperationCompleted,
+  setNotFoundProductInfo,
+  resetStockOperation,
   resetInventoryState,
 } = inventorySlice.actions;
 

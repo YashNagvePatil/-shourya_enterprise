@@ -15,7 +15,7 @@ const FranchiseDashboard = () => {
   const {
     financials,
     metrics,
-    analytics, //  1. Dynamic chart data from hook
+    analytics,
     dateFilter,
     loading,
     error,
@@ -23,17 +23,16 @@ const FranchiseDashboard = () => {
     setDateFilter,
   } = useFranchiseDashboard();
 
-  // 👈 2. Clean initial load on component mount
   useEffect(() => {
     loadDashboardData();
     // eslint-disable-next-line react-hooks-exhaustive-deps
-  }, []); // Hook handles filter-triggered refetches automatically!
+  }, []);
 
   // Navigation Items Configuration
   const navItems = [
     {
       name: "Dashboard",
-      path: "/dashboard",
+      path: "/franchise/dashboard",
       id: "dashboard",
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -68,6 +67,16 @@ const FranchiseDashboard = () => {
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+    },
+    {
+      name: "Payout Request",
+      path: "/franchise/payoutRequest",
+      id: "payoutRequest",
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
         </svg>
       ),
     },
@@ -124,7 +133,7 @@ const FranchiseDashboard = () => {
 
         {/* User Account Footer Summary */}
         <Link 
-          to="/profile"
+          to="/franchise/profile"
           className="p-4 m-4 bg-stone-50 hover:bg-stone-100 transition-colors rounded-xl border border-stone-200/60 flex items-center gap-3"
         >
           <div className="w-9 h-9 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-normal text-sm border border-amber-300">
@@ -187,7 +196,7 @@ const FranchiseDashboard = () => {
                 You have an active withdrawal request of <strong>₹{financials.activePendingWithdrawal.amount?.toLocaleString()}</strong> currently under Admin review.
               </span>
             </div>
-            <Link to="/finance" className="text-amber-700 underline font-medium hover:text-amber-900">
+            <Link to="/franchise/finance" className="text-amber-700 underline font-medium hover:text-amber-900">
               View Status
             </Link>
           </div>
@@ -213,7 +222,7 @@ const FranchiseDashboard = () => {
               </p>
             </div>
             <Link 
-              to="/finance" 
+              to="/franchise/finance" 
               className="mt-4 text-xs bg-amber-500 hover:bg-amber-600 text-slate-950 font-normal py-2 px-3 rounded-lg text-center transition-all"
             >
               Withdraw Funds
@@ -267,7 +276,7 @@ const FranchiseDashboard = () => {
                 {loading ? "..." : metrics?.activeSupplyRequests || 0}
               </p>
             </div>
-            <Link to="/supply" className="p-3 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg text-xs font-medium border border-amber-200 transition-colors">
+            <Link to="/franchise/supply" className="p-3 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg text-xs font-medium border border-amber-200 transition-colors">
               Pending Action →
             </Link>
           </div>
@@ -298,7 +307,7 @@ const FranchiseDashboard = () => {
             </span>
           </div>
 
-          {/* 👈 3. Dynamic Bar Chart Visualizer */}
+          {/* Dynamic Bar Chart Visualizer */}
           <div className="h-64 flex items-end justify-between gap-4 pt-8 px-4 border-b border-slate-100 relative">
             {loading ? (
               <div className="w-full flex justify-center items-center h-full text-xs text-slate-400">

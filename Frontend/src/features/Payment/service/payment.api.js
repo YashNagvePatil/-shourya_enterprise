@@ -37,3 +37,7 @@ export const createRazorpayOrder = async (payload) => {
 export const verifyAndDistributeMLM = async (payload) => {
   return await paymentApi.post("/verify-and-distribute", payload);
 };
+
+export const fetchOrderDetails = async (orderId) => {
+  return await paymentApi.get(`/order/${orderId}`);
+};

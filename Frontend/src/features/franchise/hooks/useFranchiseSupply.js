@@ -10,12 +10,14 @@ import {
   selectAllSupplyRequests,
   selectSelectedSupplyRequest,
   selectSupplyFilters,
-} from "../state/franchiseSuplies.slice"; // Adjust path as needed
+} from "../state/franchiseSuplies.slice";
 
 import {
   createSupplyRequest as createSupplyRequestApi,
   getSupplyRequestsForHierarchy as getSupplyRequestsApi,
-} from "../service/franchise.api"; // Adjust path as needed
+  confirmSupplyReceived as confirmReceivedApi,
+  fulfillSubordinateSupply as fulfillSubordinateApi,
+} from "../service/franchise.api";
 
 export const useFranchiseSupply = () => {
   const dispatch = useDispatch();
@@ -28,7 +30,9 @@ export const useFranchiseSupply = () => {
   // Local UI Status
   const [loading, setLoading] = useState(false);
   const [creatingLoading, setCreatingLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
 
   /**
    * Fetches supply requests based on the franchise hierarchy level
@@ -55,7 +59,6 @@ export const useFranchiseSupply = () => {
 
   /**
    * Submits a new supply request and updates Redux state
-   * @param {Object} requestData - { items: [ { productId, quantity } ] }
    */
   const createNewSupplyRequest = useCallback(
     async (requestData) => {
@@ -66,8 +69,8 @@ export const useFranchiseSupply = () => {
         
         if (response.success && response.supplyRequest) {
           dispatch(addSupplyRequest(response.supplyRequest));
+          setSuccessMessage("Supply request created successfully!");
         } else {
-          // Re-fetch to ensure sync if response structure varies
           await fetchSupplyRequests();
         }
         return response;
@@ -83,9 +86,63 @@ export const useFranchiseSupply = () => {
   );
 
   /**
-   * Updates the status of a specific supply request
-   * @param {string} requestId 
-   * @param {string} status 
+   * Franchise marks a dispatched supply as Received
+   */
+  const confirmReceived = useCallback(
+    async (requestId) => {
+      setActionLoading(true);
+      setError(null);
+      try {
+        const response = await confirmReceivedApi(requestId);
+        if (response.success && response.supplyRequest) {
+          dispatch(updateStatusAction({ 
+            requestId, 
+            status: "Received",
+            receivedAt: response.supplyRequest.receivedAt 
+          }));
+          setSuccessMessage("Supply marked as received successfully!");
+        }
+        return response;
+      } catch (err) {
+        const errMsg = err.message || "Failed to confirm supply receipt";
+        setError(errMsg);
+        throw err;
+      } finally {
+        setActionLoading(false);
+      }
+    },
+    [dispatch]
+  );
+
+  /**
+   * Higher-tier franchise fulfills a subordinate supply request
+   */
+  const fulfillRequest = useCallback(
+    async (requestId, data = {}) => {
+      setActionLoading(true);
+      setError(null);
+      try {
+        const response = await fulfillSubordinateApi(requestId, data);
+        if (response.success && response.supplyRequest) {
+          dispatch(updateStatusAction({ requestId, status: "Dispatched" }));
+          setSuccessMessage("Supply request dispatched successfully!");
+          // Refetch to get updated list
+          await fetchSupplyRequests();
+        }
+        return response;
+      } catch (err) {
+        const errMsg = err.message || "Failed to fulfill supply request";
+        setError(errMsg);
+        throw err;
+      } finally {
+        setActionLoading(false);
+      }
+    },
+    [dispatch, fetchSupplyRequests]
+  );
+
+  /**
+   * Updates the status of a specific supply request (local only)
    */
   const updateStatus = useCallback(
     (requestId, status) => {
@@ -120,21 +177,36 @@ export const useFranchiseSupply = () => {
   const resetSupplyState = useCallback(() => {
     dispatch(clearSupplyState());
     setError(null);
+    setSuccessMessage(null);
   }, [dispatch]);
 
   /**
-   * Computes client-side filtered requests based on filter slice state
+   * Computes client-side filtered "My Requests" - only own requests
+   */
+  const myRequests = useMemo(() => {
+    return requests.filter((req) => {
+      // Own requests = requesterFranchise is current user
+      const matchesStatus =
+        filters.status === "ALL" ||
+        req.status?.toLowerCase() === filters.status.toLowerCase();
+      const matchesSearch =
+        !filters.search ||
+        req.requestNumber?.toLowerCase().includes(filters.search.toLowerCase());
+      return matchesStatus && matchesSearch;
+    });
+  }, [requests, filters]);
+
+  /**
+   * All requests visible to this franchise (including subordinate requests)
    */
   const filteredRequests = useMemo(() => {
     return requests.filter((req) => {
-      // 1. Search Filter (Matches Request Number or Location)
       const matchesSearch =
         !filters.search ||
         req.requestNumber?.toLowerCase().includes(filters.search.toLowerCase()) ||
         req.requesterLocation?.district?.toLowerCase().includes(filters.search.toLowerCase()) ||
         req.requesterLocation?.state?.toLowerCase().includes(filters.search.toLowerCase());
 
-      // 2. Status Filter ('ALL' or specific status)
       const matchesStatus =
         filters.status === "ALL" ||
         req.status?.toUpperCase() === filters.status.toUpperCase();
@@ -147,17 +219,22 @@ export const useFranchiseSupply = () => {
     // Redux State
     requests,
     filteredRequests,
+    myRequests,
     selectedRequest,
     filters,
 
     // UI Status
     loading,
     creatingLoading,
+    actionLoading,
     error,
+    successMessage,
 
     // Methods & Actions
     fetchSupplyRequests,
     createNewSupplyRequest,
+    confirmReceived,
+    fulfillRequest,
     updateStatus,
     setSelectedRequest,
     setFilters,

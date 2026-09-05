@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import useFranchiseManage from "../hook/useFranchisekycVerify";
 
 const FranchiseGovernanceUI = () => {
@@ -53,6 +54,19 @@ const FranchiseGovernanceUI = () => {
 
   return (
     <div className="min-h-screen bg-[#FAF6F0] p-6 md:p-10 font-sans font-light text-[#3D2623]">
+      {/* Back to Manage Franchise Navigation Button */}
+      <div className="mb-5">
+        <Link
+          to="/admin/franchiseManageDashboard"
+          className="inline-flex items-center gap-2 text-xs font-normal text-[#85573C] hover:text-[#3D2623] bg-white border border-[#EADCC9] px-3.5 py-2 rounded-xl shadow-2xs transition hover:bg-[#F4ECDF]"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          <span>Back to Manage Franchise Dashboard</span>
+        </Link>
+      </div>
+
       {/* Header Bar */}
       <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#EADCC9] pb-5">
         <div>

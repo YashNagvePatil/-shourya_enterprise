@@ -49,6 +49,13 @@ export const deductItemStock = async (payload) => {
 };
 
 /**
+ * Fetch all inventory items / products
+ */
+export const getAllInventoryItems = async () => {
+  return await inventoryApi.get("/admin/inventory/list");
+};
+
+/**
  * Fetch inventory details by item ID
  * @param {string} itemId - The ID of the inventory item
  */

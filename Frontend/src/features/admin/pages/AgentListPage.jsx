@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, Link } from "react-router-dom";
 import { useAgentList, useAdmin } from "../hook/useAdmin";
 
 const AgentListPage = ({ onSelectAgent }) => {
@@ -40,7 +40,13 @@ const AgentListPage = ({ onSelectAgent }) => {
             Manage field agents, track network growth, and monitor performance status.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            to="/admin/dashboard"
+            className="px-4 py-2 bg-white hover:bg-[#FFF8F0] text-[#D32F2F] rounded-xl text-sm font-normal border border-[#EAD8C0] transition cursor-pointer"
+          >
+            ← Back to Dashboard
+          </Link>
           <button
             type="button"
             onClick={() => handleResetFilters && handleResetFilters()}
