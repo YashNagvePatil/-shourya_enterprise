@@ -3,6 +3,8 @@ import crypto from "crypto";
 import orderModel from "../models/order.model.js";
 import userModel from "../models/user.models.js";
 import productModel from "../models/product.model.js";
+import inventryModel from "../models/inventry.model.js";
+import cartModel from "../models/cart.model.js";
 import { config } from "../config/config.js";
 // Initialize Razorpay Instance
 
@@ -25,36 +27,67 @@ const getCommissionPercentage = (level) => {
  */
 export const createRazorpayOrder = async (req, res) => {
   try {
-    const { productId, quantity = 1, amount } = req.body;
-    const userId = req.user._id;
+    const { productId, quantity = 1, amount, items: reqItems } = req.body;
+    const userId = req.user._id || req.user.id;
 
     if (!amount || amount <= 0) {
       return res.status(400).json({ success: false, message: "Valid amount is required" });
     }
 
-    // 1. Fetch Product details to calculate actual BV/PV (optional adjustment)
+    let orderItems = [];
     let totalBV = 100;
     let totalPV = 10;
-    
+
+    // A. Single Product Direct Purchase / Buy Now
     if (productId) {
       const product = await productModel.findById(productId);
       if (product) {
         totalBV = (product.bv || 0) * quantity;
         totalPV = (product.pv || 0) * quantity;
+        orderItems = [{ product: product._id, quantity, pv: totalPV }];
+      }
+    } 
+    // B. Multiple items passed directly in payload
+    else if (Array.isArray(reqItems) && reqItems.length > 0) {
+      for (const item of reqItems) {
+        const pId = item.productId || item.product;
+        const pQty = item.quantity || item.qty || 1;
+        const dbProd = await productModel.findById(pId);
+        if (dbProd) {
+          const itemPV = (dbProd.pv || 0) * pQty;
+          totalPV += itemPV;
+          totalBV += (dbProd.bv || 0) * pQty;
+          orderItems.push({ product: dbProd._id, quantity: pQty, pv: itemPV });
+        }
+      }
+    } 
+    // C. Standard Cart Checkout: Fetch active items from User Cart DB
+    else {
+      const userCart = await cartModel.findOne({ user: userId }).populate("items.product");
+      if (userCart && userCart.items?.length > 0) {
+        for (const cartItem of userCart.items) {
+          const p = cartItem.product;
+          if (p) {
+            const itemPV = (p.pv || 0) * cartItem.quantity;
+            totalPV += itemPV;
+            totalBV += (p.bv || 0) * cartItem.quantity;
+            orderItems.push({ product: p._id, quantity: cartItem.quantity, pv: itemPV });
+          }
+        }
       }
     }
 
     // 2. Create Order in MongoDB (Unpaid)
-        const receiptNumber = `REC_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
+    const receiptNumber = `REC_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
 
-         const newOrder = await orderModel.create({
-            user: userId,
-                 items: productId ? [{ product: productId, quantity, pv: totalPV }] : [],
-                 totalAmount: amount, // 'amount' ko 'totalAmount' assign kiya
-                 earnedPV: totalPV,
-                 receiptNumber: receiptNumber, // Required unique receipt string
-                 paymentStatus: "PENDING",
-          });
+    const newOrder = await orderModel.create({
+      user: userId,
+      items: orderItems,
+      totalAmount: amount,
+      earnedPV: totalPV,
+      receiptNumber: receiptNumber,
+      paymentStatus: "PENDING",
+    });
 
     // 3. Create Razorpay Order (Amount must be in paise: ₹1 = 100 paise)
     const options = {
@@ -179,6 +212,58 @@ export const verifyAndDistributeMLM = async (req, res) => {
       { new: true }
     ).populate("items.product", "name price category");
 
+    // Clear user cart upon successful payment
+    await cartModel.findOneAndUpdate({ user: userId }, { items: [], totalAmount: 0, totalPV: 0 });
+
+    // 3.5 INVENTORY AUTO-DEDUCTION: Har sold item ki quantity inventory se minus karo
+    //     Atomic $inc with $gte guard → concurrent orders mein bhi negative stock nahi hoga
+    if (updatedOrder?.items?.length > 0) {
+      const deductionPromises = updatedOrder.items.map(async (item) => {
+        const productId = item.product?._id || item.product;
+        const qty = item.quantity || 1;
+
+        // If inventory entry does not exist yet, auto-create it from productModel
+        let existingInventory = await inventryModel.findOne({ product: productId });
+        if (!existingInventory) {
+          const dbProduct = await productModel.findById(productId);
+          if (dbProduct) {
+            existingInventory = await inventryModel.create({
+              product: dbProduct._id,
+              sku: dbProduct.sku,
+              quantity: dbProduct.stock || 0,
+              costPrice: dbProduct.price || 0,
+              wholesalerPrice: dbProduct.price || 0,
+            });
+          }
+        }
+
+        // Atomic deduction: sirf tabhi minus hoga jab stock kaafi ho
+        const result = await inventryModel.findOneAndUpdate(
+          { product: productId, quantity: { $gte: qty } }, // Guard: stock >= qty
+          { $inc: { quantity: -qty } },
+          { new: true }
+        );
+
+        // Product.stock bhi sync karo
+        await productModel.findByIdAndUpdate(productId, {
+          $inc: { stock: -qty },
+        });
+
+        if (!result) {
+          console.warn(
+            `[INVENTORY WARNING] Stock insufficient or inventory missing for product: ${productId}. Qty requested: ${qty}`
+          );
+        } else {
+          console.log(
+            `[INVENTORY] Deducted ${qty} units from product: ${productId}. Remaining: ${result.quantity}`
+          );
+        }
+      });
+
+      // Sabhi deductions parallel mein run karo
+      await Promise.allSettled(deductionPromises);
+    }
+
     // 4. MLM Points & Commission Propagation Engine
     const purchasingAgent = await userModel.findById(userId);
 
@@ -241,6 +326,44 @@ export const verifyAndDistributeMLM = async (req, res) => {
 
   } catch (error) {
     console.error("❌ Error in verifyAndDistributeMLM:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * @desc    Fetch order receipt details by DB order ID
+ * @route   GET /api/payment/order/:orderId
+ */
+export const getOrderDetails = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const order = await orderModel
+      .findById(orderId)
+      .populate("items.product", "name price category images brand")
+      .populate("user", "name email phone");
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      order: {
+        _id: order._id,
+        receiptNumber: order.receiptNumber,
+        totalAmount: order.totalAmount,
+        earnedPV: order.earnedPV,
+        paymentStatus: order.paymentStatus,
+        isPaid: order.isPaid,
+        paidAt: order.paidAt,
+        paymentResult: order.paymentResult,
+        items: order.items,
+        user: order.user,
+        createdAt: order.createdAt,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error fetching order details:", error);
     return res.status(500).json({ success: false, message: error.message });
   }
 };

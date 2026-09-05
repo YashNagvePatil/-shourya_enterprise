@@ -341,28 +341,34 @@ export const getCart = async (req, res) => {
 // Add / Update Product in Cart
 export const addToCart = async (req, res) => {
   try {
-    const { productId, quantity } = req.body;
-    const userId = req.user._id; // Logged-in Agent ID from Auth Middleware
+    const { productId, quantity = 1 } = req.body;
+    const userId = req.user._id || req.user.id;
 
     const product = await productModel.findById(productId);
-    if (!product) return res.status(404).json({ message: "Product not found" });
+    if (!product) return res.status(404).json({ success: false, message: "Product not found" });
 
     let cart = await cartModel.findOne({ user: userId });
     if (!cart) {
-      cart = new cart({ user: userId, items: [] });
+      cart = await cartModel.create({ user: userId, items: [] });
     }
 
+    const qtyToAdd = Number(quantity);
     const itemIndex = cart.items.findIndex(
-      (item) => item.product.toString() === productId
+      (item) => item.product.toString() === productId.toString()
     );
 
     if (itemIndex > -1) {
-      cart.items[itemIndex].quantity += quantity;
-    } else {
+      const newQty = cart.items[itemIndex].quantity + qtyToAdd;
+      if (newQty <= 0) {
+        cart.items.splice(itemIndex, 1);
+      } else {
+        cart.items[itemIndex].quantity = newQty;
+      }
+    } else if (qtyToAdd > 0) {
       cart.items.push({
         product: productId,
-        quantity,
-        price: product.price,
+        quantity: qtyToAdd,
+        price: product.price || 0,
         pv: product.pv || 0,
       });
     }
@@ -370,8 +376,12 @@ export const addToCart = async (req, res) => {
     cart.calculateTotals();
     await cart.save();
 
+    // Populate items.product so frontend receives complete product data (images, name, brand)
+    await cart.populate("items.product");
+
     res.status(200).json({ success: true, cart });
   } catch (error) {
+    console.error("Error in addToCart:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -380,18 +390,22 @@ export const addToCart = async (req, res) => {
 export const removeFromCart = async (req, res) => {
   try {
     const { productId } = req.params;
-    const cart = await cartModel.findOne({ user: req.user._id });
+    const userId = req.user._id || req.user.id;
+
+    let cart = await cartModel.findOne({ user: userId });
 
     if (cart) {
       cart.items = cart.items.filter(
-        (item) => item.product.toString() !== productId
+        (item) => item.product?.toString() !== productId.toString()
       );
       cart.calculateTotals();
       await cart.save();
+      await cart.populate("items.product");
     }
 
     res.status(200).json({ success: true, cart });
   } catch (error) {
+    console.error("Error in removeFromCart:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

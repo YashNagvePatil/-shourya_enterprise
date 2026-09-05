@@ -41,7 +41,7 @@ export const fetchDeepAgentAnalytics = async ({
   todayStart.setHours(0, 0, 0, 0);
 
   // 2. Parallel Database Operations
-  const [networkOverviewRaw, globalBinaryMetricsRaw, agentsList, totalCount] =
+  const [networkOverviewRaw, globalBinaryMetricsRaw, agentsList, totalCount, monthlyTrendRaw] =
     await Promise.all([
       // A. Network High-Level Overview Metrics
       userModel.aggregate([
@@ -97,6 +97,21 @@ export const fetchDeepAgentAnalytics = async ({
 
       // D. Total Filtered Documents Count
       userModel.countDocuments(matchQuery),
+
+      // E. Monthly Registration Growth Trend
+      userModel.aggregate([
+        {
+          $group: {
+            _id: {
+              year: { $year: "$createdAt" },
+              month: { $month: "$createdAt" },
+            },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { "_id.year": 1, "_id.month": 1 } },
+        { $limit: 12 },
+      ]),
     ]);
 
   // Fallbacks for Empty Collections
@@ -124,6 +139,7 @@ export const fetchDeepAgentAnalytics = async ({
     agentsList,
     totalCount,
     totalPages,
+    monthlyTrend: monthlyTrendRaw || [],
   };
 };
 

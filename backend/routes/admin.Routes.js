@@ -1,11 +1,12 @@
 import { Router } from "express";
-import { deductItemStock, getAdminAgentAnalytics,getAgentById, getAgentsList, getInventoryItem, purchaseItem, toggleAgentStatus,processPayoutByAdmin,getAllPayoutRequests} from "../controllers/admin.controller.js";
+import { deductItemStock, getAdminAgentAnalytics,getAgentById, getAgentsList, getInventoryItem, purchaseItem, toggleAgentStatus,processPayoutByAdmin,getAllPayoutRequests, getAllInventoryItems} from "../controllers/admin.controller.js";
 import { authenticateUser } from "../middlewares/agent.middleware.js";
 import { createProduct} from "../controllers/product.controller.js";
 import {getDashboardOverview,getNetworkAnalytics} from "../controllers/franchiseMangment/franchiseMangeDashboard.controller.js"
 import {getPendingApplications,reviewApplication,getFranchiseHierarchy,updateFranchiseStatus} from "../controllers/franchiseMangment/franchiseMangement.controller.js"
-import {getGlobalSupplyRequests,updateSupplyDispatchStatus} from "../controllers/franchiseMangment/adminSupply.Controller.js"
+import {getGlobalSupplyRequests,updateSupplyDispatchStatus,createDirectSupplyDispatch} from "../controllers/franchiseMangment/adminSupply.Controller.js"
 import {getFinancialSummary, processSettlement,reviewWithdrawalRequest,getFranchiseFinancialLedger} from "../controllers/franchiseMangment/adminFinaclials.controller.js"
+import { getAdminPayoutRequests, processAdminPayoutRequest } from "../controllers/payoutRequest.controller.js";
 
 const router = Router()
 
@@ -68,6 +69,7 @@ const router = Router()
     */
 
 
+  router.get("/inventory/list", getAllInventoryItems)
   router.get("/inventory/:itemId",getInventoryItem)
 
   
@@ -89,6 +91,7 @@ router.patch("/franchises/:franchiseId/status", updateFranchiseStatus);
 
 // Supply Management
 router.get("/supplies", getGlobalSupplyRequests);
+router.post("/supplies/send", createDirectSupplyDispatch);
 router.patch("/supplies/:requestId/status", updateSupplyDispatchStatus);
 
 // Financials & Settlements
@@ -98,6 +101,8 @@ router.post("/financials/settle", processSettlement);
 router.patch("/financials/withdrawal/:requestId", reviewWithdrawalRequest);
 router.get("/financials/ledger/:franchiseId", getFranchiseFinancialLedger);
 
-
+// Monthly Payout Requests (Manual Admin Approval/Rejection)
+router.get("/financials/monthly-payout-requests", getAdminPayoutRequests);
+router.patch("/financials/monthly-payout-request/:requestId", processAdminPayoutRequest);
 
 export default router

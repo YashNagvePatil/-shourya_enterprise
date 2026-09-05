@@ -1,6 +1,7 @@
 import productDao from "../dao/product.dao.js";
 import { uploadMultipleToCloudinary } from "../services/storage.service.js";
 import productModel from "../models/product.model.js";
+import inventryModel from "../models/inventry.model.js";
 
 
 
@@ -165,6 +166,20 @@ export const createProduct = async (req, res) => {
     console.log(`[DEBUG] Step 6: Persisting product to Mongo Database via DAO...`);
     const newProduct = await productDao.createProduct(productPayload);
     console.log(`✅ [PRODUCT CREATED SUCCESS] ID: ${newProduct._id}`);
+
+    // Auto-create matching Inventory entry for the new product
+    try {
+      await inventryModel.create({
+        product: newProduct._id,
+        sku: newProduct.sku,
+        quantity: newProduct.stock || 0,
+        costPrice: newProduct.price || 0,
+        wholesalerPrice: newProduct.price || 0,
+      });
+      console.log(`✅ [INVENTORY INITIALIZED] For product ID: ${newProduct._id}`);
+    } catch (invErr) {
+      console.warn(`⚠️ [INVENTORY INITIALIZE WARNING]:`, invErr.message);
+    }
 
     // ------------------------------------------
     // 7. Success Response

@@ -1,12 +1,12 @@
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 
-// 1. Updated FRANCHISE_TYPES with 'CITY' tier benefits
+// 1. Updated FRANCHISE_TYPES with ROI, Rent, and Commission benefits
 export const FRANCHISE_TYPES = {
-  VILLAGE: { type: "VILLAGE", price: 150000, roi: 5000, rent: 0, commPerProduct: 500 },
-  CITY: { type: "CITY", price: 400000, roi: 12000, rent: 5000, commPercent: 1.8, commPerProduct: 500 }, 
-  DISTRICT: { type: "DISTRICT", price: 750000, roi: 22500, rent: 10000, commPercent: 2, commPerProduct: 500 },
-  STATE: { type: "STATE", price: 15000000, roiPercent: 0, rent: 450000, commPercent: 1.5 }
+  VILLAGE: { type: "VILLAGE", price: 150000, roi: 5000, rent: 0, commPerProduct: 500, commPercent: 0 },
+  CITY: { type: "CITY", price: 400000, roi: 50000, rent: 30000, commPercent: 1.5, commPerProduct: 0 },
+  DISTRICT: { type: "DISTRICT", price: 750000, roi: 22000, rent: 10000, commPerProduct: 500, commPercent: 2 },
+  STATE: { type: "STATE", price: 15000000, roi: 450000, rent: 50000, commPercent: 1.5, commPerProduct: 0 }
 };
 
 const franchiseSchema = new mongoose.Schema(

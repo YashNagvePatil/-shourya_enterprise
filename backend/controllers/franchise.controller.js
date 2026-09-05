@@ -1152,3 +1152,130 @@ export const changeFranchisePassword = async (req, res) => {
     });
   }
 };
+
+/**
+ * =================================================================
+ * Confirm Supply Received - Franchise marks supply as received
+ * =================================================================
+ */
+export const confirmSupplyReceived = async (req, res) => {
+  try {
+    const franchiseId = req.user.id;
+    const { requestId } = req.params;
+
+    const supplyReq = await supplyRequestModel.findById(requestId);
+
+    if (!supplyReq) {
+      return res.status(404).json({ success: false, message: "Supply request not found." });
+    }
+
+    // Verify this franchise is the requester
+    if (supplyReq.requesterFranchise.toString() !== franchiseId) {
+      return res.status(403).json({ 
+        success: false, 
+        message: "You can only confirm receipt of your own supply requests." 
+      });
+    }
+
+    // Can only mark received if currently Dispatched
+    if (supplyReq.status !== "Dispatched") {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot mark as received. Current status: ${supplyReq.status}. Must be Dispatched first.`,
+      });
+    }
+
+    supplyReq.status = "Received";
+    supplyReq.receivedAt = new Date();
+    await supplyReq.save();
+
+    const populated = await supplyRequestModel
+      .findById(requestId)
+      .populate("requesterFranchise", "fullName email franchiseType")
+      .populate("items.productId", "name sku price imageUrl images");
+
+    return res.status(200).json({
+      success: true,
+      message: "Supply marked as received successfully!",
+      supplyRequest: populated,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * =================================================================
+ * Fulfill Subordinate Supply - Higher-tier franchise fulfills a lower-tier request
+ * =================================================================
+ */
+export const fulfillSubordinateSupply = async (req, res) => {
+  try {
+    const franchiseId = req.user.id;
+    const { requestId } = req.params;
+    const { notes } = req.body;
+
+    const franchise = await franchiseModel.findById(franchiseId);
+    if (!franchise) {
+      return res.status(404).json({ success: false, message: "Franchise not found." });
+    }
+
+    const supplyReq = await supplyRequestModel.findById(requestId);
+
+    if (!supplyReq) {
+      return res.status(404).json({ success: false, message: "Supply request not found." });
+    }
+
+    // Cannot fulfill your own request
+    if (supplyReq.requesterFranchise.toString() === franchiseId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "You cannot fulfill your own supply request." 
+      });
+    }
+
+    // Can only dispatch/fulfill pending requests
+    if (!["Pending"].includes(supplyReq.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot fulfill. Current status: ${supplyReq.status}`,
+      });
+    }
+
+    // Verify hierarchy: state can fulfill district, district can fulfill city/village
+    const canFulfill = () => {
+      if (franchise.franchiseType === "STATE") return ["DISTRICT", "CITY", "VILLAGE"].includes(supplyReq.requesterType);
+      if (franchise.franchiseType === "DISTRICT") return ["CITY", "VILLAGE"].includes(supplyReq.requesterType);
+      if (franchise.franchiseType === "CITY") return ["VILLAGE"].includes(supplyReq.requesterType);
+      return false;
+    };
+
+    if (!canFulfill()) {
+      return res.status(403).json({ 
+        success: false, 
+        message: "You don't have permission to fulfill this supply request based on your franchise tier." 
+      });
+    }
+
+    supplyReq.status = "Dispatched";
+    supplyReq.fulfilledBy = franchise.franchiseType;
+    supplyReq.fulfilledByFranchise = franchise._id;
+    supplyReq.dispatchedAt = new Date();
+    supplyReq.dispatchNotes = notes || "";
+    await supplyReq.save();
+
+    const populated = await supplyRequestModel
+      .findById(requestId)
+      .populate("requesterFranchise", "fullName email franchiseType address")
+      .populate("fulfilledByFranchise", "fullName franchiseType")
+      .populate("items.productId", "name sku price imageUrl images");
+
+    return res.status(200).json({
+      success: true,
+      message: "Supply request dispatched successfully!",
+      supplyRequest: populated,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};

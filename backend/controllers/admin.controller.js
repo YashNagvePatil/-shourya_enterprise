@@ -4,7 +4,7 @@ import userModel from "../models/user.models.js";
 import inventryModel from "../models/inventry.model.js";
 import productModel from "../models/product.model.js";
 import AgentTransaction from "../models/agentTransaction.model.js";
-import { getOrCreateFundAccountId,executeRazorpayPayout } from "../utils/razorpayPayoutHelper.js";
+import { getOrCreateFundAccountId, executeRazorpayPayout } from "../utils/razorpayPayoutHelper.js";
 
 
 /**
@@ -56,6 +56,9 @@ export const getAdminAgentAnalytics = async (req, res) => {
           unmatchedCarryForwardPV: binaryStats.totalCarryForward || 0,
           pendingPayoutsTotal: binaryStats.pendingPayoutAmount || 0,
         },
+
+        // Monthly Registration Growth Trend
+        monthlyTrend: agentAnalytics?.monthlyTrend || [],
 
         // Deep Individual Agent Performance List
         agents: (agentAnalytics?.agentsList || []).map((agent) => ({
@@ -324,7 +327,7 @@ export const getAgentById = async (req, res) => {
 export const toggleAgentStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, reason, kycStatus } = req.body; 
+    const { status, reason, kycStatus } = req.body;
 
     // 1. Validation for provided fields
     const validStatuses = ["Active", "Blocked"];
@@ -408,54 +411,65 @@ export const toggleAgentStatus = async (req, res) => {
 
 export const purchaseItem = async (req, res) => {
   try {
-    const { itemId, quantity, purchasePrice } = req.body;
+    const { itemId, quantity, purchasePrice, wholesalerPrice } = req.body;
 
-    if (!itemId || !quantity || quantity <= 0) {
+    if (!itemId || !quantity || Number(quantity) <= 0) {
       return res.status(400).json({
         success: false,
         message: "Valid item ID and positive quantity are required",
       });
     }
 
-    // Find or create Inventory entry
-    let inventoryItem = await inventryModel.findOne({
-      $or: [{ _id: itemId }, { product: itemId }],
-    });
+    const addQty = Number(quantity);
 
-    if (!inventoryItem) {
-      const product = await productModel.findById(itemId);
-      if (!product) {
-        return res.status(404).json({ success: false, message: "Product not found" });
-      }
-
-      inventoryItem = new inventryModel({
-        product: product._id,
-        sku: product.sku,
-        quantity: product.stock || 0,
-        costPrice: purchasePrice || product.price,
-      });
+    // 1. Check karo ki product exist karta hai ya nahi
+    const product = await productModel.findById(itemId);
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
     }
 
-    // Update stock quantity
-    inventoryItem.quantity += Number(quantity);
-    if (purchasePrice) inventoryItem.costPrice = Number(purchasePrice);
+    // 2. ATOMIC upsert: Race condition safe — ek saath multiple agents call karein
+    //    tab bhi sirf ek hi inventory document banega (unique product constraint safe)
+    //    $inc atomically quantity add karega — koi manual findOne+save nahi
+    const inventoryItem = await inventryModel.findOneAndUpdate(
+      { product: product._id },                          // Match: product ke basis pe dhundho
+      {
+        $inc: { quantity: addQty },                      // Atomically quantity add karo
+        $setOnInsert: {                                  // Sirf naye document par yeh set hoga
+          sku: product.sku || `SKU-${Date.now()}`,
+          costPrice: purchasePrice ? Number(purchasePrice) : (product.price || 0),
+          wholesalerPrice: wholesalerPrice ? Number(wholesalerPrice) : (product.price || 0),
+        },
+        ...(purchasePrice && { $set: { costPrice: Number(purchasePrice) } }),
+      },
+      {
+        upsert: true,          // Nahi mila to naya banao
+        new: true,             // Updated document return karo
+        runValidators: true,
+      }
+    );
 
-    await inventoryItem.save();
-
-    // Also update Product.stock in Product collection for consistency
-    await productModel.findByIdAndUpdate(inventoryItem.product, {
-      $inc: { stock: Number(quantity) },
+    // 3. Product.stock bhi sync karo (dual-write consistency)
+    await productModel.findByIdAndUpdate(product._id, {
+      $inc: { stock: addQty },
     });
 
     await inventoryItem.populate("product");
 
     return res.status(200).json({
       success: true,
-      message: `Successfully added ${quantity} units to stock`,
+      message: `Successfully added ${addQty} units to stock`,
       data: inventoryItem,
     });
   } catch (error) {
     console.error("Error in purchaseItem:", error);
+    // Duplicate key error ka specific message
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "Inventory entry already exists for this product. Stock update failed due to conflict.",
+      });
+    }
     return res.status(500).json({
       success: false,
       message: "Internal Server Error",
@@ -478,44 +492,46 @@ export const deductItemStock = async (req, res) => {
 
     const deductQty = Number(quantity);
 
-    // 2. Search existing inventory record
-    let inventoryItem = await inventryModel.findOne({
+    // 2. Pehle current stock check karo (pre-check)
+    const existingItem = await inventryModel.findOne({
       $or: [{ _id: itemId }, { product: itemId }],
     });
 
-    // 3. Fallback to Product Collection if no inventory entry exists yet
-    if (!inventoryItem) {
-      const product = await productModel.findById(itemId);
-
-      if (!product) {
-        return res.status(404).json({
-          success: false,
-          message: "Product not found in system",
-        });
-      }
-
-      // Initialize inventory document with current product details
-      inventoryItem = new inventryModel({
-        product: product._id,
-        sku: product.sku || `SKU-${Date.now()}`,
-        quantity: product.stock || 0, // 👈 Product schema se baseline stock pick karega (e.g. 175)
-        costPrice: product.price || 0,
+    if (!existingItem) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found in inventory. Please purchase stock first.",
       });
     }
 
-    // 4. Stock sufficiency check
-    if (inventoryItem.quantity < deductQty) {
+    // 3. Stock sufficiency check (pre-check — actual atomic check neeche)
+    if (existingItem.quantity < deductQty) {
       return res.status(400).json({
         success: false,
-        message: `Insufficient stock! Available stock: ${inventoryItem.quantity}`,
+        message: `Insufficient stock! Available: ${existingItem.quantity}, Requested: ${deductQty}`,
       });
     }
 
-    // 5. Deduct from Inventory collection
-    inventoryItem.quantity -= deductQty;
-    await inventoryItem.save();
+    // 4. ATOMIC deduction — quantity >= 0 ensure karo (race condition safe)
+    //    Condition: quantity - deductQty >= 0 (negative stock prevent)
+    const inventoryItem = await inventryModel.findOneAndUpdate(
+      {
+        $or: [{ _id: itemId }, { product: itemId }],
+        quantity: { $gte: deductQty }, // Atomic guard: stock sufficient hona chahiye
+      },
+      { $inc: { quantity: -deductQty } },
+      { new: true }
+    );
 
-    // 6. Dual-Sync: Update stock in Product collection as well
+    // 5. Agar atomic update null return kare → concurrent deduction ne stock kha liya
+    if (!inventoryItem) {
+      return res.status(400).json({
+        success: false,
+        message: "Stock deduction failed: insufficient stock after concurrent operations.",
+      });
+    }
+
+    // 6. Dual-Sync: Product collection bhi update karo
     await productModel.findByIdAndUpdate(inventoryItem.product, {
       $inc: { stock: -deductQty },
     });
@@ -541,14 +557,15 @@ export const getInventoryItem = async (req, res) => {
   try {
     const { itemId } = req.params;
 
-    // 1. Try finding in Inventory Collection
+    // 1. Pehle Inventory Collection mein dhundho (pure read — koi side-effect nahi)
     let inventoryItem = await inventryModel
       .findOne({
         $or: [{ _id: itemId }, { product: itemId }],
       })
       .populate("product");
 
-    // 2. If no record in Inventory Collection, check Product Collection
+    // 2. Agar inventory nahi mili — product check karo aur 404 do (auto-create NAHI karenge)
+    //    Auto-create sirf purchaseItem ke time hona chahiye, GET pe nahi
     if (!inventoryItem) {
       const product = await productModel.findById(itemId);
 
@@ -559,15 +576,17 @@ export const getInventoryItem = async (req, res) => {
         });
       }
 
-      // Auto-Sync: Create Inventory entry using existing Product details
-      inventoryItem = await inventryModel.create({
-        product: product._id,
-        sku: product.sku || `SKU-${Date.now()}`,
-        quantity: product.stock || 0, // 👈 Takes 175 from Product Schema
-        costPrice: product.price || 0,
+      // Product exists but inventory nahi → admin ko batao stock purchase kare
+      return res.status(404).json({
+        success: false,
+        message: "No inventory record found for this product. Please add stock via Purchase.",
+        productInfo: {
+          _id: product._id,
+          name: product.name,
+          sku: product.sku,
+          currentProductStock: product.stock || 0,
+        },
       });
-
-      inventoryItem = await inventoryItem.populate("product");
     }
 
     return res.status(200).json({
@@ -596,7 +615,7 @@ export const getInventoryItem = async (req, res) => {
 
 export const processPayoutByAdmin = async (req, res) => {
   try {
-    const { transactionId, action, rejectionReason, paymentMode = "Manual" } = req.body; 
+    const { transactionId, action, rejectionReason, paymentMode = "Manual" } = req.body;
     // action: "Approve" | "Reject"
     // paymentMode: "Manual" | "Razorpay" (Default: "Manual")
 
@@ -628,9 +647,9 @@ export const processPayoutByAdmin = async (req, res) => {
     // 3. Agent Check
     const agent = await userModel.findById(transaction.agentId);
     if (!agent) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Associated agent not found." 
+      return res.status(404).json({
+        success: false,
+        message: "Associated agent not found."
       });
     }
 
@@ -647,8 +666,8 @@ export const processPayoutByAdmin = async (req, res) => {
 
           // Helper 2: Direct money transfer execute karega
           const payoutRes = await executeRazorpayPayout(
-            fundAccountId, 
-            transaction.amount, 
+            fundAccountId,
+            transaction.amount,
             transaction.transactionId
           );
 
@@ -683,8 +702,8 @@ export const processPayoutByAdmin = async (req, res) => {
         message: `Payout approved successfully via ${paymentMode} mode.`,
       });
 
-    } 
-    
+    }
+
     // ==========================================
     // 🔴 REJECT FLOW
     // ==========================================
@@ -786,5 +805,59 @@ export const getAllPayoutRequests = async (req, res) => {
     });
   }
 };
+
+/**
+ * Fetch all inventory items (merges productModel and inventryModel)
+ * @route GET /api/admin/inventory/list
+ */
+export const getAllInventoryItems = async (req, res) => {
+  try {
+    const products = await productModel.find().sort({ createdAt: -1 }).lean();
+    const inventories = await inventryModel.find().populate("product").lean();
+
+    const inventoryMap = {};
+    inventories.forEach((inv) => {
+      if (inv.product?._id) {
+        inventoryMap[inv.product._id.toString()] = inv;
+      }
+    });
+
+    const combinedList = products.map((prod) => {
+      const inv = inventoryMap[prod._id.toString()];
+      return {
+        _id: inv ? inv._id : prod._id,
+        productId: prod._id,
+        itemName: prod.name,
+        name: prod.name,
+        sku: prod.sku,
+        category: prod.category || "General",
+        images: prod.images || [],
+        image: prod.images?.[0]?.url || (typeof prod.images?.[0] === "string" ? prod.images[0] : ""),
+        mrp: prod.mrp,
+        price: prod.price,
+        quantity: inv ? inv.quantity : (prod.stock || 0),
+        costPrice: inv ? inv.costPrice : prod.price,
+        wholesalerPrice: inv ? inv.wholesalerPrice : prod.price,
+        hasInventoryRecord: !!inv,
+        inventoryId: inv ? inv._id : null,
+        updatedAt: inv ? inv.updatedAt : prod.updatedAt,
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      count: combinedList.length,
+      data: combinedList,
+    });
+  } catch (error) {
+    console.error("Error in getAllInventoryItems:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch inventory list",
+      error: error.message,
+    });
+  }
+};
+
 
 
