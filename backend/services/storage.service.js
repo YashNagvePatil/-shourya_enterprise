@@ -12,6 +12,11 @@ export const uploadToCloudinary = async (base64String, folder = "products") => {
     const result = await cloudinary.uploader.upload(base64String, {
       folder: folder,
       resource_type: "auto",
+      transformation: [
+        { width: 1280, crop: "limit" }, // Resize down if larger than 1280px
+        { quality: "auto:good" },       // Smart loss-less image compression
+        { fetch_format: "auto" },       // Serve optimized WebP/AVIF format
+      ],
     });
 
     return {

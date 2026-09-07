@@ -2,6 +2,7 @@ import productDao from "../dao/product.dao.js";
 import { uploadMultipleToCloudinary } from "../services/storage.service.js";
 import productModel from "../models/product.model.js";
 import inventryModel from "../models/inventry.model.js";
+import { clearCachePattern } from "../config/cacheRedis.js";
 
 
 
@@ -180,6 +181,9 @@ export const createProduct = async (req, res) => {
     } catch (invErr) {
       console.warn(`⚠️ [INVENTORY INITIALIZE WARNING]:`, invErr.message);
     }
+
+    // Invalidate product cache in Redis so users get fresh product list immediately
+    await clearCachePattern("products:*");
 
     // ------------------------------------------
     // 7. Success Response

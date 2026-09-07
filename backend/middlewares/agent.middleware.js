@@ -4,9 +4,10 @@ import { config } from "../config/config.js";
 import userModel from "../models/user.models.js";
 import adminModel from "../models/admin.model.js";
 import franchiseModel from "../models/franchise.model.js";
+import redis from "../config/cacheRedis.js";
 
 /**
- * Enterprise Level Authentication & Role Resolution Middleware
+ * Enterprise Level Authentication & Role Resolution Middleware with Redis Session Caching
  */
 export const authenticateUser = async (req, res, next) => {
   try {
@@ -34,19 +35,42 @@ export const authenticateUser = async (req, res, next) => {
       });
     }
 
-    // 4. Optimized Model Lookup via Lean Queries
-    let user = null;
+    const userId = decoded.id;
     const roleUpper = decoded.role ? decoded.role.toUpperCase() : "USER";
+    const cacheKey = `user_session:${userId}`;
+    let user = null;
 
-    if (roleUpper === "ADMIN") {
-      user = await adminModel.findById(decoded.id).select("-password").lean();
-    } else if (roleUpper === "FRANCHISE") {
-      user = await franchiseModel.findById(decoded.id).select("-password").lean();
-    } else {
-      user = await userModel.findById(decoded.id).select("-password").lean();
+    // 4. Check Redis Cache First (Avoids repetitive DB lookups on every single request)
+    if (redis.status === "ready") {
+      try {
+        const cachedUser = await redis.get(cacheKey);
+        if (cachedUser) {
+          user = JSON.parse(cachedUser);
+        }
+      } catch (redisErr) {
+        console.warn("⚠️ [AUTH REDIS GET WARNING]:", redisErr.message);
+      }
     }
 
-    // 5. User Existence Check
+    // 5. Database Lookup if Cache Miss
+    if (!user) {
+      if (roleUpper === "ADMIN") {
+        user = await adminModel.findById(userId).select("-password").lean();
+      } else if (roleUpper === "FRANCHISE") {
+        user = await franchiseModel.findById(userId).select("-password").lean();
+      } else {
+        user = await userModel.findById(userId).select("-password").lean();
+      }
+
+      // Save user to Redis for 180 seconds (3 minutes)
+      if (user && redis.status === "ready") {
+        redis.setex(cacheKey, 180, JSON.stringify(user)).catch((err) => {
+          console.warn("⚠️ [AUTH REDIS SET WARNING]:", err.message);
+        });
+      }
+    }
+
+    // 6. User Existence Check
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -54,7 +78,7 @@ export const authenticateUser = async (req, res, next) => {
       });
     }
 
-    // 6. Account Status Checks
+    // 7. Account Status Checks
     const statusUpper = user.status ? user.status.toUpperCase() : "ACTIVE";
 
     if (["BLOCKED", "INACTIVE", "REJECTED", "SUSPENDED"].includes(statusUpper)) {
@@ -71,10 +95,10 @@ export const authenticateUser = async (req, res, next) => {
       });
     }
 
-    // 7. Attach Safe User Payload & Context (Ensuring standard .id & ._id)
+    // 8. Attach Safe User Payload & Context
     req.user = {
       ...user,
-      id: user._id.toString(),
+      id: (user._id || userId).toString(),
       role: decoded.role || user.role || "FRANCHISE",
     };
 

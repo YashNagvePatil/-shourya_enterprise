@@ -11,6 +11,9 @@ if (!process.env.CLOUDYNARY_CLOUD_NAME) throw new Error("CLOUDYNARY_CLOUD_NAME i
 if (!process.env.RAZORPAY_KEY_SECRET) throw new Error("RAZORPAY_KEY_SECRET is not declared");
 if (!process.env.RAZORPAY_TEST_API_KEY) throw new Error("RAZORPAY_TEST_API_KEY is not declared");
 if (!process.env.RAZORPAYX_ACCOUNT_NUMBER) throw new Error("RAZORPAYX_ACCOUNT_NUMBER is not declared");
+if (!process.env.REDIS_HOST) throw new Error("REDIS_HOST is not decleared")
+if (!process.env.REDIS_PORT) throw new Error("REDIS_PORT is not decleared")
+if (!process.env.REDIS_PASSWORD) throw new Error("REDIS_PASSWORD is not decleared")
 
 // Cloudinary Configuration
 cloudinary.config({
@@ -28,6 +31,9 @@ export const config = {
   RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET,
   RAZORPAY_TEST_API_KEY: process.env.RAZORPAY_TEST_API_KEY,
   RAZORPAYX_ACCOUNT_NUMBER: process.env.RAZORPAYX_ACCOUNT_NUMBER,
+  REDIS_HOST: process.env.REDIS_HOST,
+  REDIS_PORT: process.env.REDIS_PORT,
+  REDIS_PASSWORD: process.env.REDIS_PASSWORD
 };
 
 export default cloudinary;
