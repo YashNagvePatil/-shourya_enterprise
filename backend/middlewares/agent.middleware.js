@@ -88,13 +88,6 @@ export const authenticateUser = async (req, res, next) => {
       });
     }
 
-    if (statusUpper === "PENDING") {
-      return res.status(403).json({
-        success: false,
-        message: "Your account verification is pending Admin approval.",
-      });
-    }
-
     // 8. Attach Safe User Payload & Context
     req.user = {
       ...user,

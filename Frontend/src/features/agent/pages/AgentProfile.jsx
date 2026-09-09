@@ -14,6 +14,9 @@ import {
   FileText,
   Save,
   Lock,
+  Share2,
+  Copy,
+  Check,
 } from "lucide-react";
 import { useAgentProfile } from "../hook/useAgentProfile"; // Adjust path as needed
 
@@ -37,6 +40,17 @@ const AgentProfile = () => {
 
   // Active Tab State ('personal' | 'kyc' | 'bank')
   const [activeTab, setActiveTab] = useState("personal");
+  const [copiedLink, setCopiedLink] = useState(null);
+
+  const handleCopyLink = (leg) => {
+    const distributerId = profileData?.distributerId || "";
+    const url = `${window.location.origin}/register?parentAgentId=${distributerId}&position=${leg}`;
+    navigator.clipboard.writeText(url);
+    setCopiedLink(leg);
+    setTimeout(() => {
+      setCopiedLink(null);
+    }, 2500);
+  };
 
   // Local Form States
   const [personalForm, setPersonalForm] = useState({
@@ -217,6 +231,99 @@ const AgentProfile = () => {
               }`}>
                 {kycData?.kycStatus || "Not Submitted"}
               </span>
+            </div>
+          </div>
+        </div>
+
+        {/* REFERRAL / PLACEMENT LINKS CARD */}
+        <div className="bg-white border border-[#D6B265]/30 rounded-2xl p-5 shadow-sm space-y-4">
+          <div className="flex items-center justify-between border-b border-[#D6B265]/20 pb-3">
+            <div className="flex items-center space-x-2">
+              <Share2 className="w-4 h-4 text-[#DC2643]" />
+              <h3 className="text-xs font-bold text-[#2A1815] uppercase tracking-wider">
+                Agent Placement Referral Links
+              </h3>
+            </div>
+            <span className="text-[11px] text-[#2A1815]/60 hidden sm:inline">
+              Share these links to register new downline agents directly into your Left or Right leg slot
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Left Leg Referral Link */}
+            <div className="bg-[#FAF5EE] border border-[#D6B265]/40 rounded-xl p-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-[#2A1815] flex items-center">
+                  <span className="w-2 h-2 rounded-full bg-[#F59E35] mr-1.5" />
+                  Left Leg Registration Link
+                </span>
+                <span className="text-[10px] bg-[#F59E35]/15 text-[#2A1815] px-2 py-0.5 rounded-md font-mono font-medium">
+                  Slot: Left
+                </span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={`${window.location.origin}/register?parentAgentId=${profileData?.distributerId || ""}&position=left`}
+                  className="w-full bg-white border border-[#D6B265]/30 rounded-lg px-3 py-1.5 text-[11px] text-[#2A1815]/80 font-mono focus:outline-none select-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleCopyLink("left")}
+                  className="px-3 py-1.5 bg-[#2A1815] hover:bg-[#DC2643] text-[#FAF5EE] rounded-lg text-xs font-medium transition-colors flex items-center space-x-1 shrink-0 cursor-pointer"
+                >
+                  {copiedLink === "left" ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5 text-[#F59E35]" />
+                      <span>Copy</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Right Leg Referral Link */}
+            <div className="bg-[#FAF5EE] border border-[#D6B265]/40 rounded-xl p-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-[#2A1815] flex items-center">
+                  <span className="w-2 h-2 rounded-full bg-[#DC2643] mr-1.5" />
+                  Right Leg Registration Link
+                </span>
+                <span className="text-[10px] bg-[#DC2643]/15 text-[#2A1815] px-2 py-0.5 rounded-md font-mono font-medium">
+                  Slot: Right
+                </span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={`${window.location.origin}/register?parentAgentId=${profileData?.distributerId || ""}&position=right`}
+                  className="w-full bg-white border border-[#D6B265]/30 rounded-lg px-3 py-1.5 text-[11px] text-[#2A1815]/80 font-mono focus:outline-none select-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleCopyLink("right")}
+                  className="px-3 py-1.5 bg-[#2A1815] hover:bg-[#DC2643] text-[#FAF5EE] rounded-lg text-xs font-medium transition-colors flex items-center space-x-1 shrink-0 cursor-pointer"
+                >
+                  {copiedLink === "right" ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5 text-[#F59E35]" />
+                      <span>Copy</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

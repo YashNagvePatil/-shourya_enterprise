@@ -1,7 +1,7 @@
 import axios from "axios";
 
 export const paymentApi = axios.create({
-  baseURL: "http://localhost:3000/api/payment",
+  baseURL: "https://shouryaevtech.com/api/payment",
   headers: {
     "Content-Type": "application/json",
   },

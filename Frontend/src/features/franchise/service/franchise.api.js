@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:3000/api/franchise",
+  baseURL: "https://shouryaevtech.com/api/franchise",
   headers: {
     "Content-Type": "application/json",
   },
@@ -142,4 +142,4 @@ export const fulfillSubordinateSupply = async (requestId, data = {}) => {
   return await api.patch(`/supplies/${requestId}/fulfill`, data);
 };
 
-export default api;
+export default api;

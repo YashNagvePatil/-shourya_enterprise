@@ -17,10 +17,10 @@ const createInitialAdmin = async () => {
    
 
     const admin = await adminModel.create({
-      fullName: "System Admin",
-      email: "admin@yourdomain.com",
-      contact: "9999999999",
-      password: "AdminPassword123",
+      fullName: "Sunil dadasaheb potre",
+      email: "shauryevhub27@gmail.com",
+      contact: "9356959813",
+      password: "Admin@#&*123",
       role: "Admin",
       status: "Active",
     });

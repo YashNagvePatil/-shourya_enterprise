@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../hook/useAuth.js";
 
 const initialFormData = {
@@ -16,11 +16,36 @@ const initialFormData = {
 
 export const RegisterPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { handleRegister, loading, error } = useAuth();
 
   const [position, setPosition] = useState("left");
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState(initialFormData);
+
+  useEffect(() => {
+    const parentIdParam =
+      searchParams.get("parentAgentId") ||
+      searchParams.get("sponsorId") ||
+      searchParams.get("ref") ||
+      "";
+    const positionParam =
+      searchParams.get("position") || searchParams.get("leg") || "";
+
+    if (parentIdParam) {
+      setFormData((prev) => ({
+        ...prev,
+        parentAgentId: parentIdParam,
+      }));
+    }
+    if (
+      positionParam &&
+      (positionParam.toLowerCase() === "left" ||
+        positionParam.toLowerCase() === "right")
+    ) {
+      setPosition(positionParam.toLowerCase());
+    }
+  }, [searchParams]);
 
   const convertToBase64 = (file) => {
     return new Promise((resolve, reject) => {
@@ -145,12 +170,58 @@ export const RegisterPage = () => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-8">
-            {/* 1. Personal Information */}
+            {/* 1. Placement & Sponsor Details */}
             <div className="space-y-4">
               <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                 <h3 className="text-xs font-normal uppercase tracking-wider text-slate-500">
-                  1. Personal Information
+                  1. Placement & Sponsor Details
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <input
+                  type="text"
+                  name="parentAgentId"
+                  placeholder="Parent Agent ID (Optional)"
+                  value={formData.parentAgentId}
+                  onChange={handleChange}
+                  className="p-3 bg-stone-50/50 border border-slate-200/80 rounded-lg text-xs font-light focus:bg-white focus:outline-none focus:ring-1 focus:ring-amber-500/50 transition-all placeholder:text-slate-400"
+                />
+
+                <div className="grid grid-cols-2 gap-1 p-1 bg-stone-50/50 border border-slate-200/80 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => setPosition("left")}
+                    className={`py-2 text-xs font-light rounded transition-all cursor-pointer ${
+                      position === "left"
+                        ? "bg-amber-500 text-white shadow-sm font-normal"
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    Left Slot
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPosition("right")}
+                    className={`py-2 text-xs font-light rounded transition-all cursor-pointer ${
+                      position === "right"
+                        ? "bg-amber-500 text-white shadow-sm font-normal"
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    Right Slot
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. Personal Information */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                <h3 className="text-xs font-normal uppercase tracking-wider text-slate-500">
+                  2. Personal Information
                 </h3>
               </div>
 
@@ -208,52 +279,6 @@ export const RegisterPage = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                       </svg>
                     )}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* 2. Placement Details */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                <h3 className="text-xs font-normal uppercase tracking-wider text-slate-500">
-                  2. Placement & Sponsor Details
-                </h3>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <input
-                  type="text"
-                  name="parentAgentId"
-                  placeholder="Parent Agent ID (Optional)"
-                  value={formData.parentAgentId}
-                  onChange={handleChange}
-                  className="p-3 bg-stone-50/50 border border-slate-200/80 rounded-lg text-xs font-light focus:bg-white focus:outline-none focus:ring-1 focus:ring-amber-500/50 transition-all placeholder:text-slate-400"
-                />
-
-                <div className="grid grid-cols-2 gap-1 p-1 bg-stone-50/50 border border-slate-200/80 rounded-lg">
-                  <button
-                    type="button"
-                    onClick={() => setPosition("left")}
-                    className={`py-2 text-xs font-light rounded transition-all cursor-pointer ${
-                      position === "left"
-                        ? "bg-amber-500 text-white shadow-sm font-normal"
-                        : "text-slate-500 hover:text-slate-800"
-                    }`}
-                  >
-                    Left Slot
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPosition("right")}
-                    className={`py-2 text-xs font-light rounded transition-all cursor-pointer ${
-                      position === "right"
-                        ? "bg-amber-500 text-white shadow-sm font-normal"
-                        : "text-slate-500 hover:text-slate-800"
-                    }`}
-                  >
-                    Right Slot
                   </button>
                 </div>
               </div>

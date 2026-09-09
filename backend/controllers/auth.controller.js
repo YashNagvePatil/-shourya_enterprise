@@ -408,7 +408,7 @@ export const login = async (req, res) => {
 
     // 4. Status Check Guard (Covers Active / Inactive / Blocked for both Models)
     const status = account.status ? account.status.toLowerCase() : "active";
-    if (status === "blocked" || status === "inactive" || status === "pending") {
+    if (status === "blocked" || status === "inactive") {
       console.warn(`[SECURITY] Suspended/Inactive access attempt: ${account.email || inputId}`);
       return res.status(403).json({
         success: false,
