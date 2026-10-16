@@ -147,7 +147,6 @@ export const register = async (req, res) => {
     contact,
     password,
     fullName,
-    role,
     parentAgentId,
     sponsorId,
     parrentAgentName,
@@ -155,6 +154,9 @@ export const register = async (req, res) => {
     panCardImage,
     adharCardImage,
   } = req.body || {};
+
+  const role = role ? String(role).trim() : "Agent"; // Default role to 'Agent' if not provided
+
 
   console.log(`[DEBUG] Registration Attempt for: ${email || "N/A"} | Role: ${role || "N/A"}`);
 
@@ -179,19 +181,25 @@ export const register = async (req, res) => {
     const cleanEmail = String(email).toLowerCase().trim();
     const cleanFullName = String(fullName).trim();
 
-    // 3. Duplicate Account Check
-    const existingUser = await authDao.findExistingUserByEmailOrContact(
-      cleanEmail,
-      contact
-    );
-
-    if (existingUser) {
-      console.warn(`[DEBUG] Duplicate User Blocked: ${cleanEmail} / ${contact}`);
+    // 3. Max Accounts Limit Check (Allows up to 3 accounts per email and mobile number)
+    const emailAccountCount = await authDao.countUsersByEmail(cleanEmail);
+    if (emailAccountCount >= 3) {
+      console.warn(`[DEBUG] Email Limit Exceeded (3 Accounts Max): ${cleanEmail}`);
       return res.status(400).json({
         success: false,
-        message: "Email or Contact number already registered!",
+        message: "Maximum limit reached! A maximum of 3 agent accounts can be created with the same email address.",
       });
     }
+
+    const contactAccountCount = await authDao.countUsersByContact(contact);
+    if (contactAccountCount >= 3) {
+      console.warn(`[DEBUG] Contact Limit Exceeded (3 Accounts Max): ${contact}`);
+      return res.status(400).json({
+        success: false,
+        message: "Maximum limit reached! A maximum of 3 agent accounts can be created with the same mobile number.",
+      });
+    }
+
 
     // 4. Cloudinary Concurrent Uploads
    const panUploadResult = await uploadToCloudinary(panCardImage, "kyc_documents");
@@ -476,4 +484,46 @@ export const logout = async (req, res) => {
     });
   }
 };
+
+/**
+ * Public endpoint to fetch Sponsor Agent details by Sponsor ID / Distributor ID
+ */
+export const getSponsorDetails = async (req, res) => {
+  try {
+    const { sponsorId } = req.params;
+    if (!sponsorId) {
+      return res.status(400).json({
+        success: false,
+        message: "Sponsor ID is required",
+      });
+    }
+
+    const sponsorUser = await authDao.findParentByDistributorId(sponsorId);
+    if (!sponsorUser) {
+      return res.status(404).json({
+        success: false,
+        message: "Sponsor not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      sponsor: {
+        id: sponsorUser._id,
+        distributerId: sponsorUser.distributerId || sponsorUser.distributorId || sponsorId,
+        fullName: sponsorUser.fullName || sponsorUser.name || "N/A",
+        email: sponsorUser.email,
+        contact: sponsorUser.contact,
+        role: sponsorUser.role,
+      },
+    });
+  } catch (error) {
+    console.error("Get Sponsor Details Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch sponsor details",
+    });
+  }
+};
+
 
