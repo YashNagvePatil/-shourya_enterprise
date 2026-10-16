@@ -3,6 +3,22 @@ import userModel from "../models/user.models.js";
 import adminModel from "../models/admin.model.js";
 
 /**
+ * Counts existing user accounts registered with the given email.
+ */
+export const countUsersByEmail = async (email) => {
+  if (!email) return 0;
+  return await userModel.countDocuments({ email: String(email).toLowerCase().trim() });
+};
+
+/**
+ * Counts existing user accounts registered with the given contact number.
+ */
+export const countUsersByContact = async (contact) => {
+  if (!contact) return 0;
+  return await userModel.countDocuments({ contact: Number(contact) });
+};
+
+/**
  * Checks if a user already exists with the given email or contact number.
  */
 export const findExistingUserByEmailOrContact = async (email, contact) => {
@@ -10,6 +26,7 @@ export const findExistingUserByEmailOrContact = async (email, contact) => {
     $or: [{ email }, { contact }]
   });
 };
+
 
 /**
  * Counts the total number of documents with the 'Agent' role.
@@ -26,20 +43,23 @@ export const findParentByDistributorId = async (distributorId) => {
 
   // Safe string conversion (ObjectId aur String dono handle karega)
   const cleanId = String(distributorId).trim();
+  const escapedId = cleanId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regexPattern = new RegExp(`^${escapedId}$`, "i");
 
   // Robust Search Query: distributerId (String) OR _id (ObjectId)
   return await userModel.findOne({
     $or: [
       { distributerId: cleanId },
-      // Check if spelling in some doc is distributorId
+      { distributerId: regexPattern },
       { distributorId: cleanId }, 
-      // Agar cleanId ek valid MongoDB ObjectId hai toh _id se bhi dhoondo
+      { distributorId: regexPattern },
       ...(mongoose.Types.ObjectId.isValid(cleanId)
         ? [{ _id: new mongoose.Types.ObjectId(cleanId) }]
         : [])
     ]
   });
 };
+
 
 /**
  * Checks if a specific position slot (left/right) under a parent ID is already taken.
