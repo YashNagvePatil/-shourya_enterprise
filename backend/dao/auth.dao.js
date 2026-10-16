@@ -74,28 +74,61 @@ export const checkSlotOccupation = async (parentId, position) => {
 /**
  * Persists a new agent payload directly inside the DB collection state layer.
  */
-export const createAgentRecord = async (agentPayload) => {
-  return await userModel.create(agentPayload);
+export const createAgentRecord = async (agentPayload, session) => {
+  const [user] = await userModel.create(
+    [agentPayload], 
+    { session });
+    return user; // Return the created user document
 };
 
-export const updateParentChildSlot = async (parentId, position, childId) => {
-  const updateField = position === "left" ? { leftChild: childId } : { rightChild: childId };
-  return await userModel.findByIdAndUpdate(parentId, updateField, { returnDocument: 'after' });
-};
+export const updateParentChildSlot = async (parentId, position, childId, session) => {
+  const field = 
+  position === "left" ? "leftChildId" : 
+  position === "right" ? "rightChildId" : null;
 
-export const incrementSponsorDirectCount = async (sponsorId) => {
+  if (!field) {
+    throw new Error("Invalid position specified. Must be 'left' or 'right'.");
+    
+  }
+
+  return await userModel.findByIdAndUpdate(
+    {
+      _id:parentId,
+      [field]: null
+    },
+
+    {
+      $set: { [field]: childId }      
+    },
+
+    {
+      new :true,
+      session
+    }
+  );
+}
+   
+  
+
+
+
+export const incrementSponsorDirectCount = async (sponsorId,
+  session) => {
   return await userModel.findOneAndUpdate(
     { distributerId: sponsorId },
-    { $inc: { totalDirects: 1 } }
+    { $inc: { totalDirects: 1 } },
+    {session}
   );
 };
-export const updateAllUplinesCounters = async (currentParentId, incomingPosition, assignedBV = 0) => {
+export const updateAllUplinesCounters = async (currentParentId, incomingPosition, assignedBV = 0,
+  session
+) => {
   let currentId = currentParentId;
   let lastPosition = incomingPosition; // "left" or "right"
 
   // Loop tab tak chalega jab tak top root node nahi aa jata
   while (currentId) {
-    const uplineUser = await userModel.findById(currentId);
+    const uplineUser = await userModel.findById(currentId).session(session);
     if (!uplineUser) break;
 
     const incrementPayload = {};
@@ -118,7 +151,7 @@ export const updateAllUplinesCounters = async (currentParentId, incomingPosition
     }
 
     // Upline document ko update karein
-    await userModel.findByIdAndUpdate(currentId, { $inc: incrementPayload });
+    await userModel.findByIdAndUpdate(currentId, { $inc: incrementPayload },{session});
 
     // Agle iteration ke liye track badlein: upar wale upline ke liye current user khud kis side par tha
     lastPosition = uplineUser.position; 
