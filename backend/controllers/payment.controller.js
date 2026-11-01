@@ -6,97 +6,187 @@ import productModel from "../models/product.model.js";
 import inventryModel from "../models/inventry.model.js";
 import cartModel from "../models/cart.model.js";
 import { config } from "../config/config.js";
-// Initialize Razorpay Instance
+
+// Initialize Razorpay Instance (Supports both Test and Live Keys)
+const razorpayKeyId =
+  process.env.RAZORPAY_KEY_ID ||
+  process.env.RAZORPAY_LIVE_API_KEY ||
+  config.RAZORPAY_TEST_API_KEY ||
+  process.env.RAZORPAY_TEST_API_KEY;
+
+const razorpayKeySecret =
+  process.env.RAZORPAY_KEY_SECRET ||
+  config.RAZORPAY_KEY_SECRET;
 
 const razorpay = new Razorpay({
-  key_id: config.RAZORPAY_TEST_API_KEY,
-  key_secret:config.RAZORPAY_KEY_SECRET,
+  key_id: razorpayKeyId,
+  key_secret: razorpayKeySecret,
 });
 
 /**
- * Helper function for MLM Level Commission Percentages
+ * 🎯 Shourya Enterprise Point Calculation Rule:
+ * Order Amount < ₹13,000  => 500 Points (BV/PV)
+ * Order Amount >= ₹13,000 => 1000 Points (BV/PV)
  */
-const getCommissionPercentage = (level) => {
-  const levelCommissions = { 1: 10, 2: 5, 3: 3, 4: 2, 5: 1 };
-  return levelCommissions[level] || 0.5;
+export const calculateShouryaPoints = (totalAmount) => {
+  return Number(totalAmount) >= 13000 ? 1000 : 500;
 };
 
 /**
- * @desc    Step 1: Create Razorpay Order
+ * @desc    Step 1: Create Razorpay Order (Secure Server-side pricing & stock verification)
  * @route   POST /api/payment/create-order
  */
 export const createRazorpayOrder = async (req, res) => {
   try {
-    const { productId, quantity = 1, amount, items: reqItems } = req.body;
+    const { productId, quantity = 1, items: reqItems } = req.body;
     const userId = req.user._id || req.user.id;
 
-    if (!amount || amount <= 0) {
-      return res.status(400).json({ success: false, message: "Valid amount is required" });
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized! User session missing." });
     }
 
     let orderItems = [];
-    let totalBV = 100;
-    let totalPV = 10;
+    let calculatedTotalAmount = 0;
 
-    // A. Single Product Direct Purchase / Buy Now
+    // ─────────────────────────────────────────────────────────────────
+    // Case A: Single Product Direct Purchase / Buy Now
+    // ─────────────────────────────────────────────────────────────────
     if (productId) {
       const product = await productModel.findById(productId);
-      if (product) {
-        totalBV = (product.bv || 0) * quantity;
-        totalPV = (product.pv || 0) * quantity;
-        orderItems = [{ product: product._id, quantity, pv: totalPV }];
+      if (!product || !product.isActive) {
+        return res.status(404).json({ success: false, message: "Product is not available or inactive." });
       }
-    } 
-    // B. Multiple items passed directly in payload
+
+      const qty = Math.max(1, parseInt(quantity, 10) || 1);
+      if (product.stock < qty) {
+        return res.status(400).json({
+          success: false,
+          message: `Insufficient stock! Only ${product.stock} units available for ${product.name}.`,
+        });
+      }
+
+      const itemTotal = (product.price || 0) * qty;
+      calculatedTotalAmount = itemTotal;
+
+      orderItems.push({
+        product: product._id,
+        name: product.name,
+        price: product.price,
+        quantity: qty,
+        pv: 0, // Points will be attached based on overall order slab
+      });
+    }
+    // ─────────────────────────────────────────────────────────────────
+    // Case B: Multiple items array passed directly in payload
+    // ─────────────────────────────────────────────────────────────────
     else if (Array.isArray(reqItems) && reqItems.length > 0) {
       for (const item of reqItems) {
         const pId = item.productId || item.product;
-        const pQty = item.quantity || item.qty || 1;
+        const pQty = Math.max(1, parseInt(item.quantity || item.qty || 1, 10));
         const dbProd = await productModel.findById(pId);
-        if (dbProd) {
-          const itemPV = (dbProd.pv || 0) * pQty;
-          totalPV += itemPV;
-          totalBV += (dbProd.bv || 0) * pQty;
-          orderItems.push({ product: dbProd._id, quantity: pQty, pv: itemPV });
+
+        if (!dbProd || !dbProd.isActive) {
+          return res.status(404).json({
+            success: false,
+            message: `One of the selected products is inactive or not found.`,
+          });
         }
+
+        if (dbProd.stock < pQty) {
+          return res.status(400).json({
+            success: false,
+            message: `Insufficient stock for ${dbProd.name}. Available: ${dbProd.stock}, Requested: ${pQty}`,
+          });
+        }
+
+        calculatedTotalAmount += (dbProd.price || 0) * pQty;
+        orderItems.push({
+          product: dbProd._id,
+          name: dbProd.name,
+          price: dbProd.price,
+          quantity: pQty,
+          pv: 0,
+        });
       }
-    } 
-    // C. Standard Cart Checkout: Fetch active items from User Cart DB
+    }
+    // ─────────────────────────────────────────────────────────────────
+    // Case C: Standard Cart Checkout: Fetch active items from User Cart DB
+    // ─────────────────────────────────────────────────────────────────
     else {
       const userCart = await cartModel.findOne({ user: userId }).populate("items.product");
-      if (userCart && userCart.items?.length > 0) {
-        for (const cartItem of userCart.items) {
-          const p = cartItem.product;
-          if (p) {
-            const itemPV = (p.pv || 0) * cartItem.quantity;
-            totalPV += itemPV;
-            totalBV += (p.bv || 0) * cartItem.quantity;
-            orderItems.push({ product: p._id, quantity: cartItem.quantity, pv: itemPV });
-          }
+      if (!userCart || !userCart.items || userCart.items.length === 0) {
+        return res.status(400).json({ success: false, message: "Your shopping cart is empty." });
+      }
+
+      for (const cartItem of userCart.items) {
+        const p = cartItem.product;
+        if (!p || !p.isActive) {
+          return res.status(400).json({
+            success: false,
+            message: "One of the items in your cart is currently unavailable.",
+          });
         }
+
+        const qty = Math.max(1, parseInt(cartItem.quantity, 10) || 1);
+        if (p.stock < qty) {
+          return res.status(400).json({
+            success: false,
+            message: `Insufficient stock for ${p.name}. Only ${p.stock} units left.`,
+          });
+        }
+
+        calculatedTotalAmount += (p.price || 0) * qty;
+        orderItems.push({
+          product: p._id,
+          name: p.name,
+          price: p.price,
+          quantity: qty,
+          pv: 0,
+        });
       }
     }
 
-    // 2. Create Order in MongoDB (Unpaid)
-    const receiptNumber = `REC_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
+    if (calculatedTotalAmount <= 0) {
+      return res.status(400).json({ success: false, message: "Total order amount must be greater than zero." });
+    }
 
+    // ─────────────────────────────────────────────────────────────────
+    // 🎯 SHOURYA POINT SYSTEM:
+    // < 13000 => 500 Points, >= 13000 => 1000 Points
+    // ─────────────────────────────────────────────────────────────────
+    const earnedPoints = calculateShouryaPoints(calculatedTotalAmount);
+
+    // Attach earned points to order items
+    orderItems.forEach((item) => {
+      item.pv = earnedPoints;
+    });
+
+    // 1. Create Order in Razorpay (Amount in Paise: ₹1 = 100 paise)
+    const receiptNumber = `REC_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
+    const razorpayOptions = {
+      amount: Math.round(calculatedTotalAmount * 100),
+      currency: "INR",
+      receipt: receiptNumber,
+      notes: {
+        userId: userId.toString(),
+      },
+    };
+
+    const razorpayOrder = await razorpay.orders.create(razorpayOptions);
+
+    // 2. Save Order in MongoDB with bound razorpayOrderId & status PENDING
     const newOrder = await orderModel.create({
       user: userId,
       items: orderItems,
-      totalAmount: amount,
-      earnedPV: totalPV,
+      totalAmount: calculatedTotalAmount, // Server-calculated price
+      earnedPV: earnedPoints,             // Exact 500 or 1000 points
       receiptNumber: receiptNumber,
+      razorpayOrderId: razorpayOrder.id,  // Direct permanent binding
       paymentStatus: "PENDING",
+      isPaid: false,
+      paymentMethod: "RAZORPAY",
+      deliveryStatus: "PENDING_ASSIGNMENT",
     });
-
-    // 3. Create Razorpay Order (Amount must be in paise: ₹1 = 100 paise)
-    const options = {
-      amount: Math.round(amount * 100),
-      currency: "INR",
-      receipt: `receipt_${newOrder._id}`,
-    };
-
-    const razorpayOrder = await razorpay.orders.create(options);
 
     return res.status(200).json({
       success: true,
@@ -104,7 +194,7 @@ export const createRazorpayOrder = async (req, res) => {
       amount: razorpayOrder.amount,
       currency: razorpayOrder.currency,
       dbOrderId: newOrder._id,
-      keyId: config.RAZORPAY_TEST_API_KEY
+      keyId: razorpayKeyId,
     });
   } catch (error) {
     console.error("❌ Error creating Razorpay Order:", error);
@@ -113,9 +203,8 @@ export const createRazorpayOrder = async (req, res) => {
 };
 
 /**
- * Helper: Binary Pair Matching Algorithm
- * Evaluates leftBV and rightBV, processes 500/1000 step matching,
- * updates wallet balance, and handles carry forward points.
+ * Helper: Atomic Binary Pair Matching Algorithm
+ * Safe against race conditions and concurrent double-credit.
  */
 const processBinaryPairMatching = async (userId) => {
   const user = await userModel.findById(userId);
@@ -131,24 +220,175 @@ const processBinaryPairMatching = async (userId) => {
   if (matchedPoints >= 500) {
     // Round down to the nearest multiple of 500
     const matchedPairsAmount = Math.floor(matchedPoints / 500) * 500;
+    const matchingPayout = matchedPairsAmount; // 1:1 payout ratio (1 Point = ₹1)
 
-    // Deduct matched points from active balance (Carry Forward remaining)
-    const newLeftBV = left - matchedPairsAmount;
-    const newRightBV = right - matchedPairsAmount;
-
-    // 1:1 payout ratio (1 Point = ₹1 Bonus)
-    const matchingPayout = matchedPairsAmount;
-
-    await userModel.findByIdAndUpdate(userId, {
-      leftBV: newLeftBV,
-      rightBV: newRightBV,
-      $inc: {
-        walletBalance: matchingPayout,
-        totalMatchingBonus: matchingPayout,
-        totalEarning: matchingPayout,
+    // Atomic update with conditional guard ($gte) to prevent race conditions
+    await userModel.findOneAndUpdate(
+      {
+        _id: userId,
+        leftBV: { $gte: matchedPairsAmount },
+        rightBV: { $gte: matchedPairsAmount },
       },
-    });
+      {
+        $inc: {
+          leftBV: -matchedPairsAmount,
+          rightBV: -matchedPairsAmount,
+          walletBalance: matchingPayout,
+          totalMatchingBonus: matchingPayout,
+          totalEarning: matchingPayout,
+        },
+      }
+    );
   }
+};
+
+/**
+ * Helper: Upward MLM Point Propagation Engine
+ * Includes loop detection & maximum tree depth guard.
+ */
+const propagateMLMPoints = async (userId, generatedBV) => {
+  const purchasingAgent = await userModel.findById(userId);
+  if (!purchasingAgent) return;
+
+  let currentParentId = purchasingAgent.parentAgentId;
+  let childPosition = purchasingAgent.position; // "left" or "right"
+  const visitedParents = new Set();
+  const MAX_DEPTH = 100;
+  let depth = 0;
+
+  while (currentParentId && depth < MAX_DEPTH) {
+    if (visitedParents.has(currentParentId.toString())) {
+      console.warn(`⚠️ [MLM LOOP DETECTED] Circular hierarchy detected at agent: ${currentParentId}`);
+      break;
+    }
+    visitedParents.add(currentParentId.toString());
+    depth++;
+
+    const parentUser = await userModel.findById(currentParentId);
+    if (!parentUser) break;
+
+    const updateIncFields = {};
+    if (childPosition === "left") {
+      updateIncFields.leftBV = generatedBV;
+      updateIncFields.totalLeftBV = generatedBV;
+    } else if (childPosition === "right") {
+      updateIncFields.rightBV = generatedBV;
+      updateIncFields.totalRightBV = generatedBV;
+    }
+
+    if (Object.keys(updateIncFields).length > 0) {
+      await userModel.findByIdAndUpdate(currentParentId, {
+        $inc: updateIncFields,
+      });
+
+      // Run Binary Pair Matching on updated parent
+      await processBinaryPairMatching(currentParentId);
+    }
+
+    // Advance to Next Level up in Binary Tree
+    currentParentId = parentUser.parentAgentId;
+    childPosition = parentUser.position;
+  }
+};
+
+/**
+ * Core Reusable Fulfillment Engine (Used by both Client Verification and Webhooks)
+ * Ensures 100% Idempotency (no duplicate commissions or duplicate stock deductions).
+ */
+export const executeOrderFulfillment = async ({
+  orderId,
+  razorpayPaymentId,
+  razorpayOrderId,
+  userId,
+}) => {
+  const existingOrder = await orderModel.findById(orderId).populate("items.product", "name price category");
+  if (!existingOrder) {
+    throw new Error("Order not found");
+  }
+
+  // 🛡️ IDEMPOTENCY GUARD: If order is already PAID, skip fulfillment safely
+  if (existingOrder.paymentStatus === "PAID" || existingOrder.isPaid) {
+    return { alreadyProcessed: true, order: existingOrder };
+  }
+
+  // 🎯 Calculate Points based on strict Shourya rule:
+  // < 13000 => 500 Points, >= 13000 => 1000 Points
+  const totalAmount = existingOrder.totalAmount || 0;
+  const generatedBV = calculateShouryaPoints(totalAmount);
+
+  // Snapshot agent delivery address
+  const agentForAddress = await userModel.findById(userId || existingOrder.user).select("address").lean();
+
+  // 1. Mark Order as PAID
+  existingOrder.isPaid = true;
+  existingOrder.paymentStatus = "PAID";
+  existingOrder.earnedPV = generatedBV;
+  existingOrder.paidAt = new Date();
+  existingOrder.razorpayOrderId = razorpayOrderId;
+  existingOrder.razorpayPaymentId = razorpayPaymentId;
+  existingOrder.paymentResult = {
+    id: razorpayPaymentId,
+    razorpayOrderId: razorpayOrderId,
+    status: "SUCCESS",
+  };
+  existingOrder.deliveryStatus = "PENDING_ASSIGNMENT";
+  if (agentForAddress?.address) {
+    existingOrder.deliveryAddress = agentForAddress.address;
+  }
+
+  existingOrder.statusHistory.push({
+    status: "PENDING_ASSIGNMENT",
+    changedBy: "agent",
+    changedById: userId || existingOrder.user,
+    note: "Payment verified successfully — awaiting franchise assignment",
+    timestamp: new Date(),
+  });
+
+  await existingOrder.save();
+
+  // 2. Clear user cart
+  await cartModel.findOneAndUpdate(
+    { user: existingOrder.user },
+    { $set: { items: [], totalAmount: 0, totalPV: 0 } }
+  );
+
+  // 3. Atomic Inventory & Product Stock Deduction
+  if (existingOrder.items && existingOrder.items.length > 0) {
+    for (const item of existingOrder.items) {
+      const productId = item.product?._id || item.product;
+      const qty = item.quantity || 1;
+
+      // Sync product.stock
+      await productModel.findByIdAndUpdate(productId, {
+        $inc: { stock: -qty },
+      });
+
+      // Sync inventryModel
+      let existingInventory = await inventryModel.findOne({ product: productId });
+      if (!existingInventory) {
+        const dbProduct = await productModel.findById(productId);
+        if (dbProduct) {
+          existingInventory = await inventryModel.create({
+            product: dbProduct._id,
+            sku: dbProduct.sku || `SKU-${dbProduct._id}`,
+            quantity: dbProduct.stock || 0,
+            costPrice: dbProduct.price || 0,
+            wholesalerPrice: dbProduct.price || 0,
+          });
+        }
+      }
+
+      await inventryModel.findOneAndUpdate(
+        { product: productId },
+        { $inc: { quantity: -qty } }
+      );
+    }
+  }
+
+  // 4. Distribute MLM Points & Run Binary Matching Upward
+  await propagateMLMPoints(existingOrder.user, generatedBV);
+
+  return { alreadyProcessed: false, order: existingOrder };
 };
 
 /**
@@ -164,7 +404,14 @@ export const verifyAndDistributeMLM = async (req, res) => {
       dbOrderId,
     } = req.body;
 
-    const userId = req.user._id;
+    const userId = req.user._id || req.user.id;
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !dbOrderId) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required payment verification parameters.",
+      });
+    }
 
     // 1. Signature Verification Check
     const generatedSignature = crypto
@@ -175,141 +422,45 @@ export const verifyAndDistributeMLM = async (req, res) => {
     if (generatedSignature !== razorpay_signature) {
       return res.status(400).json({
         success: false,
-        message: "Payment verification failed! Invalid Signature.",
+        message: "Payment verification failed! Invalid signature.",
       });
     }
 
-    // 2. Fetch Order from DB
+    // 2. Fetch Order from DB & Security Validation
     const existingOrder = await orderModel.findById(dbOrderId);
     if (!existingOrder) {
-      return res.status(404).json({ success: false, message: "Order not found" });
+      return res.status(404).json({ success: false, message: "Order record not found." });
     }
 
-    if (existingOrder.paymentStatus === "PAID" || existingOrder.isPaid) {
-      return res.status(400).json({ success: false, message: "Order is already processed" });
-    }
-
-    // ------------------------------------------------------------------
-    // RULE 1: Fixed Point System based on Amount Threshold
-    // ------------------------------------------------------------------
-    const totalAmount = existingOrder.totalAmount || 0;
-    const generatedBV = totalAmount >= 13000 ? 1000 : 500;
-
-    // 3. Mark Order as Paid
-    const updatedOrder = await orderModel.findByIdAndUpdate(
-      dbOrderId,
-      {
-        isPaid: true,
-        paymentStatus: "PAID",
-        earnedPV: generatedBV,
-        paidAt: Date.now(),
-        paymentResult: {
-          id: razorpay_payment_id,
-          razorpayOrderId: razorpay_order_id,
-          status: "SUCCESS",
-        },
-      },
-      { new: true }
-    ).populate("items.product", "name price category");
-
-    // Clear user cart upon successful payment
-    await cartModel.findOneAndUpdate({ user: userId }, { items: [], totalAmount: 0, totalPV: 0 });
-
-    // 3.5 INVENTORY AUTO-DEDUCTION: Har sold item ki quantity inventory se minus karo
-    //     Atomic $inc with $gte guard → concurrent orders mein bhi negative stock nahi hoga
-    if (updatedOrder?.items?.length > 0) {
-      const deductionPromises = updatedOrder.items.map(async (item) => {
-        const productId = item.product?._id || item.product;
-        const qty = item.quantity || 1;
-
-        // If inventory entry does not exist yet, auto-create it from productModel
-        let existingInventory = await inventryModel.findOne({ product: productId });
-        if (!existingInventory) {
-          const dbProduct = await productModel.findById(productId);
-          if (dbProduct) {
-            existingInventory = await inventryModel.create({
-              product: dbProduct._id,
-              sku: dbProduct.sku,
-              quantity: dbProduct.stock || 0,
-              costPrice: dbProduct.price || 0,
-              wholesalerPrice: dbProduct.price || 0,
-            });
-          }
-        }
-
-        // Atomic deduction: sirf tabhi minus hoga jab stock kaafi ho
-        const result = await inventryModel.findOneAndUpdate(
-          { product: productId, quantity: { $gte: qty } }, // Guard: stock >= qty
-          { $inc: { quantity: -qty } },
-          { new: true }
-        );
-
-        // Product.stock bhi sync karo
-        await productModel.findByIdAndUpdate(productId, {
-          $inc: { stock: -qty },
-        });
-
-        if (!result) {
-          console.warn(
-            `[INVENTORY WARNING] Stock insufficient or inventory missing for product: ${productId}. Qty requested: ${qty}`
-          );
-        } else {
-          console.log(
-            `[INVENTORY] Deducted ${qty} units from product: ${productId}. Remaining: ${result.quantity}`
-          );
-        }
+    // 🔒 Security Guard 1: Verify order ownership
+    if (existingOrder.user.toString() !== userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized! This order does not belong to your account.",
       });
-
-      // Sabhi deductions parallel mein run karo
-      await Promise.allSettled(deductionPromises);
     }
 
-    // 4. MLM Points & Commission Propagation Engine
-    const purchasingAgent = await userModel.findById(userId);
-
-    if (purchasingAgent) {
-      let currentChildId = purchasingAgent._id;
-      let currentParentId = purchasingAgent.parentAgentId;
-      let childPosition = purchasingAgent.position; // "left" or "right"
-
-      // ----------------------------------------------------------------
-      // RULE 2: Upward Propagation with Correct Inc Operations
-      // ----------------------------------------------------------------
-      while (currentParentId) {
-        const parentUser = await userModel.findById(currentParentId);
-        if (!parentUser) break;
-
-        const updateIncFields = {};
-
-        if (childPosition === "left") {
-          updateIncFields.leftBV = generatedBV;
-          updateIncFields.totalLeftBV = generatedBV;
-        } else if (childPosition === "right") {
-          updateIncFields.rightBV = generatedBV;
-          updateIncFields.totalRightBV = generatedBV;
-        }
-
-        if (Object.keys(updateIncFields).length > 0) {
-          await userModel.findByIdAndUpdate(currentParentId, {
-            $inc: updateIncFields,
-          });
-
-          // ------------------------------------------------------------
-          // RULE 3: Process Binary Pair Matching on updated parent
-          // ------------------------------------------------------------
-          await processBinaryPairMatching(currentParentId);
-        }
-
-        // Advance to Next Level up in Binary Tree
-        currentChildId = parentUser._id;
-        currentParentId = parentUser.parentAgentId;
-        childPosition = parentUser.position;
-      }
+    // 🔒 Security Guard 2: Verify Razorpay order binding
+    if (existingOrder.razorpayOrderId && existingOrder.razorpayOrderId !== razorpay_order_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Order ID mismatch with Razorpay transaction record.",
+      });
     }
+
+    // 3. Execute Order Fulfillment via Reusable Engine
+    const { alreadyProcessed, order: updatedOrder } = await executeOrderFulfillment({
+      orderId: dbOrderId,
+      razorpayPaymentId: razorpay_payment_id,
+      razorpayOrderId: razorpay_order_id,
+      userId: userId,
+    });
 
     return res.status(200).json({
       success: true,
-      message: "Payment verified & MLM points/commissions updated successfully",
+      message: alreadyProcessed
+        ? "Order was already processed successfully."
+        : "Payment verified & MLM points/commissions updated successfully.",
       dbOrderId: updatedOrder._id,
       receiptData: {
         receiptNumber: updatedOrder.receiptNumber,
@@ -317,13 +468,12 @@ export const verifyAndDistributeMLM = async (req, res) => {
         transactionId: razorpay_payment_id,
         razorpayOrderId: razorpay_order_id,
         amount: updatedOrder.totalAmount,
-        earnedPV: generatedBV,
+        earnedPV: updatedOrder.earnedPV,
         paidAt: updatedOrder.paidAt,
         paymentStatus: updatedOrder.paymentStatus,
         items: updatedOrder.items,
       },
     });
-
   } catch (error) {
     console.error("❌ Error in verifyAndDistributeMLM:", error);
     return res.status(500).json({ success: false, message: error.message });
@@ -331,7 +481,56 @@ export const verifyAndDistributeMLM = async (req, res) => {
 };
 
 /**
- * @desc    Fetch order receipt details by DB order ID
+ * @desc    Step 3: Razorpay Webhook Handler (Fail-Safe Server-to-Server Fallback)
+ * @route   POST /api/payment/webhook
+ */
+export const handleRazorpayWebhook = async (req, res) => {
+  try {
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || config.RAZORPAY_KEY_SECRET;
+    const webhookSignature = req.headers["x-razorpay-signature"];
+
+    if (!webhookSignature) {
+      return res.status(400).json({ success: false, message: "Missing webhook signature header." });
+    }
+
+    // Verify webhook signature with raw payload
+    const shasum = crypto.createHmac("sha256", webhookSecret);
+    shasum.update(JSON.stringify(req.body));
+    const digest = shasum.digest("hex");
+
+    if (digest !== webhookSignature) {
+      return res.status(400).json({ success: false, message: "Invalid webhook signature." });
+    }
+
+    const { event, payload } = req.body;
+
+    if (event === "order.paid" || event === "payment.captured") {
+      const paymentEntity = payload.payment.entity;
+      const razorpayOrderId = paymentEntity.order_id;
+      const razorpayPaymentId = paymentEntity.id;
+
+      // Find matching order by razorpayOrderId
+      const order = await orderModel.findOne({ razorpayOrderId: razorpayOrderId });
+      if (order && order.paymentStatus !== "PAID") {
+        await executeOrderFulfillment({
+          orderId: order._id,
+          razorpayPaymentId: razorpayPaymentId,
+          razorpayOrderId: razorpayOrderId,
+          userId: order.user,
+        });
+        console.log(`✅ [WEBHOOK SUCCESS] Order ${order._id} fulfilled via Razorpay webhook.`);
+      }
+    }
+
+    return res.status(200).json({ status: "ok" });
+  } catch (error) {
+    console.error("❌ Error processing Razorpay Webhook:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * @desc    Step 4: Fetch order receipt details by DB order ID
  * @route   GET /api/payment/order/:orderId
  */
 export const getOrderDetails = async (req, res) => {
